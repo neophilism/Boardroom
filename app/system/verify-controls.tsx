@@ -23,6 +23,14 @@ export default function VerifySetup(){
       const response=await fetch("/api/v1/owner/setup/verify",{
         method:"POST",credentials:"same-origin",cache:"no-store"
       });
+      if(response.status===401){
+        setMessage("Your owner session was not accepted. Sign out and sign in again, then retry.");
+        return;
+      }
+      if(response.status===403){
+        setMessage("Boardroom rejected the browser origin security check. Use the official Boardroom address, not a proxy or alias, then retry.");
+        return;
+      }
       if(!response.ok)throw new Error("Unable to verify service settings ("+response.status+")");
       const result=await response.json() as SetupEvidence;
       if(!result.databaseReady){
@@ -49,6 +57,8 @@ export default function VerifySetup(){
           headers:{"Content-Type":"application/json"},
           body:JSON.stringify({afterId:cursor,limit:3})
         });
+        if(sync.status===401)throw new Error("Owner session expired during repository import. Sign in again.");
+        if(sync.status===403)throw new Error("Browser origin security check rejected during import. Use the official Boardroom address.");
         if(!sync.ok)throw new Error("Repository import failed at batch "+(round+1)+" (HTTP "+sync.status+")");
         const batch=await sync.json() as SyncBatch;
         if(!Number.isSafeInteger(batch.processed)||batch.processed<0||batch.processed>3||
