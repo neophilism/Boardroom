@@ -32,7 +32,7 @@ export const REPOSITORY_CLAIM_QUERY = String.raw`
     WHERE w.repository_id = r.repository_id
       AND w.approved = TRUE
       AND w.state IN ('PENDING', 'ACTIVE', 'OPEN_PR','BLOCKED')
-      AND (w.state<>'BLOCKED' OR EXISTS(SELECT 1 FROM coffee_threads t JOIN coffee_messages m ON m.thread_id=t.thread_id WHERE t.repository_id=w.repository_id AND t.unit_id=w.unit_id AND t.status='ANSWERED' AND jsonb_array_length(m.evidence)>0))
+      AND (w.state<>'BLOCKED' OR EXISTS(SELECT 1 FROM coffee_threads t JOIN coffee_messages m ON m.thread_id=t.thread_id WHERE t.repository_id=w.repository_id AND t.unit_id=w.unit_id AND t.status='ANSWERED' AND m.message_kind='ANSWER' AND jsonb_array_length(m.evidence)>0))
       AND NOT EXISTS (
         SELECT 1
         FROM jsonb_array_elements_text(w.depends_on) AS dependency(id)

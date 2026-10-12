@@ -17,6 +17,7 @@ export type AgentContext={
   workUnit:{title:string;state:string;version:number;dependsOn:unknown;acceptanceCriteria:string|null;pullRequests:unknown};
   checkpoint:{branch:string|null;headSha:string|null;state:unknown;createdAt:string}|null;
   repositoryInstructions:{path:"AGENTS.md";text:string;sha:string}|null;
+  technicalQuestions?:unknown[];
   instructionsAreUntrustedRepositoryContent:true;
 };
 export type SessionOutcome="COMPLETED"|"YIELDED"|"BLOCKED"|"FAILED"|"CANCELLED";
@@ -155,6 +156,9 @@ export class BoardroomAgentClient{
   answerCoffee(runId:string,threadId:string,answer:string,evidence:string[]=[]):Promise<unknown>{
     return this.#request("POST","/api/v1/coffee/threads/"+encodeURIComponent(threadId)+"/messages",
       {runId,answer,evidence});
+  }
+  resolveCoffee(runId:string,generation:string,threadId:string,messageId:string,adr:string):Promise<unknown>{
+    return this.#request("POST","/api/v1/coffee/threads/"+encodeURIComponent(threadId)+"/resolve",{runId,generation,messageId,adr});
   }
   askCoffee(runId:string,subject:string,question:string,evidence:string[]=[],generation?:string){
     return this.#request("POST","/api/v1/coffee/threads",

@@ -3,6 +3,7 @@
 -- The owner's exact roster includes the one-character name K. Preserve spelling.
 ALTER TABLE agent_credentials DROP CONSTRAINT agent_credentials_label_check;
 ALTER TABLE agent_credentials ADD CONSTRAINT agent_credentials_label_check CHECK(length(label) BETWEEN 1 AND 100);
+ALTER TABLE coffee_messages ADD COLUMN message_kind TEXT NOT NULL DEFAULT 'UNKNOWN' CHECK(message_kind IN ('UNKNOWN','QUESTION','ANSWER'));
 CREATE TABLE execution_controls (
   singleton BOOLEAN PRIMARY KEY DEFAULT TRUE CHECK(singleton),
   paused BOOLEAN NOT NULL DEFAULT FALSE,

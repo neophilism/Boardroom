@@ -58,7 +58,7 @@ export async function openCoffeeThread(db:Pool,credentialId:string,input:ThreadI
       [repoId,unitId,subject,input.runId]
     );
     await client.query(
-      "INSERT INTO coffee_messages(thread_id,author_run_id,content,evidence) VALUES($1,$2,$3,$4::jsonb)",
+      "INSERT INTO coffee_messages(thread_id,author_run_id,content,evidence,message_kind) VALUES($1,$2,$3,$4::jsonb,'QUESTION')",
       [row.rows[0].thread_id,input.runId,question,JSON.stringify(evidence)]
     );
     await client.query("INSERT INTO audit_events(run_id,repository_id,kind,details) VALUES($1,$2,'coffee.question.created',$3::jsonb)",
@@ -83,7 +83,7 @@ export async function answerCoffeeThread(
     if(!thread.rowCount||["RESOLVED","CLOSED"].includes(thread.rows[0].status))
       throw new CoffeeError("Question is not open for answers");
     const msg=await client.query<{message_id:string}>(
-      "INSERT INTO coffee_messages(thread_id,author_run_id,content,evidence) VALUES($1,$2,$3,$4::jsonb) RETURNING message_id",
+      "INSERT INTO coffee_messages(thread_id,author_run_id,content,evidence,message_kind) VALUES($1,$2,$3,$4::jsonb,'ANSWER') RETURNING message_id",
       [threadId,runId,answer,JSON.stringify(evidence)]
     );
     await client.query(

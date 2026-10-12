@@ -21,7 +21,7 @@ export async function resolveCoffeeAnswer(db:Pool,runId:string,credentialId:stri
     const scope=await assignedScope(client,runId,credentialId,generation,true),proof=parseAdrEvidence(adr,scope.full_name);
     const thread=await client.query<{unit_id:string;repository_id:string}>("SELECT repository_id::text,unit_id FROM coffee_threads WHERE thread_id=$1 AND status='ANSWERED' FOR UPDATE",[threadId]);
     if(thread.rows[0]?.repository_id!==scope.repository_id||thread.rows[0]?.unit_id!==scope.unit_id)throw new SessionConflict("Question is outside assigned work");
-    const answer=await client.query("SELECT message_id FROM coffee_messages WHERE message_id=$1 AND thread_id=$2 AND jsonb_array_length(evidence)>0",[messageId,threadId]);
+    const answer=await client.query("SELECT message_id FROM coffee_messages WHERE message_id=$1 AND thread_id=$2 AND message_kind='ANSWER' AND jsonb_array_length(evidence)>0",[messageId,threadId]);
     if(!answer.rowCount)throw new SessionConflict("Answer needs documented source evidence");
     const file=await githubAppRequest('GET',repositoryApiPath(scope.full_name)+'/contents/'+proof.path.split('/').map(encodeURIComponent).join('/')+'?ref='+proof.sha) as {type:string;size:number};
     if(file.type!=='file'||file.size<15||file.size>100000)throw new SessionConflict("ADR could not be verified in GitHub");
