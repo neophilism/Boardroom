@@ -10,7 +10,17 @@ export default function LoginPage(){
     event.preventDefault();setBusy(true);setError("");
     try{
       const r=await fetch("/api/v1/owner/login",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify({token}),cache:"no-store"});
-      if(!r.ok){setError("Sign-in failed. Check the credential or server configuration.");return;}
+      if(!r.ok){
+        if(r.status===401)
+          setError("Boardroom did not accept that owner credential. Use the exact BOARDROOM_OWNER_API_TOKEN from Render—not the session secret or credential pepper. No extra quotation marks or spaces.");
+        else if(r.status===503)
+          setError("Boardroom owner sign-in is unavailable because of its server configuration. Check the Render service environment and redeploy, then try again.");
+        else if(r.status===429)
+          setError("Too many sign-in attempts. Wait before trying again.");
+        else
+          setError("The sign-in request was rejected (HTTP "+r.status+"). Please retry.");
+        return;
+      }
       setToken("");router.replace("/owner-actions");router.refresh();
     }catch{setError("Boardroom is unreachable.");}
     finally{setBusy(false);}
