@@ -1,5 +1,5 @@
 import type { Pool } from "pg";
-import { isValidRunId, isValidGeneration, SessionConflict } from "./sessions";
+import { isValidRunId, isValidGeneration, SessionConflict } from "./sessions.ts";
 
 export type OwnerActionType = "ACCOUNT"|"CREDENTIAL"|"PURCHASE"|"APPROVAL"|"HUMAN_INPUT"|"OTHER";
 export type OwnerActionInput = {
