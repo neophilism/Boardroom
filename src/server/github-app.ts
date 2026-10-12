@@ -134,9 +134,11 @@ export async function fetchRepositoryInstruction(fullName:string,path:"AGENTS.md
  * Never expose the installation token or unsanitized response bodies to callers.
  */
 export class GitHubAppError extends Error{
-  constructor(public readonly httpStatus:number){
+  readonly httpStatus:number;
+  constructor(httpStatus:number){
     super("GitHub installation operation failed: HTTP "+httpStatus);
     this.name="GitHubAppError";
+    this.httpStatus=httpStatus;
   }
 }
 export async function githubAppRequest(method:"GET"|"POST"|"PUT",path:string,body?:unknown):Promise<unknown>{
