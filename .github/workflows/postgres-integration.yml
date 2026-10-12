@@ -1,0 +1,38 @@
+name: Verify Boardroom database concurrency
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  postgres:
+    name: Real PostgreSQL 17 lease and fencing tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: boardroom_test
+          POSTGRES_USER: boardroom_ci
+          POSTGRES_PASSWORD: ci_only_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U boardroom_ci -d boardroom_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgres://boardroom_ci:ci_only_password@127.0.0.1:5432/boardroom_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --no-audit --no-fund
+      - name: Apply exact production schema migrations
+        run: npm run migrate
+      - name: Real concurrent claim and fencing tests
+        run: node --experimental-strip-types --test tests-integration/*.test.ts
