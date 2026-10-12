@@ -1,9 +1,9 @@
 {
   "repository": "neophilism/Boardroom",
   "title": "Boardroom",
-  "version": 1,
+  "version": 2,
   "planVerified": true,
-  "plannedPrCount": 78,
+  "plannedPrCount": 80,
   "sourceFiles": [
     "docs/DEVELOPMENT_PLAN.md",
     "docs/ARCHITECTURE.md",
@@ -1491,6 +1491,43 @@
       "acceptanceCriteria": "Evidence-linked acceptance matrix passes; no claim of production completion until verified on live integrations.",
       "verification": [
         "Evidence-linked acceptance matrix passes; no claim of production completion until verified on live integrations."
+      ],
+      "pullRequests": []
+    },
+    {
+      "id": "BR-079",
+      "title": "Owner-approved agent display-name roster and canonical registry",
+      "origin": "addition",
+      "priority": "P0",
+      "phase": "F2",
+      "dependsOn": [
+        "BR-001"
+      ],
+      "scope": [
+        "Store all owner-supplied names exactly in a complete human-readable document and a machine-readable allowlist; test count, uniqueness and punctuation."
+      ],
+      "acceptanceCriteria": "Every owner-submitted name appears exactly once and remains stable; invalid or altered names are not silently accepted.",
+      "verification": [
+        "Repository tests confirm a one-to-one correspondence between document and canonical JSON names."
+      ],
+      "pullRequests": []
+    },
+    {
+      "id": "BR-080",
+      "title": "Credential-bound recurring agent names, enforcement and API identity",
+      "origin": "addition",
+      "priority": "P0",
+      "phase": "F2",
+      "dependsOn": [
+        "BR-079",
+        "BR-003"
+      ],
+      "scope": [
+        "Bind each scheduled-task credential to one approved stable display name at registration; reject unknown names at admission; return server-verified name and runId; add validation tests and registration guidance."
+      ],
+      "acceptanceCriteria": "Claimed names never authenticate a session by themselves; valid named credential resolves consistently across activations; unauthorized names are denied and credential identity cannot be overridden.",
+      "verification": [
+        "Tests verify exact-case approved names, invalid names, repeated activations, impersonation attempts, and no secrets in public source."
       ],
       "pullRequests": []
     }

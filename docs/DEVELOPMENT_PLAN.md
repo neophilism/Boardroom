@@ -672,3 +672,13 @@
 - **Gate D — Development loop (through BR-042):** One real scheduled activation changes code, creates a mapped PR, verifies results, and checkpoints.
 - **Gate E — Collaboration and safety (through BR-060):** Coffee question answered and meaningful crash injected with successful fenced recovery.
 - **Gate F — Production (BR-078):** 50-style activation-source onboarding, provider-agnostic conformance, owner dashboard, audit, and resilience proven. Do not claim completion before production acceptance.
+
+## Approved additions — stable scheduled-agent names (Version 2)
+
+### BR-079 — Owner-approved agent roster
+
+Maintain all 601 owner-supplied names exactly, including punctuation and case, in `docs/AGENT_NAMES.md` and `registry/agent-names.json`. This roster is an explicit **display-name allowlist**, not an authentication mechanism. Test exact text and uniqueness. (Depends on BR-001.)
+
+### BR-080 — Server-verified named identity
+
+Each scheduled task receives one owner-assigned name from the roster and retains it on every hourly activation; its run ID remains new every time. Bind the name to a unique secret credential or trusted provider authentication and derive it server-side. Do not accept name claims as proof of identity. Reject unregistered names at onboarding/admission and return the verified display name with session details. No raw bearer token or personal details may be committed to GitHub. (Depends on BR-079 and BR-003.)
