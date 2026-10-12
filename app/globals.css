@@ -49,3 +49,17 @@ button.outline{background:transparent;color:#bedbe8;border:1px solid #6f899a}
 .priority-fallback{padding-left:0;list-style:none;display:grid;gap:8px}
 .priority-fallback li{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;border-bottom:1px solid #30475b;padding:10px 0;font-size:14px}
 .priority-fallback span{color:#9bb4c6}
+
+/* Read-only live owner Work Board */
+.work-nav{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.work-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(440px,100%),1fr));gap:16px}
+.work-card{border:1px solid #314a5d;background:#102033;border-radius:15px;padding:24px;overflow-wrap:anywhere}
+.work-card h2{font-size:20px;line-height:1.3;margin:16px 0 12px}
+.work-card h2 a{color:#d5f0fb;text-decoration:none}
+.work-card h2 a:hover{text-decoration:underline}
+.work-card p{font-size:14px;line-height:1.6}
+.work-details{display:grid;grid-template-columns:170px minmax(0,1fr);gap:9px 12px;padding-top:14px;margin:18px 0 0;border-top:1px solid #30475b}
+.work-details dt{color:#8eacbf;font-size:13px}
+.work-details dd{font-size:13px;margin:0;overflow-wrap:anywhere}
+.work-card .work-warning{margin:18px 0 0;color:#f5d2ad;border-top:1px solid #795d44;padding-top:12px}
+@media(max-width:540px){.work-details{grid-template-columns:1fr;gap:5px}.work-details dd{margin-bottom:10px}}
