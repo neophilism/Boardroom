@@ -31,11 +31,12 @@ test("upsert requires bounded utf8, explicit optimistic SHA and safe message",()
   assert.throws(()=>parseGithubWrite({kind:"upsert_file",path:"src/index.ts",
     contentBase64:b64,message:"feat: change",expectedSha:"notasha"}),GithubWriteValidation);
 });
-test("create branch and draft PR are the only other authorized operations",()=>{
+test("branch, draft PR and review readiness do not grant arbitrary merge or deletion",()=>{
   assert.deepEqual(parseGithubWrite({kind:"ensure_branch"}),{kind:"ensure_branch"});
   assert.deepEqual(parseGithubWrite({kind:"open_draft_pr",description:"Tests passed."}),
     {kind:"open_draft_pr",description:"Tests passed."});
   assert.throws(()=>parseGithubWrite({kind:"merge_pr"}),GithubWriteValidation);
+  assert.deepEqual(parseGithubWrite({kind:"ready_pr",number:1}),{kind:"ready_pr",number:1});
   assert.throws(()=>parseGithubWrite({kind:"delete_branch"}),GithubWriteValidation);
 });
 test("run and lease generation must be explicitly provided",()=>{

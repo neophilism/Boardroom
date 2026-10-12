@@ -44,13 +44,21 @@ export const REPOSITORY_CLAIM_QUERY = String.raw`
         JOIN owner_actions action ON action.action_id = dep.action_id
         WHERE dep.repository_id = r.repository_id
           AND (dep.unit_id IS NULL OR dep.unit_id = w.unit_id)
-          AND action.status IN ('OPEN','ACKNOWLEDGED','AWAITING_VERIFICATION')
+          AND action.status NOT IN ('VERIFIED','CANCELLED')
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM compatibility_dependencies d
+        JOIN roadmap_units prerequisite ON prerequisite.repository_id=d.prerequisite_repository_id
+          AND prerequisite.unit_id=d.prerequisite_unit_id
+        WHERE d.repository_id=w.repository_id AND d.unit_id=w.unit_id
+          AND prerequisite.state NOT IN ('MERGED','ACCEPTED')
       )
     ORDER BY CASE WHEN w.state = 'ACTIVE' THEN 0 ELSE 1 END, w.unit_id
     LIMIT 1
   ) chosen ON TRUE
   WHERE r.enabled = TRUE AND r.archived = FALSE
     AND l.run_id IS NULL
+    AND NOT EXISTS (SELECT 1 FROM execution_controls WHERE singleton=TRUE AND paused=TRUE)
   ORDER BY
     CASE WHEN p.position IS NULL THEN 1 ELSE 0 END,
     p.position ASC NULLS LAST,

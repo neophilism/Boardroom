@@ -5,6 +5,7 @@ import {OWNER_COOKIE,validOwnerSession} from "../../src/server/owner-session";
 import {getDatabase} from "../../src/server/db";
 import {getRecoveryOverview} from "../../src/server/recovery-overview";
 import {formatEastern} from "../../src/domain/work-board";
+import RecoveryControls from "./controls";
 
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
@@ -20,7 +21,7 @@ export default async function RecoveryPage(){
         <Link className="priority-nav" href="/owner-actions">Owner actions</Link>
       </nav>
     </header>
-    <p>This page identifies repositories whose previous execution needs fencing or human verification. Expired heartbeats cannot, by themselves, prove that an agent has stopped. No controls on this page release a lease.</p>
+    <p>Verify termination or isolation of outside execution before recovery. Recovery revokes the old credential and fences its run before releasing the repository. An expired heartbeat alone is insufficient.</p>
     <div className="summary-strip"><strong>{entries.length}</strong> sessions requiring review</div>
     {entries.length===0?<section className="action-card"><h2>No recovery holds found</h2><p>The watchdog must be securely scheduled before this can be treated as active monitoring.</p></section>:
       <section className="work-grid">{entries.map(e=><article key={e.repositoryId} className="work-card">
@@ -36,6 +37,7 @@ export default async function RecoveryPage(){
         </dl>
         <p className="work-warning">Hold repository assignment until the former worker is proven terminated or its write capability is fenced.</p>
         {e.ownerActionId&&<Link className="priority-nav" href="/owner-actions">Review owner request</Link>}
+        <RecoveryControls runId={e.runId}/>
       </article>)}</section>}
     {entries.length>=200&&<p>Showing the first 200 records. Investigate using audit evidence for additional sessions.</p>}
   </main>;

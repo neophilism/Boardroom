@@ -1,5 +1,5 @@
 import {getDatabase} from "./db.ts";
-import {listAppRepositories,fetchPullRequests,fetchCanonicalRoadmap,type GitHubRepository,type GitHubPull} from "./github-app.ts";
+import {listAppRepositories,fetchPullRequests,fetchCanonicalRoadmap,githubAppRequest,type GitHubRepository,type GitHubPull} from "./github-app.ts";
 import {normalizeRoadmap} from "./roadmap-import.ts";
 
 function activityDate(repo:GitHubRepository,pulls:readonly GitHubPull[]):string|null{
@@ -81,6 +81,18 @@ async function syncOne(repository:GitHubRepository):Promise<"VERIFIED"|"MISSING"
     return plan.verified?"VERIFIED":"MISSING";
   }catch(error){await client.query("ROLLBACK");throw error}
   finally{client.release()}
+}
+
+export async function synchronizeRepositoryById(repositoryId:string){
+  if(!/^[1-9][0-9]{0,18}$/.test(repositoryId))throw new Error("Invalid repository identity");
+  const db=getDatabase();
+  const known=await db.query<{full_name:string}>("SELECT full_name FROM repositories WHERE repository_id=$1",[repositoryId]);
+  if(!known.rowCount)throw new Error("Repository not registered");
+  const fullName=known.rows[0].full_name;
+  if(!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(fullName))throw new Error("Invalid registered repository");
+  const repository=await githubAppRequest("GET","/repos/"+fullName) as GitHubRepository;
+  if(String(repository.id)!==repositoryId)throw new Error("Immutable repository identity changed");
+  return syncOne(repository);
 }
 
 export async function synchronizeInstalledRepositories(options:RepositorySyncOptions={}):Promise<SyncReport>{

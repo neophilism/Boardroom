@@ -3,7 +3,7 @@
 ## Verified status, October 12 2026
 - GitHub source: `neophilism/Boardroom`, public repository; operational Boardroom UI remains owner-authenticated.
 - Neon: a dedicated **Boardroom** project has been created in `aws-us-east-2`. The five SQL migrations were applied transactionally and the migration ledger verified. Do not paste the connection string into source control.
-- Render: no Boardroom service has been deployed or verified.
+- Render: the existing `boardroom` web service is deployed at https://boardroom-iamn.onrender.com. Process/readiness checks do not establish autonomous execution.
 - ChatGPT hourly scheduled-task integration: no successful live end-to-end proof yet.
 
 ## Required environment variables
@@ -21,7 +21,7 @@ Do not expose values in docs, Coffee Corner, logs, user-facing check responses, 
 - Use the approved Render workspace and a service on a supported plan.
 - Repository: `https://github.com/neophilism/Boardroom`
 - Runtime: Node 22
-- Build command: `npm install --no-audit --no-fund && npm run build`
+- Build command: `npm ci --no-audit --no-fund && npm run build`
 - Start command: `npm run start -- -p ${PORT:-10000}`
 - Health endpoint: `/api/health` indicates process liveness, not operational readiness.
 - Readiness endpoint: `/api/ready` returns 503 when required secrets, DB access, or schema migrations are absent.
@@ -30,7 +30,7 @@ Do not expose values in docs, Coffee Corner, logs, user-facing check responses, 
 
 ## Existing DB schema
 
-The migration runner checks hashes in `schema_migrations` and refuses modified historical SQL. Always review new migrations before running on any nonempty database. The initial five migrations are applied, but no credential registrations or agent executions have been proven.
+The migration runner checks hashes in `schema_migrations` and refuses modified historical SQL. Always review new migrations before running on any nonempty database. The initial five migrations were verified on the existing deployment. Migration 0006 must pass isolated PostgreSQL and Neon branch validation before deploying the execution batch. No named agent execution is claimed by code tests.
 
 ## Production acceptance still pending
 
@@ -42,3 +42,7 @@ The migration runner checks hashes in `schema_migrations` and refuses modified h
 6. Watchdog and crash recovery tested; cost and security gates reviewed.
 
 Never say Boardroom is autonomous or production ready until these tests pass.
+
+## October 12 execution batch
+
+See `EXECUTION_PROTOCOL.md` and `HOSTED_WORKER_SETUP.md`. Local checks and CI validate code, including a 500-arrival PostgreSQL contention test; they do not satisfy live production gates. Neon branch creation returned an authentication error during this session, so branch migration validation remains blocked. Existing GitHub App setup previously reported an invalid signing key; PR #41 fixes valid PEM copy formats but cannot reconstruct a missing or truncated key. The hosted and maintenance workflows are disabled until protected credentials and limits are configured.

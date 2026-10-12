@@ -116,3 +116,41 @@ test("fenced owner completes and releases, then a distinct activation becomes el
   const claim=await claimAssignment(db,result.runId,credentials[3]);
   assert.equal(claim?.repositoryId,repoIds[1],"Highest-priority repo wins after release");
 });
+
+test("500 named activations contend for 50 repos without duplicate ownership",async()=>{
+  const {readFile}=await import("node:fs/promises");
+  const {createHash}=await import("node:crypto");
+  const roster=JSON.parse(await readFile(new URL("../registry/agent-names.json",import.meta.url),"utf8")) as {names:string[]};
+  const names=roster.names.filter(n=>!["Smith","Eve","Gort","C-3PO"].includes(n)).slice(0,500);
+  await db.query("UPDATE repositories SET enabled=FALSE WHERE repository_id=ANY($1::bigint[])",[repoIds]);
+  const stressIds=Array.from({length:50},(_,i)=>String(920001000+i));
+  for(const [i,id] of stressIds.entries()){
+    await db.query("INSERT INTO repositories(repository_id,full_name,created_at) VALUES($1,$2,now())",[id,"ci/stress-"+i]);
+    await db.query("INSERT INTO repository_leases(repository_id) VALUES($1)",[id]);
+    await db.query("INSERT INTO roadmap_units(repository_id,unit_id,title,version,approved) VALUES($1,'STRESS-001','Concurrency fixture',1,TRUE)",[id]);
+  }
+  const identities:{id:string;run:string}[]=[];
+  for(const [i,name] of names.entries()){
+    const credential=await db.query<{credential_id:string}>("INSERT INTO agent_credentials(label,provider,token_digest) VALUES($1,'test',$2) RETURNING credential_id",
+      [name,createHash("sha256").update("fixture-stress-"+i).digest("hex")]);
+    const id=credential.rows[0].credential_id;
+    const admitted=await admitAgentRun(db,{credentialId:id,label:name,provider:"test"},null);
+    if(admitted.kind!=="CREATED")throw new Error("Expected new fixture activation");
+    identities.push({id,run:admitted.runId});
+  }
+  const claimed=await Promise.all(identities.map(x=>claimAssignment(db,x.run,x.id)));
+  const active=claimed.filter((x):x is ClaimedAssignment=>x!==null);
+  assert.equal(identities.length,500);assert.equal(active.length,50);
+  assert.equal(new Set(active.map(x=>x.repositoryId)).size,50);
+  const current=await db.query<{count:string}>("SELECT COUNT(*)::text AS count FROM repository_leases WHERE repository_id=ANY($1::bigint[]) AND run_id IS NOT NULL",[stressIds]);
+  assert.equal(current.rows[0].count,"50");
+  const picked=claimed.findIndex(x=>x!==null),grant=claimed[picked]!;
+  const {recoverRun}=await import("../src/server/operations.ts");
+  const {assignedScope}=await import("../src/server/assignment-scope.ts");
+  await recoverRun(db,identities[picked].run,true);
+  await assert.rejects(assignedScope(db,identities[picked].run,identities[picked].id,grant.generation),SessionConflict);
+  const revoked=await db.query<{enabled:boolean}>("SELECT enabled FROM agent_credentials WHERE credential_id=$1",[identities[picked].id]);
+  assert.equal(revoked.rows[0].enabled,false);
+  const newLease=await db.query<{generation:string;run_id:string|null}>("SELECT generation::text,run_id FROM repository_leases WHERE repository_id=$1",[grant.repositoryId]);
+  assert.ok(BigInt(newLease.rows[0].generation)>BigInt(grant.generation));assert.equal(newLease.rows[0].run_id,null);
+});

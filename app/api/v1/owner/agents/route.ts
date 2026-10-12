@@ -1,5 +1,6 @@
+import {cookies} from "next/headers";
 import {NextResponse} from "next/server";
-import {authorizeOwnerRequest} from "../../../../../src/server/owner-session";
+import {authorizeOwnerRequest,OWNER_COOKIE,OwnerOriginRejected} from "../../../../../src/server/owner-session";
 import {UnauthorizedOwner} from "../../../../../src/server/owner-auth";
 import {getDatabase} from "../../../../../src/server/db";
 import {listRegisteredAgents,registerNamedAgent,AgentRegistrationError,
@@ -10,10 +11,11 @@ const headers={"Cache-Control":"no-store","Pragma":"no-cache"};
 
 export async function GET(request:Request){
   try{
-    authorizeOwnerRequest(request);
+    authorizeOwnerRequest(request,false,(await cookies()).get(OWNER_COOKIE)?.value);
     const agents=await listRegisteredAgents(getDatabase());
     return NextResponse.json({agents},{headers});
   }catch(error){
+    if(error instanceof OwnerOriginRejected)return NextResponse.json({error:"Origin rejected"},{status:403});
     if(error instanceof UnauthorizedOwner)
       return NextResponse.json({error:"Unauthorized"},{status:401,headers});
     console.error("Owner agent list unavailable");
@@ -22,13 +24,14 @@ export async function GET(request:Request){
 }
 export async function POST(request:Request){
   try{
-    authorizeOwnerRequest(request,true);
+    authorizeOwnerRequest(request,true,(await cookies()).get(OWNER_COOKIE)?.value);
     const body:unknown=await request.json().catch(()=>null);
     const pepper=process.env.BOARDROOM_TOKEN_PEPPER??"";
     const issued=await registerNamedAgent(getDatabase(),body,pepper);
     // This one-time response must not be logged, cached or persisted by clients.
     return NextResponse.json(issued,{status:201,headers});
   }catch(error){
+    if(error instanceof OwnerOriginRejected)return NextResponse.json({error:"Origin rejected"},{status:403});
     if(error instanceof UnauthorizedOwner)
       return NextResponse.json({error:"Unauthorized"},{status:401,headers});
     if(error instanceof AgentAlreadyRegistered)

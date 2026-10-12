@@ -1,0 +1,28 @@
+name: Boardroom maintenance
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '*/10 * * * *'
+permissions:
+  contents: read
+jobs:
+  maintain:
+    if: vars.BOARDROOM_MAINTENANCE_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: boardroom-maintenance
+    concurrency:
+      group: boardroom-maintenance
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node scripts/maintenance.mjs
+        env:
+          BOARDROOM_MAINTENANCE_ENABLED: ${{ vars.BOARDROOM_MAINTENANCE_ENABLED }}
+          BOARDROOM_BASE_URL: ${{ vars.BOARDROOM_BASE_URL }}
+          BOARDROOM_WATCHDOG_TOKEN: ${{ secrets.BOARDROOM_WATCHDOG_TOKEN }}
