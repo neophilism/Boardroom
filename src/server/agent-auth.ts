@@ -1,6 +1,6 @@
 import { createHmac } from "node:crypto";
 import type { Pool } from "pg";
-import { isApprovedAgentName } from "../domain/agent-names";
+import { isApprovedAgentName } from "../domain/agent-names.ts";
 
 export class InvalidAgentCredential extends Error {
   constructor() { super("Invalid agent credential"); this.name = "InvalidAgentCredential"; }
