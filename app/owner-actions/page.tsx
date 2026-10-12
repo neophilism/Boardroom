@@ -1,5 +1,6 @@
 import {cookies} from "next/headers";
 import {redirect} from "next/navigation";
+import Link from "next/link";
 import {OWNER_COOKIE,validOwnerSession} from "../../src/server/owner-session";
 import {getDatabase} from "../../src/server/db";
 import OwnerActionControls from "./controls";
@@ -21,6 +22,7 @@ export default async function OwnerActionsPage(){
   return <main className="owner-shell">
     <header className="owner-header">
       <div><p className="eyebrow">BOARDROOM / OWNER ACTION BOARD</p><h1>Needs your attention</h1></div>
+      <Link className="priority-nav" href="/priorities">Repository priorities</Link>
       <form action="/api/v1/owner/logout" method="post"><button type="submit" className="outline">Sign out</button></form>
     </header>
     <p>Agent-submitted requests requiring an account, permission, purchase, or decision. Enter credentials only in the designated external service’s secure configuration.</p>
