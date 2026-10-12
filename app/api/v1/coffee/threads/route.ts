@@ -1,7 +1,8 @@
+import {cookies} from "next/headers";
 import {NextResponse} from "next/server";
 import {getDatabase} from "../../../../../src/server/db";
 import {authenticateAgent,InvalidAgentCredential} from "../../../../../src/server/agent-auth";
-import {authorizeOwnerRequest} from "../../../../../src/server/owner-session";
+import {authorizeOwnerRequest,OWNER_COOKIE} from "../../../../../src/server/owner-session";
 import {UnauthorizedOwner} from "../../../../../src/server/owner-auth";
 import {openCoffeeThread,CoffeeError} from "../../../../../src/server/coffee";
 export const runtime="nodejs";
@@ -33,7 +34,7 @@ export async function GET(request:Request){
     const db=getDatabase();
     try{await authenticateAgent(request.headers,db)}catch(e){
       if(!(e instanceof InvalidAgentCredential))throw e;
-      authorizeOwnerRequest(request);
+      authorizeOwnerRequest(request,false,(await cookies()).get(OWNER_COOKIE)?.value);
     }
     const status=new URL(request.url).searchParams.get("status");
     if(status&&!["OPEN","ANSWERED","RESOLVED","CLOSED"].includes(status))
