@@ -1,0 +1,56 @@
+import type {Pool} from "pg";
+import {checkReadiness} from "./readiness.ts";
+import {githubAppRequest} from "./github-app.ts";
+
+export type SystemStatus={
+  database:{connected:boolean;migrationsReady:boolean;repositories:number;registeredAgents:number;openOwnerActions:number};
+  github:{configured:boolean;verifiedConnected:boolean;visibleRepositories:number|null};
+  integration:{scheduledWorkTested:false;liveCodeWriteTested:false;safeAutonomousOperations:false};
+};
+
+export function hasGitHubAppEnvironment(env:NodeJS.ProcessEnv):boolean{
+  return [
+    "BOARDROOM_GITHUB_APP_ID","BOARDROOM_GITHUB_INSTALLATION_ID",
+    "BOARDROOM_GITHUB_APP_PRIVATE_KEY","BOARDROOM_GITHUB_OWNER"
+  ].every(k=>typeof env[k]==="string"&&!!env[k]);
+}
+
+export async function getSystemStatus(db:Pool,env:NodeJS.ProcessEnv):Promise<SystemStatus>{
+  let database:SystemStatus["database"]={
+    connected:false,migrationsReady:false,repositories:0,registeredAgents:0,openOwnerActions:0
+  };
+  try{
+    const readiness=await checkReadiness(db,env);
+    const stats=await db.query<{
+      repositories:string;registered_agents:string;open_owner_actions:string
+    }>(
+      "SELECT (SELECT COUNT(*) FROM repositories)::text AS repositories,"+
+      "(SELECT COUNT(*) FROM agent_credentials WHERE enabled=TRUE AND revoked_at IS NULL)::text AS registered_agents,"+
+      "(SELECT COUNT(*) FROM owner_actions WHERE status IN ('OPEN','ACKNOWLEDGED','AWAITING_VERIFICATION'))::text AS open_owner_actions"
+    );
+    database={connected:true,migrationsReady:readiness,
+      repositories:Number(stats.rows[0].repositories),
+      registeredAgents:Number(stats.rows[0].registered_agents),
+      openOwnerActions:Number(stats.rows[0].open_owner_actions)};
+  }catch{
+    // Private owner sees a clear failure rather than speculative green status.
+  }
+  let github:SystemStatus["github"]={
+    configured:hasGitHubAppEnvironment(env),verifiedConnected:false,visibleRepositories:null
+  };
+  if(github.configured){
+    try{
+      const evidence=await githubAppRequest("GET","/installation/repositories?per_page=1") as
+        {total_count?:number;repositories?:unknown[]};
+      if(Number.isSafeInteger(evidence.total_count)&&
+         (evidence.total_count as number)>=0&&Array.isArray(evidence.repositories)){
+        github={configured:true,verifiedConnected:true,visibleRepositories:evidence.total_count as number};
+      }
+    }catch{
+      // Invalid installation or denied scope is not proof of connected access.
+    }
+  }
+  return {database,github,integration:{
+    scheduledWorkTested:false,liveCodeWriteTested:false,safeAutonomousOperations:false
+  }};
+}

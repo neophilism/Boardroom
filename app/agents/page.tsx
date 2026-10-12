@@ -21,6 +21,7 @@ export default async function AgentAdministrationPage(){
         <Link className="priority-nav" href="/work-board">Work Board</Link>
         <Link className="priority-nav" href="/priorities">Priorities</Link>
         <Link className="priority-nav" href="/coffee">Coffee Corner</Link>
+        <Link className="priority-nav" href="/system">System status</Link>
       </nav>
     </header>
     <p>Choose a stable approved name for each separate scheduled activation source. Every task may use the same instructions, apart from the name. Boardroom verifies names using separately registered credentials; saying a name never grants access.</p>
