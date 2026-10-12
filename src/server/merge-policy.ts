@@ -1,11 +1,19 @@
 import type {Pool} from "pg";
 import {assignedScope,repositoryApiPath} from "./assignment-scope.ts";
-import {githubAppRequest,GitHubAppError} from "./github-app.ts";
+import {githubAppRequest,GitHubAppError,fetchPullRequests,type GitHubPull} from "./github-app.ts";
+import {titleWorkUnitIds} from "./roadmap-import.ts";
 import {safeWorkBranch} from "./github-write-gateway.ts";
 import {assessObservedChecks,type CheckRun,type LegacyStatus} from "./pr-evidence.ts";
 import {SessionConflict} from "./sessions.ts";
 
 export type MergePolicy={auto_merge:boolean;required_checks:string[];minimum_reviews:number};
+export function aggregateLinkedPrState(unitId:string,linked:number[],pulls:readonly GitHubPull[],confirmedMerged:number):"MERGED"|"OPEN_PR"|"UNKNOWN"{
+  const numbers=[...new Set([...linked,confirmedMerged,...pulls.filter(p=>titleWorkUnitIds(p.title).includes(unitId)).map(p=>p.number)])];
+  const remaining=numbers.filter(n=>n!==confirmedMerged).map(n=>pulls.find(p=>p.number===n));
+  if(remaining.some(p=>!p))return "UNKNOWN";
+  if(remaining.some(p=>p?.state==="open"))return "OPEN_PR";
+  return remaining.every(p=>!!p?.merged_at)?"MERGED":"UNKNOWN";
+}
 export type MergeFacts={
   draft:boolean;state:string;headSha:string;expectedSha:string;branch:string;expectedBranch:string;
   repositoryId:string;expectedRepositoryId:string;mergeStateStatus:string;reviewDecision:string|null;
@@ -51,12 +59,20 @@ export async function mergeAssignedPullRequest(db:Pool,runId:string,credentialId
       WHERE d.repository_id=$1 AND d.unit_id=$2 AND w.state NOT IN ('MERGED','ACCEPTED') LIMIT 1`,[scope.repository_id,scope.unit_id]);
     if(incompatible.rowCount)throw new SessionConflict("Cross-repository compatibility prerequisite unresolved");
     const api=repositoryApiPath(scope.full_name);
+    async function reconcileMergedUnit(){
+      const refs=await client.query<{planned_prs:unknown}>("SELECT planned_prs FROM roadmap_units WHERE repository_id=$1 AND unit_id=$2",[scope.repository_id,scope.unit_id]);
+      const links=refs.rows[0]?.planned_prs;
+      if(!Array.isArray(links)||links.some(n=>!Number.isSafeInteger(n)||n<1))throw new SessionConflict("Approved PR references unavailable");
+      const observed=aggregateLinkedPrState(scope.unit_id,links,await fetchPullRequests(scope.full_name),number);
+      await client.query("UPDATE roadmap_units SET state=CASE WHEN state='ACCEPTED' THEN state ELSE $3 END,source_observed_at=now() WHERE repository_id=$1 AND unit_id=$2",[scope.repository_id,scope.unit_id,observed]);
+      return observed;
+    }
     const pr=await githubAppRequest("GET",api+"/pulls/"+number) as {
       state:string;draft:boolean;merged:boolean;head:{sha:string;ref:string;repo:{id:number}};html_url:string;
     };
     if(pr.head.ref!==safeWorkBranch(scope.unit_id)||String(pr.head.repo.id)!==scope.repository_id)
       throw new SessionConflict("PR is outside the assigned work branch");
-    if(pr.merged){await client.query("COMMIT");return {merged:true,replay:true,url:pr.html_url};}
+    if(pr.merged){const unitState=await reconcileMergedUnit();await client.query("COMMIT");return {merged:true,replay:true,url:pr.html_url,unitState};}
     const [owner,name]=scope.full_name.split("/");
     const controlsItsOwnAuthority=scope.full_name.toLowerCase()===(process.env.BOARDROOM_GITHUB_OWNER??"neophilism").toLowerCase()+"/boardroom";
     const observed=await githubAppRequest("POST","/graphql",{
@@ -78,10 +94,10 @@ export async function mergeAssignedPullRequest(db:Pool,runId:string,credentialId
     if(reasons.length)throw new SessionConflict("Merge blocked: "+reasons.join(", "));
     const merged=await githubAppRequest("PUT",api+"/pulls/"+number+"/merge",{sha:expectedSha,merge_method:"squash"}) as {merged:boolean;sha:string};
     if(!merged.merged||!/^[a-f0-9]{40}$/i.test(merged.sha))throw new GitHubAppError(409);
-    await client.query("UPDATE roadmap_units SET state='MERGED',source_observed_at=now() WHERE repository_id=$1 AND unit_id=$2",[scope.repository_id,scope.unit_id]);
+    const unitState=await reconcileMergedUnit();
     await client.query("INSERT INTO audit_events(run_id,repository_id,kind,details) VALUES($1,$2,'github.pr.merged',$3::jsonb)",
       [runId,scope.repository_id,JSON.stringify({unitId:scope.unit_id,number,headSha:expectedSha,mergeSha:merged.sha})]);
     await client.query("COMMIT");
-    return {merged:true,replay:false,sha:merged.sha,url:pr.html_url};
+    return {merged:true,replay:false,sha:merged.sha,url:pr.html_url,unitState};
   }catch(error){await client.query("ROLLBACK");throw error;}finally{client.release();}
 }
