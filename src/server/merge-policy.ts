@@ -10,6 +10,7 @@ export type MergeFacts={
   draft:boolean;state:string;headSha:string;expectedSha:string;branch:string;expectedBranch:string;
   repositoryId:string;expectedRepositoryId:string;mergeStateStatus:string;reviewDecision:string|null;
   checks:CheckRun[];checkTotal:number;statuses:LegacyStatus[];reviews:{login:string;state:string;commitId:string}[];
+  requiredReviewerLogin?:string;
 };
 export function mergeBlockers(policy:MergePolicy,facts:MergeFacts):string[]{
   const blocked:string[]=[];
@@ -29,6 +30,8 @@ export function mergeBlockers(policy:MergePolicy,facts:MergeFacts):string[]{
   if([...latest.values()].some(r=>r.state==="CHANGES_REQUESTED"))blocked.push("CHANGES_REQUESTED");
   if([...latest.values()].filter(r=>r.state==="APPROVED"&&r.commitId===facts.headSha).length<policy.minimum_reviews)
     blocked.push("CURRENT_HEAD_APPROVAL_REQUIRED");
+  if(facts.requiredReviewerLogin&&![...latest.values()].some(r=>r.login===facts.requiredReviewerLogin&&r.state==="APPROVED"&&r.commitId===facts.headSha))
+    blocked.push("CONTROL_PLANE_OWNER_REVIEW_REQUIRED");
   return blocked;
 }
 
@@ -55,6 +58,7 @@ export async function mergeAssignedPullRequest(db:Pool,runId:string,credentialId
       throw new SessionConflict("PR is outside the assigned work branch");
     if(pr.merged){await client.query("COMMIT");return {merged:true,replay:true,url:pr.html_url};}
     const [owner,name]=scope.full_name.split("/");
+    const controlsItsOwnAuthority=scope.full_name.toLowerCase()===(process.env.BOARDROOM_GITHUB_OWNER??"neophilism").toLowerCase()+"/boardroom";
     const observed=await githubAppRequest("POST","/graphql",{
       query:"query($owner:String!,$name:String!,$number:Int!){repository(owner:$owner,name:$name){pullRequest(number:$number){mergeStateStatus reviewDecision headRefOid}}}",
       variables:{owner,name,number}
@@ -69,6 +73,7 @@ export async function mergeAssignedPullRequest(db:Pool,runId:string,credentialId
     const reasons=mergeBlockers(policy,{draft:pr.draft,state:pr.state,headSha:pr.head.sha,expectedSha,
       branch:pr.head.ref,expectedBranch:safeWorkBranch(scope.unit_id),repositoryId:String(pr.head.repo.id),
       expectedRepositoryId:scope.repository_id,...graph,checks:checked.check_runs,checkTotal:checked.total_count,
+      requiredReviewerLogin:controlsItsOwnAuthority?owner:undefined,
       statuses:statuses.statuses,reviews:reviews.map(r=>({login:r.user.login,state:r.state,commitId:r.commit_id}))});
     if(reasons.length)throw new SessionConflict("Merge blocked: "+reasons.join(", "));
     const merged=await githubAppRequest("PUT",api+"/pulls/"+number+"/merge",{sha:expectedSha,merge_method:"squash"}) as {merged:boolean;sha:string};

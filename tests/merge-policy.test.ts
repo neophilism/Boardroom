@@ -21,3 +21,7 @@ test("reviews must approve the current head and later change requests defeat an 
   assert.ok(mergeBlockers({...policy,minimum_reviews:1},{...facts,reviews:[{...review,commitId:"b".repeat(40)}]}).includes("CURRENT_HEAD_APPROVAL_REQUIRED"));
   assert.ok(mergeBlockers(policy,{...facts,reviews:[review,{...review,state:"CHANGES_REQUESTED"}]}).includes("CHANGES_REQUESTED"));
 });
+test("agents cannot automatically replace their own control plane without the owner's exact-head review",()=>{
+  assert.ok(mergeBlockers(policy,{...facts,requiredReviewerLogin:"owner"}).includes("CONTROL_PLANE_OWNER_REVIEW_REQUIRED"));
+  assert.deepEqual(mergeBlockers(policy,{...facts,requiredReviewerLogin:"owner",reviews:[{login:"owner",state:"APPROVED",commitId:facts.headSha}]}),[]);
+});
