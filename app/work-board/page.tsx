@@ -16,7 +16,8 @@ type WorkBoardRow={
   planStatus:string|null;planRefreshedAt:Date|null;openUnitCount:string;
 };
 
-async function loadBoard():Promise<WorkBoardRow[]>{
+async function loadBoard():Promise<{rows:WorkBoardRow[];observedAt:number}>{
+  const observedAt=Date.now();
   const rows=await getDatabase().query<WorkBoardRow>(
     `SELECT r.repository_id::text AS "repositoryId",r.full_name AS "fullName",r.description AS "description",
       r.enabled AS "enabled",r.archived AS "archived",p.position AS "priorityPosition",
@@ -40,14 +41,13 @@ async function loadBoard():Promise<WorkBoardRow[]>{
        p.position ASC NULLS LAST,
        COALESCE(r.last_development_at,r.created_at) ASC,r.repository_id ASC`
   );
-  return rows.rows;
+  return {rows:rows.rows,observedAt};
 }
 
 export default async function WorkBoardPage(){
   const jar=await cookies();
   if(!validOwnerSession(jar.get(OWNER_COOKIE)?.value))redirect("/login");
-  const rows=await loadBoard();
-  const observedAt=Date.now();
+  const {rows,observedAt}=await loadBoard();
   const statusOf=(r:WorkBoardRow)=>!r.enabled||r.archived?"DISABLED":classifyLease({
     runId:r.runId,runState:r.runState,
     leaseExpiresAt:r.leaseExpiresAt?.toISOString()??null,
