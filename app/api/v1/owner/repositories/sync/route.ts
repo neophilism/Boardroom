@@ -1,5 +1,6 @@
+import {cookies} from "next/headers";
 import {NextResponse} from "next/server";
-import {authorizeOwnerRequest,OwnerOriginRejected} from "../../../../../../src/server/owner-session";
+import {authorizeOwnerRequest,OwnerOriginRejected,OWNER_COOKIE} from "../../../../../../src/server/owner-session";
 import {UnauthorizedOwner} from "../../../../../../src/server/owner-auth";
 import {synchronizeInstalledRepositories} from "../../../../../../src/server/repository-sync";
 
@@ -9,7 +10,8 @@ const headers={"Cache-Control":"no-store"};
 
 export async function POST(request:Request){
   try{
-    authorizeOwnerRequest(request,true);
+    const jar=await cookies();
+    authorizeOwnerRequest(request,true,jar.get(OWNER_COOKIE)?.value);
     const input:unknown=await request.json().catch(()=>null);
     if(!input||typeof input!=="object"||Array.isArray(input))
       return NextResponse.json({error:"JSON object required"},{status:400,headers});
