@@ -1,5 +1,6 @@
 import { createHmac } from "node:crypto";
 import type { Pool } from "pg";
+import { isApprovedAgentName } from "../domain/agent-names";
 
 export class InvalidAgentCredential extends Error {
   constructor() { super("Invalid agent credential"); this.name = "InvalidAgentCredential"; }
@@ -35,5 +36,6 @@ export async function authenticateAgent(headers: Headers, db: Pool): Promise<Aut
   );
   if (result.rowCount !== 1) throw new InvalidAgentCredential();
   const credential = result.rows[0];
+  if (!isApprovedAgentName(credential.label)) throw new InvalidAgentCredential();
   return {credentialId:credential.credential_id,label:credential.label,provider:credential.provider};
 }
