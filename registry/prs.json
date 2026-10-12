@@ -1,0 +1,479 @@
+{
+  "schemaVersion": 1,
+  "repository": "neophilism/Boardroom",
+  "roadmapVersion": 1,
+  "planVerified": true,
+  "plannedPrCount": 78,
+  "observedAt": "2026-10-12T13:44:21.256Z",
+  "units": [
+    {
+      "id": "BR-001",
+      "title": "Canonical project roadmap and agent instructions",
+      "origin": "original",
+      "prs": []
+    },
+    {
+      "id": "BR-002",
+      "title": "TypeScript application skeleton and CI",
+      "origin": "original",
+      "prs": []
+    },
+    {
+      "id": "BR-003",
+      "title": "Minimal authenticated arrival endpoint",
+      "origin": "original",
+      "prs": []
+    },
+    {
+      "id": "BR-004",
+      "title": "Live ChatGPT scheduled-execution feasibility gate",
+      "origin": "original",
+      "prs": []
+    },
+    {
+      "id": "BR-005",
+      "title": "Supported provider connector or external-runner fallback",
+      "origin": "original",
+      "prs": []
+    },
+    {
+      "id": "BR-006",
+      "title": "Neon schema, migrations, and transaction outbox",
+      "origin": "original",
+      "prs": []
+    },
+    {
+      "id": "BR-007",
+      "title": "Owner authentication and restricted administration",
+      "origin": "original",
+      "prs": []
+    },
+    {
+      "id": "BR-008",
+      "title": "Scoped GitHub App onboarding",
+      "origin": "original",
+      "prs": []
+    },
+    {
+      "id": "BR-009",
+      "title": "Repository inventory and rename-safe identity",
+      "origin": "original",
+      "prs": []
+    },
+    {
+      "id": "BR-010",
+      "title": "Canonical roadmap/PR-registry adapter",
+      "origin": "original",
+      "prs": []
+    },
+    {
+      "id": "BR-011",
+      "title": "Verified work-unit and dependency eligibility",
+      "origin": "original",
+      "prs": []
+    },
+    {
+      "id": "BR-012",
+      "title": "Ordered owner priority repositories list",
+      "origin": "original",
+      "prs": []
+    },
+    {
+      "id": "BR-013",
+      "title": "Authoritative least-recently-updated comparator",
+      "origin": "original",
+      "prs": []
+    },
+    {
+      "id": "BR-014",
+      "title": "Stateless identical-prompt session admission",
+      "origin": "original",
+      "prs": []
+    },
+    {
+      "id": "BR-015",
+      "title": "Optional activation-source metadata and replay protection",
+      "origin": "original",
+      "prs": []
+    },
+    {
+      "id": "BR-016",
+      "title": "Atomic exclusive repository assignment",
+      "origin": "original",
+      "prs": []
+    },
+    {
+      "id": "BR-017",
+      "title": "Leases, heartbeats, and session renewal",
+      "origin": "original",
+      "prs": []
+    },
+    {
+      "id": "BR-018",
+      "title": "Session states, outcomes, and idempotent release",
+      "origin": "original",
+      "prs": []
+    },
+    {
+      "id": "BR-019",
+      "title": "Repository selection conformance suite",
+      "origin": "original",
+      "prs": []
+    },
+    {
+      "id": "BR-020",
+      "title": "Blocked repository and recovery-eligibility policies",
+      "origin": "original",
+      "prs": []
+    },
+    {
+      "id": "BR-021",
+      "title": "Owner action relational model and states",
+      "origin": "original",
+      "prs": []
+    },
+    {
+      "id": "BR-022",
+      "title": "Agent escalation and owner-only classifier",
+      "origin": "original",
+      "prs": []
+    },
+    {
+      "id": "BR-023",
+      "title": "Action templates for accounts, credentials, purchases, and approvals",
+      "origin": "original",
+      "prs": []
+    },
+    {
+      "id": "BR-024",
+      "title": "Duplicate merging and blocker aggregation",
+      "origin": "original",
+      "prs": []
+    },
+    {
+      "id": "BR-025",
+      "title": "Private Owner Action Board inbox",
+      "origin": "original",
+      "prs": []
+    },
+    {
+      "id": "BR-026",
+      "title": "Owner action detail and evidence view",
+      "origin": "original",
+      "prs": []
+    },
+    {
+      "id": "BR-027",
+      "title": "Secure credentials and external-account handoff",
+      "origin": "original",
+      "prs": []
+    },
+    {
+      "id": "BR-028",
+      "title": "Owner approval boundaries and purchase controls",
+      "origin": "original",
+      "prs": []
+    },
+    {
+      "id": "BR-029",
+      "title": "Resolution, verify-and-requeue, and decline handling",
+      "origin": "original",
+      "prs": []
+    },
+    {
+      "id": "BR-030",
+      "title": "Action notifications, batching, and safe audit trail",
+      "origin": "original",
+      "prs": []
+    },
+    {
+      "id": "BR-031",
+      "title": "Repository context assembler",
+      "origin": "original",
+      "prs": []
+    },
+    {
+      "id": "BR-032",
+      "title": "Provider-neutral tool protocol and typed SDK",
+      "origin": "original",
+      "prs": []
+    },
+    {
+      "id": "BR-033",
+      "title": "Isolated coding execution harness",
+      "origin": "original",
+      "prs": []
+    },
+    {
+      "id": "BR-034",
+      "title": "Fenced GitHub write gateway",
+      "origin": "original",
+      "prs": []
+    },
+    {
+      "id": "BR-035",
+      "title": "Safe branch management and write idempotency",
+      "origin": "original",
+      "prs": []
+    },
+    {
+      "id": "BR-036",
+      "title": "Work-unit-linked PR creation and updates",
+      "origin": "original",
+      "prs": []
+    },
+    {
+      "id": "BR-037",
+      "title": "CI, test, and acceptance-evidence collector",
+      "origin": "original",
+      "prs": []
+    },
+    {
+      "id": "BR-038",
+      "title": "Review and safe merge policy engine",
+      "origin": "original",
+      "prs": []
+    },
+    {
+      "id": "BR-039",
+      "title": "Continuous eligible PR-chain workflow",
+      "origin": "original",
+      "prs": []
+    },
+    {
+      "id": "BR-040",
+      "title": "Durable Git checkpoints and handoff manifest",
+      "origin": "original",
+      "prs": []
+    },
+    {
+      "id": "BR-041",
+      "title": "Cross-session resume and interruption handling",
+      "origin": "original",
+      "prs": []
+    },
+    {
+      "id": "BR-042",
+      "title": "Real scheduled-task-to-GitHub end-to-end trial",
+      "origin": "original",
+      "prs": []
+    },
+    {
+      "id": "BR-043",
+      "title": "Cross-repository compatibility dependency planner",
+      "origin": "original",
+      "prs": []
+    },
+    {
+      "id": "BR-044",
+      "title": "Threaded engineering collaboration schema",
+      "origin": "original",
+      "prs": []
+    },
+    {
+      "id": "BR-045",
+      "title": "Search-before-asking knowledge retrieval",
+      "origin": "original",
+      "prs": []
+    },
+    {
+      "id": "BR-046",
+      "title": "Project-scoped question workflow",
+      "origin": "original",
+      "prs": []
+    },
+    {
+      "id": "BR-047",
+      "title": "Evidence-based peer-answer workflow",
+      "origin": "original",
+      "prs": []
+    },
+    {
+      "id": "BR-048",
+      "title": "Asynchronous help and automatic unblock",
+      "origin": "original",
+      "prs": []
+    },
+    {
+      "id": "BR-049",
+      "title": "Architecture deliberation and repository ADR persistence",
+      "origin": "original",
+      "prs": []
+    },
+    {
+      "id": "BR-050",
+      "title": "End-of-session Coffee Corner service step",
+      "origin": "original",
+      "prs": []
+    },
+    {
+      "id": "BR-051",
+      "title": "Discussion privacy, moderation, and prompt-injection controls",
+      "origin": "original",
+      "prs": []
+    },
+    {
+      "id": "BR-052",
+      "title": "Deterministic watchdog and stalled-session detection",
+      "origin": "original",
+      "prs": []
+    },
+    {
+      "id": "BR-053",
+      "title": "Verified process cancellation and recovery hold",
+      "origin": "original",
+      "prs": []
+    },
+    {
+      "id": "BR-054",
+      "title": "Stale-session fencing and takeover race tests",
+      "origin": "original",
+      "prs": []
+    },
+    {
+      "id": "BR-055",
+      "title": "Transactional outbox dispatcher and operation ledger",
+      "origin": "original",
+      "prs": []
+    },
+    {
+      "id": "BR-056",
+      "title": "Retry policies, backoff, and dead-letter handling",
+      "origin": "original",
+      "prs": []
+    },
+    {
+      "id": "BR-057",
+      "title": "GitHub webhook ingestion with signatures and deduplication",
+      "origin": "original",
+      "prs": []
+    },
+    {
+      "id": "BR-058",
+      "title": "Periodic authoritative GitHub reconciliation",
+      "origin": "original",
+      "prs": []
+    },
+    {
+      "id": "BR-059",
+      "title": "Operational metrics, diagnostics, and alert routing",
+      "origin": "original",
+      "prs": []
+    },
+    {
+      "id": "BR-060",
+      "title": "Concurrency and chaos acceptance test suite",
+      "origin": "original",
+      "prs": []
+    },
+    {
+      "id": "BR-061",
+      "title": "Private Boardroom UI shell and navigation",
+      "origin": "original",
+      "prs": []
+    },
+    {
+      "id": "BR-062",
+      "title": "Live repository Work Board and priority editor",
+      "origin": "original",
+      "prs": []
+    },
+    {
+      "id": "BR-063",
+      "title": "Unified Owner Action Board UX",
+      "origin": "original",
+      "prs": []
+    },
+    {
+      "id": "BR-064",
+      "title": "Coffee Corner UX and discussion search",
+      "origin": "original",
+      "prs": []
+    },
+    {
+      "id": "BR-065",
+      "title": "Agent sessions, recovery, and event timeline",
+      "origin": "original",
+      "prs": []
+    },
+    {
+      "id": "BR-066",
+      "title": "Owner operational controls and priority overrides",
+      "origin": "original",
+      "prs": []
+    },
+    {
+      "id": "BR-067",
+      "title": "Engine Room read-only operational integration",
+      "origin": "original",
+      "prs": []
+    },
+    {
+      "id": "BR-068",
+      "title": "Overnight summary and consolidated digests",
+      "origin": "original",
+      "prs": []
+    },
+    {
+      "id": "BR-069",
+      "title": "Multi-account ChatGPT scheduled-task onboarding",
+      "origin": "original",
+      "prs": []
+    },
+    {
+      "id": "BR-070",
+      "title": "Claude scheduled-agent adapter",
+      "origin": "original",
+      "prs": []
+    },
+    {
+      "id": "BR-071",
+      "title": "Grok scheduled-agent adapter",
+      "origin": "original",
+      "prs": []
+    },
+    {
+      "id": "BR-072",
+      "title": "Provider conformance and capability registry",
+      "origin": "original",
+      "prs": []
+    },
+    {
+      "id": "BR-073",
+      "title": "Large-scale scheduling and concurrency benchmark",
+      "origin": "original",
+      "prs": []
+    },
+    {
+      "id": "BR-074",
+      "title": "Per-session and aggregate usage/budget guardrails",
+      "origin": "original",
+      "prs": []
+    },
+    {
+      "id": "BR-075",
+      "title": "Security hardening, privacy review, and threat tests",
+      "origin": "original",
+      "prs": []
+    },
+    {
+      "id": "BR-076",
+      "title": "Backup, point-in-time restore, and disaster recovery",
+      "origin": "original",
+      "prs": []
+    },
+    {
+      "id": "BR-077",
+      "title": "Production deployments and service-capacity runbook",
+      "origin": "original",
+      "prs": []
+    },
+    {
+      "id": "BR-078",
+      "title": "Final unattended multi-agent acceptance and audit",
+      "origin": "original",
+      "prs": []
+    }
+  ],
+  "pullRequests": []
+}
