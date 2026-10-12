@@ -1,5 +1,8 @@
 -- Additive execution contracts. Existing deployments remain paused for auto-merge
 -- until an owner explicitly sets a repository policy with required check names.
+-- The owner's exact roster includes the one-character name K. Preserve spelling.
+ALTER TABLE agent_credentials DROP CONSTRAINT agent_credentials_label_check;
+ALTER TABLE agent_credentials ADD CONSTRAINT agent_credentials_label_check CHECK(length(label) BETWEEN 1 AND 100);
 CREATE TABLE execution_controls (
   singleton BOOLEAN PRIMARY KEY DEFAULT TRUE CHECK(singleton),
   paused BOOLEAN NOT NULL DEFAULT FALSE,
