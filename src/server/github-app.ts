@@ -92,3 +92,40 @@ export async function fetchCanonicalRoadmap(fullName:string):Promise<unknown|nul
   const data=Buffer.from(file.content.replace(/\s/g,""),"base64").toString("utf8");
   return JSON.parse(data) as unknown;
 }
+
+
+export type RepositoryInstruction={path:"AGENTS.md";text:string;sha:string};
+
+/** Decode only a fixed, bounded repository instruction file. Never accept
+ * arbitrary caller-supplied GitHub paths or interpret fetched text as authorization.
+ */
+export function decodeRepositoryInstruction(value:unknown,path:string):RepositoryInstruction|null{
+  if(path!=="AGENTS.md")throw new Error("Unsupported repository instruction path");
+  if(value===null)return null;
+  if(!value||typeof value!=="object"||Array.isArray(value))
+    throw new Error("Invalid GitHub contents response");
+  const obj=value as Record<string,unknown>;
+  if(obj.encoding!=="base64"||typeof obj.content!=="string"||
+     typeof obj.size!=="number"||!Number.isSafeInteger(obj.size)||
+     obj.size<0||obj.size>100000||
+     typeof obj.sha!=="string"||!/^[0-9a-f]{40}$/i.test(obj.sha))
+    throw new Error("Invalid or oversized GitHub instructions");
+  const compact=obj.content.replace(/\s/g,"");
+  if(!/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(compact)||
+    compact.length>140000)
+    throw new Error("Malformed GitHub instruction encoding");
+  const bytes=Buffer.from(compact,"base64");
+  if(bytes.length!==obj.size)throw new Error("GitHub instruction size mismatch");
+  const decoded=new TextDecoder("utf-8",{fatal:true}).decode(bytes);
+  return {path:"AGENTS.md",text:decoded,sha:obj.sha};
+}
+
+export async function fetchRepositoryInstruction(fullName:string,path:"AGENTS.md"):Promise<RepositoryInstruction|null>{
+  const parts=fullName.split("/");
+  if(parts.length!==2||parts.some(part=>!/^[a-zA-Z0-9_.-]{1,100}$/.test(part)))
+    throw new Error("Invalid repository identity");
+  const response=await gh("/repos/"+parts.map(encodeURIComponent).join("/")+"/contents/"+path);
+  if(response.status===404)return null;
+  const contents=await response.json() as unknown;
+  return decodeRepositoryInstruction(contents,path);
+}
