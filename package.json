@@ -13,7 +13,8 @@
     "lint": "eslint .",
     "test": "node --experimental-strip-types --test tests/*.test.ts",
     "check": "npm run lint && npm run typecheck && npm test && npm run build",
-    "migrate": "node --experimental-strip-types db/migrate.ts"
+    "migrate": "node --experimental-strip-types db/migrate.ts",
+    "register:agent": "node --experimental-strip-types scripts/register-agent.ts"
   },
   "dependencies": {
     "next": "^16.0.0",
