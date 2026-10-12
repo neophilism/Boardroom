@@ -15,9 +15,11 @@ export type GitHubAppFailureCode=
   |"APP_AUTH_REJECTED"|"INSTALLATION_NOT_FOUND"|"INSTALLATION_FORBIDDEN"
   |"GITHUB_TEMPORARILY_UNAVAILABLE"|"GITHUB_NETWORK_ERROR"|"INSTALLATION_RESPONSE_INVALID";
 export class GitHubAppSetupFailure extends Error {
-  constructor(readonly issue:GitHubAppFailureCode){
+  readonly issue:GitHubAppFailureCode;
+  constructor(issue:GitHubAppFailureCode){
     super("GitHub App configuration or connectivity problem");
     this.name="GitHubAppSetupFailure";
+    this.issue=issue;
   }
 }
 
