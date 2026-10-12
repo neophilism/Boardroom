@@ -47,6 +47,8 @@ test("Safari-style browser omitting Origin must positively report same-origin",(
   withSession(()=>{
     assert.doesNotThrow(()=>authorizeOwnerRequest(post({"sec-fetch-site":"same-origin"}),true));
     assert.throws(()=>authorizeOwnerRequest(post({}),true),OwnerOriginRejected);
+    assert.doesNotThrow(()=>authorizeOwnerRequest(post({referer:publicOrigin+"/system"}),true));
+    assert.throws(()=>authorizeOwnerRequest(post({referer:"https://evil.example/system"}),true),OwnerOriginRejected);
   });
 });
 
@@ -79,9 +81,9 @@ test("owner configured public origin cannot be spoofed with forwarded headers",(
 });
 
 test("only secure deployment-configured public origins are accepted",()=>{
-  assert.equal(trustedOwnerOrigin({RENDER_EXTERNAL_URL:publicOrigin} as NodeJS.ProcessEnv),publicOrigin);
-  assert.equal(trustedOwnerOrigin({BOARDROOM_PUBLIC_ORIGIN:publicOrigin} as NodeJS.ProcessEnv),publicOrigin);
-  assert.throws(()=>trustedOwnerOrigin({BOARDROOM_PUBLIC_ORIGIN:"http://boardroom-iamn.onrender.com"} as NodeJS.ProcessEnv));
-  assert.throws(()=>trustedOwnerOrigin({BOARDROOM_PUBLIC_ORIGIN:"https://evil.example/other"} as NodeJS.ProcessEnv));
-  assert.throws(()=>trustedOwnerOrigin({BOARDROOM_PUBLIC_ORIGIN:"https://user:pass@evil.example"} as NodeJS.ProcessEnv));
+  assert.equal(trustedOwnerOrigin({RENDER_EXTERNAL_URL:publicOrigin} as unknown as NodeJS.ProcessEnv),publicOrigin);
+  assert.equal(trustedOwnerOrigin({BOARDROOM_PUBLIC_ORIGIN:publicOrigin} as unknown as NodeJS.ProcessEnv),publicOrigin);
+  assert.throws(()=>trustedOwnerOrigin({BOARDROOM_PUBLIC_ORIGIN:"http://boardroom-iamn.onrender.com"} as unknown as NodeJS.ProcessEnv));
+  assert.throws(()=>trustedOwnerOrigin({BOARDROOM_PUBLIC_ORIGIN:"https://evil.example/other"} as unknown as NodeJS.ProcessEnv));
+  assert.throws(()=>trustedOwnerOrigin({BOARDROOM_PUBLIC_ORIGIN:"https://user:pass@evil.example"} as unknown as NodeJS.ProcessEnv));
 });
