@@ -6,7 +6,30 @@ function activityDate(repo:GitHubRepository,pulls:readonly GitHubPull[]):string|
   const values=[repo.pushed_at,...pulls.map(p=>p.updated_at)].filter((v):v is string=>!!v&&Number.isFinite(Date.parse(v)));
   return values.sort((a,b)=>Date.parse(b)-Date.parse(a))[0]??null;
 }
-export type SyncReport={total:number;verified:number;missing:number;failed:number;errors:{repository:string;reason:string}[]};
+export type SyncReport={total:number;processed:number;nextAfterId:string|null;verified:number;missing:number;failed:number;errors:{repository:string;reason:string}[]};
+export type RepositorySyncOptions={limit?:number;afterId?:string|null};
+
+/** Stable numeric GitHub IDs form a cursor. Owner browser requests have a small
+ * batch budget so a free-plan web request cannot silently run hundreds of repos.
+ */
+export function selectRepositorySyncBatch(installed:readonly GitHubRepository[],owner:string,
+  options:RepositorySyncOptions={}){
+  const {limit,afterId}=options;
+  if(limit!==undefined&&(!Number.isSafeInteger(limit)||limit<1||limit>10))
+    throw new Error("Batch limit must be 1 to 10");
+  if(afterId!==undefined&&afterId!==null&&!/^[1-9][0-9]{0,18}$/.test(afterId))
+    throw new Error("Invalid GitHub repository cursor");
+  const filtered=installed.filter(r=>r.full_name.split("/")[0].toLowerCase()===owner.toLowerCase())
+    .sort((a,b)=>a.id-b.id);
+  const remaining=afterId
+    ?filtered.filter(r=>BigInt(r.id)>BigInt(afterId))
+    :filtered;
+  const selected=limit===undefined?remaining:remaining.slice(0,limit);
+  const nextAfterId=selected.length<remaining.length
+    ?String(selected[selected.length-1].id)
+    :null;
+  return {total:filtered.length,selected,nextAfterId};
+}
 
 async function syncOne(repository:GitHubRepository):Promise<"VERIFIED"|"MISSING">{
   const pulls=await fetchPullRequests(repository.full_name);
@@ -60,12 +83,12 @@ async function syncOne(repository:GitHubRepository):Promise<"VERIFIED"|"MISSING"
   finally{client.release()}
 }
 
-export async function synchronizeInstalledRepositories():Promise<SyncReport>{
+export async function synchronizeInstalledRepositories(options:RepositorySyncOptions={}):Promise<SyncReport>{
   const installed=await listAppRepositories();
   const owner=process.env.BOARDROOM_GITHUB_OWNER ?? "neophilism";
-  const filtered=installed.filter(r=>r.full_name.split("/")[0].toLowerCase()===owner.toLowerCase());
-  const report:SyncReport={total:filtered.length,verified:0,missing:0,failed:0,errors:[]};
-  for(const repository of filtered){
+  const {total,selected,nextAfterId}=selectRepositorySyncBatch(installed,owner,options);
+  const report:SyncReport={total,processed:selected.length,nextAfterId,verified:0,missing:0,failed:0,errors:[]};
+  for(const repository of selected){
     try{
       const status=await syncOne(repository);
       if(status==="VERIFIED")report.verified++;else report.missing++;
