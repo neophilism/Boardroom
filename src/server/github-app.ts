@@ -1,4 +1,4 @@
-import { createSign } from "node:crypto";
+import {createPrivateKey,createSign} from "node:crypto";
 
 export type GitHubRepository = {
   id:number; full_name:string; created_at:string; pushed_at:string|null;
@@ -33,20 +33,66 @@ function requiredEnv(name:string):string{
   }
   return value;
 }
-function signInstallationJWT():string{
-  const now=Math.floor(Date.now()/1000);
-  const header=Buffer.from(JSON.stringify({alg:"RS256",typ:"JWT"})).toString("base64url");
-  const appId=requiredEnv("BOARDROOM_GITHUB_APP_ID");
+/** Accept the common secure Render environment presentations of an original
+ * GitHub-generated PEM: real line breaks, literal \n (or \r\n), or a pasted
+ * quoted/JSON string. Do not silently accept keys with missing PEM delimiters.
+ * This function is server-only; never print or return the key to HTTP clients.
+ */
+export function normalizeGitHubAppPrivateKey(raw:string):string{
+  if(typeof raw!=="string"||raw.length<150||raw.length>100000)
+    throw new GitHubAppSetupFailure("PRIVATE_KEY_INVALID");
+  let value=raw.trim();
+  if(value.startsWith('"')&&value.endsWith('"')){
+    try{
+      const parsed:unknown=JSON.parse(value);
+      if(typeof parsed!=="string")throw new Error("Expected quoted PEM string");
+      value=parsed;
+    }catch{
+      // Some UI pastes add quote marks without JSON-escaping the line breaks.
+      value=value.slice(1,-1);
+    }
+  }else if(value.startsWith("'")&&value.endsWith("'")){
+    value=value.slice(1,-1);
+  }
+  value=value.trim().replace(/\\r\\n|\\n|\\r/g,"\n")
+    .replace(/\r\n?/g,"\n").trim();
+  const match=value.match(/^-----BEGIN (RSA PRIVATE KEY|PRIVATE KEY)-----\n([\s\S]+)\n-----END \1-----$/);
+  if(!match||!/^[A-Za-z0-9+/=\s]+$/.test(match[2]))
+    throw new GitHubAppSetupFailure("PRIVATE_KEY_INVALID");
+  return value+"\n";
+}
+
+/** Signs a short-lived GitHub App JWT with the private RSA key. JWT is signed
+ * locally, not sent to a browser. The App ID must match the PEM's owning App
+ * or the GitHub API will separately reject the signature.
+ */
+export function signGitHubAppJWT(appId:string,rawKey:string,now=Math.floor(Date.now()/1000)):string{
   if(!/^\d+$/.test(appId))throw new GitHubAppSetupFailure("APP_ID_INVALID");
+  let privateKey;
+  try{
+    privateKey=createPrivateKey(normalizeGitHubAppPrivateKey(rawKey));
+    if(privateKey.asymmetricKeyType!=="rsa"||
+       (privateKey.asymmetricKeyDetails?.modulusLength??0)<2048)
+      throw new Error("RSA private key unsuitable for RS256");
+  }catch{
+    throw new GitHubAppSetupFailure("PRIVATE_KEY_INVALID");
+  }
+  const header=Buffer.from(JSON.stringify({alg:"RS256",typ:"JWT"})).toString("base64url");
   const payload=Buffer.from(JSON.stringify({iat:now-60,exp:now+540,iss:appId})).toString("base64url");
   const data=header+"."+payload;
-  const key=requiredEnv("BOARDROOM_GITHUB_APP_PRIVATE_KEY").replace(/\\n/g,"\n");
   try{
-    return data+"."+createSign("RSA-SHA256").update(data).end().sign(key).toString("base64url");
+    return data+"."+createSign("RSA-SHA256").update(data).end().sign(privateKey).toString("base64url");
   }catch{
     throw new GitHubAppSetupFailure("PRIVATE_KEY_INVALID");
   }
 }
+function signInstallationJWT():string{
+  return signGitHubAppJWT(
+    requiredEnv("BOARDROOM_GITHUB_APP_ID"),
+    requiredEnv("BOARDROOM_GITHUB_APP_PRIVATE_KEY")
+  );
+}
+
 async function installationToken():Promise<string>{
   if(tokenCache && tokenCache.expires-Date.now()>5*60*1000)return tokenCache.value;
   const installationId=requiredEnv("BOARDROOM_GITHUB_INSTALLATION_ID");
