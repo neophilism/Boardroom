@@ -63,11 +63,13 @@ export function trustedOwnerOrigin(env:NodeJS.ProcessEnv=process.env):string{
   return parsed.origin;
 }
 
-export function authorizeOwnerRequest(request:Request,mutation=false):void{
+export function authorizeOwnerRequest(request:Request,mutation=false,serverCookie?:string):void{
   // Bearer API tokens are individually authenticated. They do not rely on a
   // browser session cookie and do not confer authority from a caller-set Origin.
   if(request.headers.has("authorization"))return authorizeOwner(request.headers);
-  if(!validOwnerSession(fromHeader(request.headers,OWNER_COOKIE)))
+  // Next.js request-scoped cookie parsing is authoritative in server routes.
+  // The raw Cookie header remains a fallback for non-Next API clients.
+  if(!validOwnerSession(serverCookie??fromHeader(request.headers,OWNER_COOKIE)))
     throw new UnauthorizedOwner();
   if(mutation){
     const origin=request.headers.get("origin");
