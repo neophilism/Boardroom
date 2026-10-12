@@ -12,6 +12,7 @@ import {mergeAssignedPullRequest} from "./merge-policy.ts";
 import {advanceAssignedWork} from "./chain.ts";
 import {openCoffeeThread,answerCoffeeThread} from "./coffee.ts";
 import {createOwnerAction,parseOwnerAction} from "./owner-actions.ts";
+import {resolveCoffeeAnswer} from "./coffee-resolution.ts";
 
 const string={type:"string"};
 const session={runId:string,generation:string};
@@ -38,6 +39,8 @@ export const AGENT_TOOLS=[
     ...session,repositoryId:{type:"integer"},subject:string,question:string,evidence:{type:"array",items:string}},["runId","subject","question"]),
   tool("boardroom_coffee_answer","Post a source-backed engineering answer, without directing another agent to abandon current work.",{
     runId:string,threadId:string,answer:string,evidence:{type:"array",items:string}},["runId","threadId","answer"]),
+  tool("boardroom_coffee_resolve","Accept an evidenced technical answer only after verifying its durable ADR in your assigned repository.",{
+    ...session,threadId:string,messageId:string,adr:string},["runId","generation","threadId","messageId","adr"]),
   tool("boardroom_owner_action","Create one deduplicated private request for an owner-only prerequisite. Never include a credential value.",{
     ...session,actionKey:string,title:string,type:{enum:["ACCOUNT","CREDENTIAL","PURCHASE","APPROVAL","HUMAN_INPUT","OTHER"]},
     instructions:string,requestedPermissions:{type:"array",items:string},secureEntryLocation:{type:["string","null"]},priceEstimateCents:{type:["integer","null"],minimum:0}},
@@ -101,6 +104,7 @@ export async function executeAgentTool(db:Pool,agent:AuthenticatedAgent,name:str
       runId,generation:args.generation as string|undefined,repositoryId:args.repositoryId as number|undefined,
       subject:args.subject,question:args.question,evidence:args.evidence});
     case "boardroom_coffee_answer":return answerCoffeeThread(db,agent.credentialId,runId,String(args.threadId),args.answer,args.evidence);
+    case "boardroom_coffee_resolve":return resolveCoffeeAnswer(db,runId,agent.credentialId,generation,String(args.threadId),String(args.messageId),String(args.adr));
     case "boardroom_owner_action":return createOwnerAction(db,agent.credentialId,parseOwnerAction(args));
     case "boardroom_finish":return finishRun(db,runId,agent.credentialId,generation,parseSessionOutcome(args.outcome));
     case "boardroom_finish_idle":return finishIdleSession(db,runId,agent.credentialId);

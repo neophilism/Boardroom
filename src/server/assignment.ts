@@ -31,7 +31,8 @@ export const REPOSITORY_CLAIM_QUERY = String.raw`
     FROM roadmap_units w
     WHERE w.repository_id = r.repository_id
       AND w.approved = TRUE
-      AND w.state IN ('PENDING', 'ACTIVE', 'OPEN_PR')
+      AND w.state IN ('PENDING', 'ACTIVE', 'OPEN_PR','BLOCKED')
+      AND (w.state<>'BLOCKED' OR EXISTS(SELECT 1 FROM coffee_threads t JOIN coffee_messages m ON m.thread_id=t.thread_id WHERE t.repository_id=w.repository_id AND t.unit_id=w.unit_id AND t.status='ANSWERED' AND jsonb_array_length(m.evidence)>0))
       AND NOT EXISTS (
         SELECT 1
         FROM jsonb_array_elements_text(w.depends_on) AS dependency(id)
@@ -53,7 +54,7 @@ export const REPOSITORY_CLAIM_QUERY = String.raw`
         WHERE d.repository_id=w.repository_id AND d.unit_id=w.unit_id
           AND prerequisite.state NOT IN ('MERGED','ACCEPTED')
       )
-    ORDER BY CASE WHEN w.state = 'ACTIVE' THEN 0 ELSE 1 END, w.unit_id
+    ORDER BY CASE WHEN w.state IN ('ACTIVE','OPEN_PR','BLOCKED') THEN 0 ELSE 1 END, w.unit_id
     LIMIT 1
   ) chosen ON TRUE
   WHERE r.enabled = TRUE AND r.archived = FALSE

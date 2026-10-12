@@ -106,7 +106,10 @@ export async function getInstalledGitHubPermissions():Promise<Record<string,stri
 
 async function gh(path:string):Promise<Response>{
   if(!path.startsWith("/")||path.startsWith("//"))throw new Error("Invalid GitHub API path");
-  const url=new URL("https://api.github.com"+path);
+  const url=new URL("https://api.github.com");
+  const separator=path.indexOf("?");
+  url.pathname=separator===-1?path:path.slice(0,separator);
+  url.search=separator===-1?"":path.slice(separator+1);
   const res=await fetch(url,{
     headers:{
       Authorization:"Bearer "+await installationToken(),
@@ -209,7 +212,12 @@ export class GitHubAppError extends Error{
 export async function githubAppRequest(method:"GET"|"POST"|"PUT"|"PATCH",path:string,body?:unknown):Promise<unknown>{
   if(!path.startsWith("/")||path.startsWith("//")||path.includes("#")||path.includes("\\"))
     throw new Error("Invalid GitHub App request path");
-  const url=new URL("https://api.github.com"+path);
+  // Set path/query on a fixed origin, rather than parsing an origin influenced
+  // by repository or model input. No caller value can change host or protocol.
+  const url=new URL("https://api.github.com");
+  const separator=path.indexOf("?");
+  url.pathname=separator===-1?path:path.slice(0,separator);
+  url.search=separator===-1?"":path.slice(separator+1);
   if(url.origin!=="https://api.github.com")throw new Error("Unexpected GitHub origin");
   const res=await fetch(url,{
     method,headers:{

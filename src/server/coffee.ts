@@ -20,6 +20,7 @@ export function validateEvidence(value:unknown):string[]{
   for(const item of value)if(typeof item!=="string"||item.length>450||
     !/^https:\/\/github\.com\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+(?:\/[^\s]*)?$/.test(item))
     throw new CoffeeError("Only verified-format GitHub reference URLs are accepted");
+  for(const item of value){const url=new URL(item);if(url.search||url.username||url.password)throw new CoffeeError("Evidence URLs cannot contain credentials or query parameters");}
   return value;
 }
 async function ensureAgent(client:PoolClient,runId:string,credentialId:string):Promise<void>{
@@ -40,16 +41,17 @@ export async function openCoffeeThread(db:Pool,credentialId:string,input:ThreadI
     await client.query("BEGIN");
     await ensureAgent(client,input.runId,credentialId);
     let repoId:number|null=null,unitId:string|null=null;
-    if(input.repositoryId!==undefined){
-      if(!Number.isSafeInteger(input.repositoryId)||input.repositoryId<=0||
+    if(input.repositoryId!==undefined||input.generation!==undefined){
+      if((input.repositoryId!==undefined&&(!Number.isSafeInteger(input.repositoryId)||input.repositoryId<=0))||
          !isValidGeneration(input.generation))throw new CoffeeError("Valid claimed repository and generation required");
-      const owned=await client.query<{unit_id:string}>(
-        "SELECT a.unit_id FROM work_assignments a JOIN repository_leases l ON l.repository_id=a.repository_id AND l.run_id=a.run_id AND l.generation=a.lease_generation WHERE a.repository_id=$1 AND a.run_id=$2 AND a.lease_generation=$3::bigint AND a.released_at IS NULL AND l.expires_at>now()",
-        [input.repositoryId,input.runId,input.generation]
+      const owned=await client.query<{repository_id:string;unit_id:string}>(
+        "SELECT a.repository_id::text,a.unit_id FROM work_assignments a JOIN repository_leases l ON l.repository_id=a.repository_id AND l.run_id=a.run_id AND l.generation=a.lease_generation WHERE ($1::bigint IS NULL OR a.repository_id=$1) AND a.run_id=$2 AND a.lease_generation=$3::bigint AND a.released_at IS NULL AND l.expires_at>now()",
+        [input.repositoryId??null,input.runId,input.generation]
       );
       if(owned.rowCount!==1)throw new CoffeeError("Repository is not currently assigned to this session");
-      repoId=input.repositoryId;
+      repoId=Number(owned.rows[0].repository_id);
       unitId=owned.rows[0].unit_id;
+      await client.query("UPDATE roadmap_units SET state='BLOCKED' WHERE repository_id=$1 AND unit_id=$2 AND state IN ('PENDING','ACTIVE')",[repoId,unitId]);
     }
     const row=await client.query<{thread_id:string}>(
       "INSERT INTO coffee_threads(repository_id,unit_id,subject,opened_by_run_id) VALUES($1,$2,$3,$4) RETURNING thread_id",

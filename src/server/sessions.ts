@@ -95,7 +95,7 @@ export function validateCheckpoint(input: unknown): CheckpointPayload {
   const state = value.state;
   if (!state || typeof state !== "object" || Array.isArray(state) ||
       JSON.stringify(state).length > 16000) throw new SessionConflict("Invalid or oversized checkpoint");
-  if(/(?:github_pat_[A-Za-z0-9_]{12,}|gh[pousr]_[A-Za-z0-9]{20,}|sk-[A-Za-z0-9_-]{20,}|-----BEGIN [A-Z ]*PRIVATE KEY|postgres(?:ql)?:\/\/[^\s]+@|(?:password|api.?key|secret|token)\s*["']?\s*[:=]\s*["']?[A-Za-z0-9+/_=-]{20,})/i.test(JSON.stringify(state)))
+  if(/(?:github_pat_[A-Za-z0-9_]{12,}|gh[pousr]_[A-Za-z0-9]{20,}|sk-[A-Za-z0-9_-]{20,}|-----BEGIN [A-Z ]*PRIVATE KEY|postgres(?:ql)?:\/\/[^\s]+@|(?:password|api.?key|secret|token)\s{0,8}["']?\s{0,8}[:=]\s{0,8}["']?[A-Za-z0-9+/_=-]{20,})/i.test(JSON.stringify(state)))
     throw new SessionConflict("Possible secret in checkpoint; store only secure references");
   return {branch:branch as string|null,headSha:headSha as string|null,state:state as Record<string,unknown>};
 }
