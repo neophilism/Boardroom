@@ -4,12 +4,12 @@ import type { Pool, PoolClient } from "pg";
 import {parsePriorityOrder,PriorityValidationError,replaceRepositoryPriority} from "../src/server/priorities.ts";
 
 test("owner priority preserves explicit order and exact numeric GitHub repository ids",()=>{
-  assert.deepEqual(parsePriorityOrder({repositoryIds:["42","9007199254740993","0001"]}),["42","9007199254740993","1"]);
+  assert.deepEqual(parsePriorityOrder({repositoryIds:["42","9007199254740993","1"]}),["42","9007199254740993","1"]);
   assert.deepEqual(parsePriorityOrder({repositoryIds:[]}),[]);
 });
 
 test("duplicate, invalid, unsafe and oversized priority arrays fail closed",()=>{
-  for(const ids of [[1],["0"],["-1"],["3.4"],["1","01"],["9223372036854775808"],new Array(2001).fill("1")])
+  for(const ids of [[1],["0"],["-1"],["3.4"],["1","1"],["01"],["9223372036854775808"],new Array(2001).fill("1")])
     assert.throws(()=>parsePriorityOrder({repositoryIds:ids}),PriorityValidationError);
   assert.throws(()=>parsePriorityOrder(null),PriorityValidationError);
   assert.throws(()=>parsePriorityOrder({repositoryIds:"1"}),PriorityValidationError);
