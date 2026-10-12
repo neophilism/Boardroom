@@ -1,7 +1,8 @@
 import {NextResponse} from "next/server";
 import {getDatabase} from "../../../../src/server/db";
 import {authenticateAgent,InvalidAgentCredential} from "../../../../src/server/agent-auth";
-import {authorizeOwner,UnauthorizedOwner} from "../../../../src/server/owner-auth";
+import {UnauthorizedOwner} from "../../../../src/server/owner-auth";
+import {authorizeOwnerRequest} from "../../../../src/server/owner-session";
 import {createOwnerAction,parseOwnerAction} from "../../../../src/server/owner-actions";
 import {SessionConflict} from "../../../../src/server/sessions";
 export const runtime="nodejs";
@@ -26,7 +27,7 @@ export async function POST(request:Request){
 
 export async function GET(request:Request){
   try{
-    authorizeOwner(request.headers);
+    authorizeOwnerRequest(request);
     const db=getDatabase();
     const status=new URL(request.url).searchParams.get("status");
     if(status && !["OPEN","ACKNOWLEDGED","AWAITING_VERIFICATION","VERIFIED","DECLINED","CANCELLED"].includes(status))

@@ -1,13 +1,14 @@
 import {NextResponse} from "next/server";
 import {getDatabase} from "../../../../../../src/server/db";
-import {authorizeOwner,UnauthorizedOwner} from "../../../../../../src/server/owner-auth";
+import {UnauthorizedOwner} from "../../../../../../src/server/owner-auth";
+import {authorizeOwnerRequest} from "../../../../../../src/server/owner-session";
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
 export async function POST(request:Request,{params}:{params:Promise<{actionId:string}>}){
   const {actionId}=await params;
   if(!/^[0-9a-f-]{36}$/i.test(actionId))return NextResponse.json({error:"Invalid action ID"},{status:400});
   try{
-    authorizeOwner(request.headers);
+    authorizeOwnerRequest(request,true);
     const payload:unknown=await request.json().catch(()=>null);
     if(!payload || typeof payload!=="object" || !("status" in payload) ||
         !["ACKNOWLEDGED","AWAITING_VERIFICATION","DECLINED"].includes(String(payload.status)))
