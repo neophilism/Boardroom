@@ -1,5 +1,6 @@
+import {cookies} from "next/headers";
 import {NextResponse} from "next/server";
-import {authorizeOwnerRequest,OwnerOriginRejected} from "../../../../../../src/server/owner-session";
+import {authorizeOwnerRequest,OwnerOriginRejected,OWNER_COOKIE} from "../../../../../../src/server/owner-session";
 import {UnauthorizedOwner} from "../../../../../../src/server/owner-auth";
 import {getDatabase} from "../../../../../../src/server/db";
 import {verifyOwnerSetup} from "../../../../../../src/server/setup-verification";
@@ -9,7 +10,8 @@ export const dynamic="force-dynamic";
 const headers={"Cache-Control":"no-store"};
 export async function POST(request:Request){
   try{
-    authorizeOwnerRequest(request,true);
+    const jar=await cookies();
+    authorizeOwnerRequest(request,true,jar.get(OWNER_COOKIE)?.value);
     const result=await verifyOwnerSetup(getDatabase(),process.env);
     return NextResponse.json({
       actions:result.actions,
