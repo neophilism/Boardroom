@@ -4,6 +4,7 @@ import {redirect} from "next/navigation";
 import {OWNER_COOKIE,validOwnerSession} from "../../src/server/owner-session";
 import {getDatabase} from "../../src/server/db";
 import {getSystemStatus} from "../../src/server/system-status";
+import VerifySetup from "./verify-controls";
 
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
@@ -42,6 +43,7 @@ export default async function BoardroomSystemPage(){
         <p>Neither a real ChatGPT scheduled Work run nor its authenticated code-write and safe release has been verified. Boardroom will not claim autonomous operation based on CI or deployment status alone.</p>
       </section>
     </div>
+    <VerifySetup/>
     <div className="setup-links">
       <Link className="priority-nav" href="/system">Recheck connections</Link>
       <Link className="priority-nav" href="/owner-actions">View required owner actions</Link>
