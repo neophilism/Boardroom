@@ -1,10 +1,13 @@
 "use client";
 import {useState} from "react";
 import {useRouter} from "next/navigation";
+import {githubDiagnosticHint,type GitHubAppDiagnosticCode} from "../../src/domain/github-setup-hints";
 
 type SetupEvidence={
   databaseReady:boolean;
   githubInstallationConnected:boolean;
+  githubIssueCode:GitHubAppDiagnosticCode|null;
+  githubMissingPermissions:string[];
   actions:{actionKey:string;verified:boolean;newlyVerified:boolean}[];
 };
 type SyncBatch={
@@ -39,7 +42,11 @@ export default function VerifySetup(){
         return;
       }
       if(!result.githubInstallationConnected){
-        setMessage("Database verified, but GitHub App authentication or repository access failed. Check the GitHub App ID, installation ID, PEM private key, and installed repository access in Render/GitHub.");
+        const hint=githubDiagnosticHint(result.githubIssueCode);
+        const permissions=result.githubMissingPermissions?.length
+          ? " Missing permissions: "+result.githubMissingPermissions.join(", ")+".":"";
+        setMessage("Database verified, but GitHub App is not ready. "+
+          (hint??"Check the App ID, installation ID, PEM key and repository installation.")+permissions);
         router.refresh();
         return;
       }
