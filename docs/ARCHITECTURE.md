@@ -34,3 +34,7 @@ The above instruction is identical for every ChatGPT schedule; the provider inte
 ## Compatibility with existing portfolio
 
 Use the owning repo's approved structured plan and actual GitHub PR metadata; do not introduce a second authoritative roadmap count. A missing or malformed plan is blocked/diagnosed, not guessed. Engine Room consumer changes must be made in its own repository with its own plan unit.
+
+## Named scheduled agents (BR-079 / BR-080)
+
+Each externally scheduled temporary agent has one stable owner-assigned display name from the exact public roster in `registry/agent-names.json`, such as `Smith`. All sessions spawned by its schedule report that name. Every activation still receives a new unique run ID. The name is an identifier for humans **only**: the server derives its verified label from a scoped credential or trusted provider identity. A name claim in the prompt or request cannot grant privileges. Details and registration: `docs/NAMED_AGENT_IDENTITY.md`.
