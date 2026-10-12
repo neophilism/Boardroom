@@ -94,6 +94,8 @@ export async function getSystemStatus(db:Pool,env:NodeJS.ProcessEnv):Promise<Sys
           visibleRepositories:evidence.total_count as number,missingPermissions,
           issueCode:evidence.total_count===0?"NO_REPOSITORIES":
             missingPermissions.length?"MISSING_PERMISSIONS":"REPOSITORY_API_REJECTED"};
+      }else{
+        github={...github,issueCode:"INSTALLATION_RESPONSE_INVALID"};
       }
     }catch(error){
       github={...github,issueCode:classifyGitHubConnectionIssue(error)};
