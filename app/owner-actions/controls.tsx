@@ -19,7 +19,7 @@ export default function OwnerActionControls({actionId,status}:{actionId:string;s
   }
   return <div className="card-actions">
     {status==="OPEN"&&<button disabled={busy} onClick={()=>change("ACKNOWLEDGED")}>Acknowledge</button>}
-    {status!=="AWAITING_VERIFICATION"&&<button disabled={busy} onClick={()=>change("AWAITING_VERIFICATION")}>I've done this · verify</button>}
+    {status!=="AWAITING_VERIFICATION"&&<button disabled={busy} onClick={()=>change("AWAITING_VERIFICATION")}>Done — verify</button>}
     <button className="outline" disabled={busy} onClick={()=>change("DECLINED")}>Decline</button>
     {error&&<p role="alert" className="error">{error}</p>}
   </div>;
