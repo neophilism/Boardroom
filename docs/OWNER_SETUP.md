@@ -15,3 +15,12 @@ No credentials belong in this repository, Owner Action description, Coffee Corne
 ## Verified system status
 
 After adding your owner login token in Render, sign in at `/login` and open `/system` for server-side, non-secret operational checks. It verifies the Neon schema, registered names, outstanding Owner Actions, and actual GitHub App installation access, and never confuses these infrastructure checks with a tested scheduled-agent workflow. If the GitHub App is installed and authenticated, use `Refresh from GitHub` on the private Work Board to import real repositories. Keep this page owner-only.
+
+
+## One-click completion after setting Render credentials
+
+Once the database settings, owner login token, and GitHub App configuration are saved, open the [private System status page](https://boardroom-iamn.onrender.com/system), sign in, and select **Verify setup and import repositories**. The server validates its Neon schema, GitHub App installation token, and whether at least one authorized repository is available. It then imports actual installed repositories in small batches from GitHub and reconciles their plans. The Owner Action Board updates the verified setup items based on real provider evidence.
+
+A valid GitHub App credential **without any authorized repositories** is deliberately not considered a usable installation. No extra secret is copied to the browser or written to GitHub. An import failure stops visibly and leaves already imported records unchanged.
+
+This one-click process **does not** prove that ChatGPT scheduled tasks can invoke Boardroom, execute source changes, or merge approved PRs without new approval. Those remain live integration acceptance tests.
