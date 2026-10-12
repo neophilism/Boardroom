@@ -15,6 +15,8 @@ export async function POST(request:Request){
       actions:result.actions,
       databaseReady:result.system.database.migrationsReady,
       githubInstallationConnected:result.system.github.verifiedConnected,
+      githubIssueCode:result.system.github.issueCode,
+      githubMissingPermissions:result.system.github.missingPermissions,
       scheduledDevelopmentTested:false
     },{headers});
   }catch(error){

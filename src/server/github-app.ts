@@ -9,33 +9,72 @@ export type GitHubPull = {
 };
 type TokenCache={value:string;expires:number;permissions:Record<string,string>|null};
 let tokenCache:TokenCache|undefined;
+export type GitHubAppFailureCode=
+  |"APP_ID_INVALID"|"APP_ID_MISSING"|"INSTALLATION_ID_MISSING"|"PRIVATE_KEY_MISSING"
+  |"INSTALLATION_ID_INVALID"|"PRIVATE_KEY_INVALID"
+  |"APP_AUTH_REJECTED"|"INSTALLATION_NOT_FOUND"|"INSTALLATION_FORBIDDEN"
+  |"GITHUB_TEMPORARILY_UNAVAILABLE"|"GITHUB_NETWORK_ERROR"|"INSTALLATION_RESPONSE_INVALID";
+export class GitHubAppSetupFailure extends Error {
+  readonly issue:GitHubAppFailureCode;
+  constructor(issue:GitHubAppFailureCode){
+    super("GitHub App configuration or connectivity problem");
+    this.name="GitHubAppSetupFailure";
+    this.issue=issue;
+  }
+}
+
 function requiredEnv(name:string):string{
   const value=process.env[name];
-  if(!value)throw new Error("Boardroom GitHub App missing required configuration: "+name);
+  if(!value){
+    const code=name==="BOARDROOM_GITHUB_APP_ID"?"APP_ID_MISSING":
+      name==="BOARDROOM_GITHUB_INSTALLATION_ID"?"INSTALLATION_ID_MISSING":
+      "PRIVATE_KEY_MISSING";
+    throw new GitHubAppSetupFailure(code);
+  }
   return value;
 }
 function signInstallationJWT():string{
   const now=Math.floor(Date.now()/1000);
   const header=Buffer.from(JSON.stringify({alg:"RS256",typ:"JWT"})).toString("base64url");
-  const payload=Buffer.from(JSON.stringify({iat:now-60,exp:now+540,iss:requiredEnv("BOARDROOM_GITHUB_APP_ID")})).toString("base64url");
+  const appId=requiredEnv("BOARDROOM_GITHUB_APP_ID");
+  if(!/^\d+$/.test(appId))throw new GitHubAppSetupFailure("APP_ID_INVALID");
+  const payload=Buffer.from(JSON.stringify({iat:now-60,exp:now+540,iss:appId})).toString("base64url");
   const data=header+"."+payload;
   const key=requiredEnv("BOARDROOM_GITHUB_APP_PRIVATE_KEY").replace(/\\n/g,"\n");
-  return data+"."+createSign("RSA-SHA256").update(data).end().sign(key).toString("base64url");
+  try{
+    return data+"."+createSign("RSA-SHA256").update(data).end().sign(key).toString("base64url");
+  }catch{
+    throw new GitHubAppSetupFailure("PRIVATE_KEY_INVALID");
+  }
 }
 async function installationToken():Promise<string>{
   if(tokenCache && tokenCache.expires-Date.now()>5*60*1000)return tokenCache.value;
   const installationId=requiredEnv("BOARDROOM_GITHUB_INSTALLATION_ID");
-  if(!/^\d+$/.test(installationId))throw new Error("Invalid installation ID");
-  const response=await fetch("https://api.github.com/app/installations/"+installationId+"/access_tokens",{
-    method:"POST",headers:{
-      Authorization:"Bearer "+signInstallationJWT(),
-      Accept:"application/vnd.github+json","X-GitHub-Api-Version":"2022-11-28",
-      "User-Agent":"Boardroom-Coordinator"
-    },signal:AbortSignal.timeout(15000)
-  });
-  if(!response.ok)throw new Error("GitHub installation authorization failed: HTTP "+response.status);
+  if(!/^\d+$/.test(installationId))throw new GitHubAppSetupFailure("INSTALLATION_ID_INVALID");
+  let response:Response;
+  try{
+    response=await fetch("https://api.github.com/app/installations/"+installationId+"/access_tokens",{
+      method:"POST",headers:{
+        Authorization:"Bearer "+signInstallationJWT(),
+        Accept:"application/vnd.github+json","X-GitHub-Api-Version":"2022-11-28",
+        "User-Agent":"Boardroom-Coordinator"
+      },signal:AbortSignal.timeout(15000)
+    });
+  }catch(error){
+    if(error instanceof GitHubAppSetupFailure)throw error;
+    throw new GitHubAppSetupFailure("GITHUB_NETWORK_ERROR");
+  }
+  if(!response.ok){
+    const issue=response.status===401?"APP_AUTH_REJECTED":
+      response.status===403?"INSTALLATION_FORBIDDEN":
+      response.status===404?"INSTALLATION_NOT_FOUND":
+      response.status===422?"INSTALLATION_ID_INVALID":
+      "GITHUB_TEMPORARILY_UNAVAILABLE";
+    throw new GitHubAppSetupFailure(issue);
+  }
   const data=await response.json() as {token?:string;expires_at?:string;permissions?:Record<string,string>};
-  if(!data.token||!data.expires_at)throw new Error("GitHub did not return a valid installation token");
+  if(!data.token||!data.expires_at)
+    throw new GitHubAppSetupFailure("INSTALLATION_RESPONSE_INVALID");
   tokenCache={value:data.token,expires:Date.parse(data.expires_at),permissions:data.permissions??null};
   return data.token;
 }

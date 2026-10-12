@@ -5,6 +5,7 @@ import {OWNER_COOKIE,validOwnerSession} from "../../src/server/owner-session";
 import {getDatabase} from "../../src/server/db";
 import {getSystemStatus} from "../../src/server/system-status";
 import VerifySetup from "./verify-controls";
+import {githubDiagnosticHint} from "../../src/domain/github-setup-hints";
 
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
@@ -40,6 +41,7 @@ export default async function BoardroomSystemPage(){
           "GitHub App is missing required permissions. Update permissions and accept the revised installation permissions on GitHub.":
           "GitHub App configuration exists but could not be authenticated with the installation API."}</p>
         {system.github.missingPermissions.length>0&&<p><strong>Required permissions to add:</strong> {system.github.missingPermissions.join(", ")}</p>}
+        {!system.github.verifiedConnected&&system.github.issueCode&&<p role="status"><strong>Connection diagnosis:</strong> {githubDiagnosticHint(system.github.issueCode)}</p>}
         {system.github.visibleRepositories!==null&&<p>Repositories visible to this installation: <strong>{system.github.visibleRepositories}</strong></p>}
       </section>
       <section className="work-card">
