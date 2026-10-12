@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "repository": "neophilism/Boardroom",
-  "roadmapVersion": 1,
+  "roadmapVersion": 2,
   "planVerified": true,
-  "plannedPrCount": 78,
+  "plannedPrCount": 80,
   "observedAt": "2026-10-12T13:44:21.256Z",
   "units": [
     {
@@ -472,6 +472,18 @@
       "id": "BR-078",
       "title": "Final unattended multi-agent acceptance and audit",
       "origin": "original",
+      "prs": []
+    },
+    {
+      "id": "BR-079",
+      "title": "Owner-approved agent display-name roster and canonical registry",
+      "origin": "addition",
+      "prs": []
+    },
+    {
+      "id": "BR-080",
+      "title": "Credential-bound recurring agent names, enforcement and API identity",
+      "origin": "addition",
       "prs": []
     }
   ],
