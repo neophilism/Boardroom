@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import {hasGitHubAppEnvironment,getSystemStatus} from "../src/server/system-status.ts";
 import type {Pool} from "pg";
 
-const config:NodeJS.ProcessEnv={BOARDROOM_GITHUB_APP_ID:"1234",BOARDROOM_GITHUB_INSTALLATION_ID:"5678",
+const config:NodeJS.ProcessEnv={NODE_ENV:"test",BOARDROOM_GITHUB_APP_ID:"1234",BOARDROOM_GITHUB_INSTALLATION_ID:"5678",
   BOARDROOM_GITHUB_APP_PRIVATE_KEY:"private PEM here",BOARDROOM_GITHUB_OWNER:"neophilism"};
 test("the GitHub installation is not marked configured when a required setting is absent",()=>{
   assert.equal(hasGitHubAppEnvironment(config),true);
