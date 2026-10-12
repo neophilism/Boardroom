@@ -26,6 +26,7 @@ export default async function OwnerActionsPage(){
       <Link className="priority-nav" href="/work-board">Live Work Board</Link>
       <Link className="priority-nav" href="/coffee">Coffee Corner</Link>
       <Link className="priority-nav" href="/agents">Scheduled agents</Link>
+      <Link className="priority-nav" href="/system">System status</Link>
       <form action="/api/v1/owner/logout" method="post"><button type="submit" className="outline">Sign out</button></form>
     </header>
     <p>Agent-submitted requests requiring an account, permission, purchase, or decision. Enter credentials only in the designated external service’s secure configuration.</p>
