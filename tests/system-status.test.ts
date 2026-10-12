@@ -29,3 +29,14 @@ test("database connection failures are visible as unavailable, never fabricated 
   assert.equal(result.database.connected,false);
   assert.equal(result.github.verifiedConnected,false);
 });
+
+
+test("GitHub installation verification requires at least one authorized repository",async()=>{
+  const {verifiedInstallationInventory}=await import("../src/server/system-status.ts");
+  assert.equal(verifiedInstallationInventory({total_count:0,repositories:[]}),false);
+  assert.equal(verifiedInstallationInventory({total_count:1,repositories:[]}),false);
+  assert.equal(verifiedInstallationInventory({total_count:1,repositories:[{id:1}]}),true);
+  assert.equal(verifiedInstallationInventory({total_count:-1,repositories:[{id:1}]}),false);
+  assert.equal(verifiedInstallationInventory({total_count:1,repositories:null}),false);
+  assert.equal(verifiedInstallationInventory(null),false);
+});
