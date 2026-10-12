@@ -1,7 +1,8 @@
+import {cookies} from "next/headers";
 import {NextResponse} from "next/server";
 import {getDatabase} from "../../../../../../../src/server/db";
 import {authenticateAgent,InvalidAgentCredential} from "../../../../../../../src/server/agent-auth";
-import {authorizeOwnerRequest} from "../../../../../../../src/server/owner-session";
+import {authorizeOwnerRequest,OWNER_COOKIE} from "../../../../../../../src/server/owner-session";
 import {UnauthorizedOwner} from "../../../../../../../src/server/owner-auth";
 import {answerCoffeeThread,CoffeeError} from "../../../../../../../src/server/coffee";
 export const runtime="nodejs";
@@ -31,7 +32,7 @@ export async function GET(request:Request,{params}:{params:Promise<{threadId:str
     const db=getDatabase();
     try{await authenticateAgent(request.headers,db)}catch(e){
       if(!(e instanceof InvalidAgentCredential))throw e;
-      authorizeOwnerRequest(request);
+      authorizeOwnerRequest(request,false,(await cookies()).get(OWNER_COOKIE)?.value);
     }
     const result=await db.query(
       "SELECT message_id,thread_id,author_run_id,content,evidence,created_at FROM coffee_messages WHERE thread_id=$1 ORDER BY created_at ASC LIMIT 300",[threadId]
