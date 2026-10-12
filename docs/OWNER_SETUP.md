@@ -24,3 +24,10 @@ Once the database settings, owner login token, and GitHub App configuration are 
 A valid GitHub App credential **without any authorized repositories** is deliberately not considered a usable installation. No extra secret is copied to the browser or written to GitHub. An import failure stops visibly and leaves already imported records unchanged.
 
 This one-click process **does not** prove that ChatGPT scheduled tasks can invoke Boardroom, execute source changes, or merge approved PRs without new approval. Those remain live integration acceptance tests.
+
+
+## GitHub App permission verification
+
+The private System Status page now checks the permission grants returned by the *actual installation-token issuance*, not merely the presence of Render variables. It requires Contents:write, Pull requests:write, Checks:read and Actions:read, plus at least one repository visible to the installation. If any scope is missing, System Status identifies the exact required permission. Update the GitHub App permissions and accept the revised installation authorization in GitHub before using **Verify setup and import repositories** again.
+
+This permission check does not substitute for a live fenced GitHub write test; that remains a separate acceptance gate.

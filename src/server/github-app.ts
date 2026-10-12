@@ -7,7 +7,7 @@ export type GitHubRepository = {
 export type GitHubPull = {
   number:number; title:string; state:"open"|"closed"; updated_at:string; merged_at:string|null;
 };
-type TokenCache={value:string;expires:number};
+type TokenCache={value:string;expires:number;permissions:Record<string,string>|null};
 let tokenCache:TokenCache|undefined;
 function requiredEnv(name:string):string{
   const value=process.env[name];
@@ -34,11 +34,20 @@ async function installationToken():Promise<string>{
     },signal:AbortSignal.timeout(15000)
   });
   if(!response.ok)throw new Error("GitHub installation authorization failed: HTTP "+response.status);
-  const data=await response.json() as {token?:string;expires_at?:string};
+  const data=await response.json() as {token?:string;expires_at?:string;permissions?:Record<string,string>};
   if(!data.token||!data.expires_at)throw new Error("GitHub did not return a valid installation token");
-  tokenCache={value:data.token,expires:Date.parse(data.expires_at)};
+  tokenCache={value:data.token,expires:Date.parse(data.expires_at),permissions:data.permissions??null};
   return data.token;
 }
+/** The GitHub App token response includes its granted permissions. Only
+ * non-secret permission levels are exposed to authenticated system diagnostics.
+ * Never return the installation token itself.
+ */
+export async function getInstalledGitHubPermissions():Promise<Record<string,string>|null>{
+  await installationToken();
+  return tokenCache?.permissions?{...tokenCache.permissions}:null;
+}
+
 async function gh(path:string):Promise<Response>{
   if(!path.startsWith("/")||path.startsWith("//"))throw new Error("Invalid GitHub API path");
   const url=new URL("https://api.github.com"+path);

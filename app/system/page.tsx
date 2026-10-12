@@ -32,9 +32,14 @@ export default async function BoardroomSystemPage(){
       <section className="work-card">
         <div className="card-top"><strong>GitHub App</strong><span className="status-label">{system.github.verifiedConnected?"VERIFIED":"NEEDS SETUP"}</span></div>
         <h2>{system.github.verifiedConnected?"GitHub installation authenticated":"GitHub installation not verified"}</h2>
-        <p>{!system.github.configured?"Add the Boardroom GitHub App ID, installation ID and private key to Render's secure environment.":system.github.verifiedConnected?
-          "Authenticated as an installation. A repository import is still needed to populate Boardroom.":
+        <p>{!system.github.configured?"Add the Boardroom GitHub App ID, installation ID and private key to Render secure environment.":system.github.verifiedConnected?
+          "GitHub App authenticated with the necessary source, PR, CI and Actions permissions. Import repositories to populate Boardroom.":
+          system.github.visibleRepositories===0?
+          "GitHub App authenticated but has no authorized repositories. Add repository access under its installation settings.":
+          system.github.missingPermissions.length?
+          "GitHub App is missing required permissions. Update permissions and accept the revised installation permissions on GitHub.":
           "GitHub App configuration exists but could not be authenticated with the installation API."}</p>
+        {system.github.missingPermissions.length>0&&<p><strong>Required permissions to add:</strong> {system.github.missingPermissions.join(", ")}</p>}
         {system.github.visibleRepositories!==null&&<p>Repositories visible to this installation: <strong>{system.github.visibleRepositories}</strong></p>}
       </section>
       <section className="work-card">
