@@ -159,7 +159,7 @@ export async function performFencedGithubWrite(db:Pool,runId:string,credentialId
     await client.query("BEGIN");
     await client.query("SET LOCAL statement_timeout='25s'");
     const grant=await client.query<RepoScope>(
-      \`SELECT r.repository_id::text AS repository_id,r.full_name,a.unit_id,w.title
+      `SELECT r.repository_id::text AS repository_id,r.full_name,a.unit_id,w.title
        FROM agent_runs ar
        JOIN work_assignments a ON a.run_id=ar.run_id AND a.released_at IS NULL
        JOIN repository_leases l ON l.repository_id=a.repository_id AND l.run_id=a.run_id
@@ -169,7 +169,7 @@ export async function performFencedGithubWrite(db:Pool,runId:string,credentialId
        WHERE ar.run_id=$1 AND ar.credential_id=$2 AND ar.state='RUNNING'
          AND a.lease_generation=$3::bigint AND l.expires_at>now()+interval '25 seconds'
          AND r.enabled=TRUE AND r.archived=FALSE AND w.approved=TRUE
-       FOR UPDATE OF l\`,
+       FOR UPDATE OF l`,
       [runId,credentialId,generation]
     );
     if(grant.rowCount!==1)throw new SessionConflict("Writable repo lease unavailable or needs heartbeat");
