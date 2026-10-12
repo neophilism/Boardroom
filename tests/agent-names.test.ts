@@ -23,6 +23,6 @@ test("Boardroom agent name roster is a complete, unique, stable allowlist", () =
 });
 
 test("Every approved name appears once in the numbered document", () => {
-  const entries = document.split("\\n").filter(line=>/^\\d+\\. /.test(line)).map(line=>line.replace(/^\\d+\\. /,""));
+  const entries = document.split("\n").filter(line=>/^\d+\. /.test(line)).map(line=>line.replace(/^\d+\. /,""));
   assert.deepEqual(entries,registry.names);
 });
