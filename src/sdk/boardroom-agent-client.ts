@@ -85,7 +85,7 @@ export class BoardroomAgentClient{
     catch{throw new BoardroomContractError("Boardroom did not return valid JSON");}
   }
   async arrive(activationKey?:string):Promise<Arrival>{
-    const headers=activationKey?{"Idempotency-Key":activationKey}:{};
+    const headers:Record<string,string>|undefined=activationKey?{"Idempotency-Key":activationKey}:undefined;
     const result=await this.#request<Arrival>("POST","/api/v1/runs/arrive",{},headers);
     if(result.agentName!==this.#name||typeof result.shouldWork!=="boolean"||
        (result.shouldWork&&!result.runId))
