@@ -41,13 +41,43 @@ export function newOwnerSession():string{return issueOwnerCookie(secret());}
 function fromHeader(headers:Headers,name:string):string|undefined{
   return headers.get("cookie")?.split(";").map(v=>v.trim()).find(v=>v.startsWith(name+"="))?.slice(name.length+1);
 }
+/** A signed-in owner may still be rejected when a state-changing request
+ * originates from another site. This is distinct from authentication failure.
+ */
+export class OwnerOriginRejected extends UnauthorizedOwner {
+  constructor(){super();this.name="OwnerOriginRejected";}
+}
+
+/** Render/Next may expose an internal request URL behind a reverse proxy.
+ * NEVER use the internal request URL or user-supplied X-Forwarded-Host as the
+ * authority for the public browser Origin. Use only trusted deployment config.
+ */
+export function trustedOwnerOrigin(env:NodeJS.ProcessEnv=process.env):string{
+  const raw=env.BOARDROOM_PUBLIC_ORIGIN||
+    env.RENDER_EXTERNAL_URL||
+    "https://boardroom-iamn.onrender.com";
+  const parsed=new URL(raw);
+  if(parsed.protocol!=="https:"||parsed.username||parsed.password||
+     parsed.pathname!=="/"||parsed.search||parsed.hash)
+    throw new Error("Invalid Boardroom public origin configuration");
+  return parsed.origin;
+}
+
 export function authorizeOwnerRequest(request:Request,mutation=false):void{
+  // Bearer API tokens are individually authenticated. They do not rely on a
+  // browser session cookie and do not confer authority from a caller-set Origin.
   if(request.headers.has("authorization"))return authorizeOwner(request.headers);
-  if(!validOwnerSession(fromHeader(request.headers,OWNER_COOKIE)))throw new UnauthorizedOwner();
+  if(!validOwnerSession(fromHeader(request.headers,OWNER_COOKIE)))
+    throw new UnauthorizedOwner();
   if(mutation){
     const origin=request.headers.get("origin");
     const site=request.headers.get("sec-fetch-site");
-    if(origin!==new URL(request.url).origin && !(origin===null&&site==="same-origin"))
-      throw new UnauthorizedOwner();
+    // A valid explicit Origin must match the fixed trusted public service.
+    // Safari and some clients omit Origin for same-origin requests; accept the
+    // omission only when the browser positively indicates same-origin.
+    if((origin!==null&&origin!==trustedOwnerOrigin())||
+       (origin===null&&site!=="same-origin")||
+       (site!==null&&site!=="same-origin"&&site!=="none"))
+      throw new OwnerOriginRejected();
   }
 }
