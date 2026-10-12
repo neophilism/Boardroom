@@ -4,6 +4,7 @@ import Link from "next/link";
 import {OWNER_COOKIE,validOwnerSession} from "../../src/server/owner-session";
 import {getDatabase} from "../../src/server/db";
 import {classifyLease,formatEastern} from "../../src/domain/work-board";
+import RepositorySyncControls from "./repository-sync-controls";
 
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
@@ -66,6 +67,7 @@ export default async function WorkBoardPage(){
     </header>
     <p>This board shows recorded named-agent assignments and GitHub reconciliation evidence, not unverified claims of completed work. A heartbeat or active lease alone does not prove that code is progressing.</p>
     <div className="summary-strip"><strong>{active}</strong> active leases <span>·</span><strong>{attention}</strong> need recovery or verification <span>·</span><strong>{rows.length}</strong> repositories</div>
+    <RepositorySyncControls/>
     {rows.length===0?<section className="action-card"><h2>No registered repositories</h2><p>The GitHub inventory sync must populate Neon before the board can show actual assignments.</p></section>:
       <section className="work-grid" aria-label="Repository status cards">
         {rows.map(r=>{
