@@ -6,8 +6,11 @@
 import { readFileSync } from "node:fs";
 import { Client } from "pg";
 import { digestCredential } from "../src/server/agent-auth.ts";
+import { requireApprovedAgentName } from "../src/domain/agent-names.ts";
 
 const label = process.argv[2]?.trim();
+// Owner-approved spelling is mandatory before any database or credential operations.
+if (label) requireApprovedAgentName(label);
 const provider = process.argv[3]?.trim();
 if (!label || !provider || label.length > 100 || provider.length > 80)
   throw new Error("Usage: npm run register:agent -- <label> <provider> (token via stdin)");
