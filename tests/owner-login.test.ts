@@ -25,7 +25,7 @@ test("owner credentials with standard base64 punctuation are accepted exactly",(
 });
 
 test("password-manager credentials may contain arbitrary punctuation and spaces",()=>{
-  const credential="a#t:6!d$"e' (G){I}=?+*/;_~abcdefghijklmnop";
+  const credential=` a#t:6!d$\"e' (G){I}=?+*/;_~abcdefghijklmnop `;
   withOwnerSecret(credential,()=>{
     assert.doesNotThrow(()=>authorizeOwnerCredential(credential));
     assert.throws(()=>authorizeOwnerCredential(credential.trim()),UnauthorizedOwner);
