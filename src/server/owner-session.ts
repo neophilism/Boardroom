@@ -29,7 +29,14 @@ export function verifyOwnerCookie(cookie:string|undefined,key:string,now=Date.no
       data.iat<=now+60000&&now-data.iat<=OWNER_SESSION_SECONDS*1000;
   }catch{return false;}
 }
-export function validOwnerSession(cookie:string|undefined):boolean{return verifyOwnerCookie(cookie,secret());}
+/** In an unconfigured deployment, deny access instead of throwing on every
+ * private page load. Secret-dependent issuance still fails closed.
+ */
+export function validOwnerSession(cookie:string|undefined):boolean{
+  const key=process.env.BOARDROOM_SESSION_SECRET;
+  if(!key||key.length<32)return false;
+  return verifyOwnerCookie(cookie,key);
+}
 export function newOwnerSession():string{return issueOwnerCookie(secret());}
 function fromHeader(headers:Headers,name:string):string|undefined{
   return headers.get("cookie")?.split(";").map(v=>v.trim()).find(v=>v.startsWith(name+"="))?.slice(name.length+1);
