@@ -1,6 +1,6 @@
 # Boardroom — Complete Implementation Roadmap
 
-**78 planned, approved-for-planning PR work units**. These are *planned PRs*, not currently implemented or verified pull requests. BR-001 creates this plan; subsequent PRs require actual code, reviews, tests, and merges.
+**80 planned, approved-for-planning PR work units (roadmap version 2)**. These are *planned PRs*, not currently implemented or verified pull requests. BR-001 creates this plan; subsequent PRs require actual code, reviews, tests, and merges.
 
 **Portfolio priority:** Boardroom is the highest-priority project until an end-to-end unattended scheduled-agent loop with an Owner Action Board is working. Do not fabricate overall portfolio ranking changes in the currently undeployed Boardroom app; the owner can later change the rank using its priority editor.
 
