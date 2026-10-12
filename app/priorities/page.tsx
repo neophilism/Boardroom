@@ -31,6 +31,7 @@ export default async function RepositoryPrioritiesPage(){
     <header className="owner-header">
       <div><p className="eyebrow">BOARDROOM / OWNER CONTROL</p><h1>Repository priorities</h1></div>
       <Link className="priority-nav" href="/owner-actions">Owner Action Board</Link>
+        <Link className="priority-nav" href="/work-board">Live Work Board</Link>
     </header>
     <p>Scheduled agents claim the first available priority repository. When every priority repository is occupied or ineligible, Boardroom assigns the eligible repository with the oldest verified GitHub development activity.</p>
     <PriorityControls repositories={repositories}/>
