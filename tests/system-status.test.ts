@@ -40,3 +40,19 @@ test("GitHub installation verification requires at least one authorized reposito
   assert.equal(verifiedInstallationInventory({total_count:1,repositories:null}),false);
   assert.equal(verifiedInstallationInventory(null),false);
 });
+
+
+test("GitHub installation must have write permissions for contents and pull requests",async()=>{
+  const {missingGitHubPermissions}=await import("../src/server/system-status.ts");
+  assert.deepEqual(missingGitHubPermissions({
+    contents:"write",pull_requests:"write",checks:"read",actions:"read"
+  }),[]);
+  assert.deepEqual(missingGitHubPermissions({
+    contents:"read",pull_requests:"read",checks:"read",actions:"read"
+  }),["contents:write","pull_requests:write"]);
+  assert.deepEqual(missingGitHubPermissions({
+    contents:"write",pull_requests:"write",checks:"write",actions:"write"
+  }),[]);
+  assert.deepEqual(missingGitHubPermissions(null),
+    ["contents:write","pull_requests:write","checks:read","actions:read"]);
+});
