@@ -1,5 +1,5 @@
 import { createHmac,randomBytes,timingSafeEqual } from "node:crypto";
-import { authorizeOwner,UnauthorizedOwner } from "./owner-auth";
+import { authorizeOwner,UnauthorizedOwner } from "./owner-auth.ts";
 
 export const OWNER_COOKIE="boardroom_owner_session";
 export const OWNER_SESSION_SECONDS=60*60*8;
