@@ -1,0 +1,71 @@
+import type { Pool } from "pg";
+import { isValidRunId, isValidGeneration, SessionConflict } from "./sessions.ts";
+
+export type OwnerActionType = "ACCOUNT"|"CREDENTIAL"|"PURCHASE"|"APPROVAL"|"HUMAN_INPUT"|"OTHER";
+export type OwnerActionInput = {
+  runId:string; generation:string; actionKey:string; title:string; type:OwnerActionType;
+  instructions:string; requestedPermissions:string[]; secureEntryLocation:string|null;
+  priceEstimateCents:number|null;
+};
+const validTypes = new Set(["ACCOUNT","CREDENTIAL","PURCHASE","APPROVAL","HUMAN_INPUT","OTHER"]);
+const apparentSecret = /(?:github_pat_[A-Za-z0-9_]{12,}|gh[pousr]_[A-Za-z0-9]{20,}|sk-[A-Za-z0-9_-]{20,}|-----BEGIN [A-Z ]*PRIVATE KEY|(?:password|api.?key|secret|token)\s*[:=]\s*["']?[A-Za-z0-9+/_=-]{20,})/i;
+
+export function parseOwnerAction(payload: unknown): OwnerActionInput {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) throw new SessionConflict("Owner action object required");
+  const obj = payload as Record<string,unknown>;
+  if (!isValidRunId(obj.runId) || !isValidGeneration(obj.generation)) throw new SessionConflict("Valid authorized run and lease generation required");
+  if (typeof obj.actionKey !== "string" || !/^[a-z0-9][a-z0-9:._/-]{8,120}$/i.test(obj.actionKey)) throw new SessionConflict("Stable actionKey required");
+  if (typeof obj.title !== "string" || obj.title.trim().length < 5 || obj.title.length > 240) throw new SessionConflict("Action title must be 5-240 characters");
+  if (typeof obj.type !== "string" || !validTypes.has(obj.type)) throw new SessionConflict("Unsupported action type");
+  if (typeof obj.instructions !== "string" || obj.instructions.trim().length < 15 || obj.instructions.length > 4000) throw new SessionConflict("Actionable owner instructions required");
+  const permissions = obj.requestedPermissions ?? [];
+  if (!Array.isArray(permissions) || permissions.length > 30 ||
+      permissions.some(p=>typeof p!=="string" || p.length > 180)) throw new SessionConflict("Invalid requested permissions");
+  const target = obj.secureEntryLocation ?? null;
+  if (target !== null && (typeof target !== "string" || target.length > 400)) throw new SessionConflict("Invalid secure entry location");
+  const cost = obj.priceEstimateCents ?? null;
+  if (cost !== null && (!Number.isSafeInteger(cost) || (cost as number) < 0 || (cost as number)>1e12)) throw new SessionConflict("Invalid price estimate");
+  const values = [obj.title,obj.instructions,target,...permissions].filter(Boolean).join("\n");
+  if (apparentSecret.test(values)) throw new SessionConflict("Possible credential value detected; give only its name and secure entry location");
+  return {
+    runId:obj.runId,generation:obj.generation,actionKey:obj.actionKey.trim().toLowerCase(),
+    title:obj.title.trim(),type:obj.type as OwnerActionType,instructions:obj.instructions.trim(),
+    requestedPermissions:permissions,secureEntryLocation:target as string|null,priceEstimateCents:cost as number|null
+  };
+}
+
+export async function createOwnerAction(db:Pool,credentialId:string,input:OwnerActionInput):Promise<{actionId:string;status:string}>{
+  const client=await db.connect();
+  try{
+    await client.query("BEGIN");
+    const assignment=await client.query<{repository_id:string;unit_id:string|null}>(
+      "SELECT a.repository_id,a.unit_id FROM work_assignments a JOIN repository_leases l ON l.repository_id=a.repository_id AND l.run_id=a.run_id AND l.generation=a.lease_generation JOIN agent_runs r ON r.run_id=a.run_id WHERE a.run_id=$1 AND r.credential_id=$2 AND r.state='RUNNING' AND l.generation=$3::bigint AND l.expires_at>now() AND a.released_at IS NULL",
+      [input.runId,credentialId,input.generation]
+    );
+    if (assignment.rowCount !== 1) throw new SessionConflict("No current exclusive authorized assignment");
+    const {repository_id:repositoryId,unit_id:unitId}=assignment.rows[0];
+    const result=await client.query<{action_id:string;status:string}>(
+      `INSERT INTO owner_actions(action_key,title,action_type,instructions,requested_permissions,secure_entry_location,price_estimate_cents,source_run_id)
+       VALUES($1,$2,$3,$4,$5::jsonb,$6,$7,$8)
+       ON CONFLICT (action_key) WHERE status IN ('OPEN','ACKNOWLEDGED','AWAITING_VERIFICATION')
+       DO UPDATE SET updated_at=now()
+       RETURNING action_id,status`,
+      [input.actionKey,input.title,input.type,input.instructions,JSON.stringify(input.requestedPermissions),input.secureEntryLocation,input.priceEstimateCents,input.runId]
+    );
+    const action=result.rows[0];
+    await client.query(
+      `INSERT INTO owner_action_dependents(action_id,repository_id,unit_id) VALUES($1,$2,$3)
+       ON CONFLICT (action_id,repository_id) DO UPDATE
+       SET unit_id=CASE WHEN owner_action_dependents.unit_id = excluded.unit_id
+         THEN excluded.unit_id ELSE NULL END`,
+      [action.action_id,repositoryId,unitId]
+    );
+    await client.query(
+      "INSERT INTO audit_events(run_id,repository_id,kind,details) VALUES($1,$2,'owner_action.requested',$3::jsonb)",
+      [input.runId,repositoryId,JSON.stringify({actionId:action.action_id,type:input.type})]
+    );
+    await client.query("COMMIT");
+    return {actionId:action.action_id,status:action.status};
+  }catch(error){await client.query("ROLLBACK");throw error}
+  finally{client.release()}
+}
