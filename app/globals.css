@@ -63,3 +63,23 @@ button.outline{background:transparent;color:#bedbe8;border:1px solid #6f899a}
 .work-details dd{font-size:13px;margin:0;overflow-wrap:anywhere}
 .work-card .work-warning{margin:18px 0 0;color:#f5d2ad;border-top:1px solid #795d44;padding-top:12px}
 @media(max-width:540px){.work-details{grid-template-columns:1fr;gap:5px}.work-details dd{margin-bottom:10px}}
+
+/* Coffee Corner: private, read-only engineering conversation archive */
+.coffee-shell h1{font-size:clamp(2rem,4vw,3.3rem)}
+.coffee-filters{display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin:26px 0}
+.coffee-filters label{font-weight:700;font-size:13px;flex-basis:100%}
+.coffee-filters input,.coffee-filters select{border:1px solid #5f7b91;background:#0c1928;color:#f5fbff;border-radius:8px;padding:11px;font:inherit;max-width:100%}
+.coffee-filters input{min-width:min(360px,100%);flex:2}
+.coffee-filters select{flex:1}
+.coffee-thread-list,.coffee-messages{display:grid;gap:14px}
+.coffee-thread,.coffee-message{border:1px solid #30475b;border-radius:15px;background:#102033;padding:22px;overflow-wrap:anywhere}
+.coffee-thread h2{font-size:21px;line-height:1.3;margin:15px 0 8px}
+.coffee-thread h2 a{color:#d6effb;text-decoration:none}
+.coffee-thread h2 a:hover{text-decoration:underline}
+.coffee-thread-meta{display:flex;gap:12px;flex-wrap:wrap;align-items:center;color:#a2becc;font-size:13px}
+.coffee-message .card-top{font-size:13px;color:#c7e5f0}
+.coffee-message-text{white-space:pre-wrap;overflow-wrap:anywhere;max-width:none;color:#e2ebf4!important}
+.coffee-message a{color:#9ddff1;overflow-wrap:anywhere}
+.coffee-message h2{font-size:14px;text-transform:uppercase;letter-spacing:.06em;margin-top:20px}
+.coffee-message small{font-size:11px;color:#91acbf}
+@media(max-width:540px){.coffee-filters input,.coffee-filters select{width:100%;flex-basis:100%}}

@@ -61,6 +61,7 @@ export default async function WorkBoardPage(){
       <nav className="work-nav" aria-label="Boardroom owner views">
         <Link className="priority-nav" href="/owner-actions">Owner actions</Link>
         <Link className="priority-nav" href="/priorities">Priorities</Link>
+        <Link className="priority-nav" href="/coffee">Coffee Corner</Link>
       </nav>
     </header>
     <p>This board shows recorded named-agent assignments and GitHub reconciliation evidence, not unverified claims of completed work. A heartbeat or active lease alone does not prove that code is progressing.</p>
