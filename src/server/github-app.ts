@@ -129,3 +129,35 @@ export async function fetchRepositoryInstruction(fullName:string,path:"AGENTS.md
   const contents=await response.json() as unknown;
   return decodeRepositoryInstruction(contents,path);
 }
+
+/** Privileged GitHub App write transport. Call only through the DB-fenced gateway.
+ * Never expose the installation token or unsanitized response bodies to callers.
+ */
+export class GitHubAppError extends Error{
+  readonly httpStatus:number;
+  constructor(httpStatus:number){
+    super("GitHub installation operation failed: HTTP "+httpStatus);
+    this.name="GitHubAppError";
+    this.httpStatus=httpStatus;
+  }
+}
+export async function githubAppRequest(method:"GET"|"POST"|"PUT",path:string,body?:unknown):Promise<unknown>{
+  if(!path.startsWith("/")||path.startsWith("//")||path.includes("#")||path.includes("\\"))
+    throw new Error("Invalid GitHub App request path");
+  const url=new URL("https://api.github.com"+path);
+  if(url.origin!=="https://api.github.com")throw new Error("Unexpected GitHub origin");
+  const res=await fetch(url,{
+    method,headers:{
+      Authorization:"Bearer "+await installationToken(),
+      Accept:"application/vnd.github+json",
+      "Content-Type":"application/json",
+      "X-GitHub-Api-Version":"2022-11-28",
+      "User-Agent":"Boardroom-Coordinator"
+    },
+    body:method==="GET"?undefined:JSON.stringify(body),
+    signal:AbortSignal.timeout(16000)
+  });
+  if(!res.ok)throw new GitHubAppError(res.status);
+  if(res.status===204)return null;
+  return res.json() as Promise<unknown>;
+}
