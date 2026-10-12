@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { getDatabase } from "../../../../src/server/db";
-import { authenticateAgent, InvalidAgentCredential } from "../../../../src/server/agent-auth";
-import { AssignmentConflict, claimAssignment } from "../../../../src/server/assignment";
+import { getDatabase } from "../../../../../src/server/db";
+import { authenticateAgent, InvalidAgentCredential } from "../../../../../src/server/agent-auth";
+import { AssignmentConflict, claimAssignment } from "../../../../../src/server/assignment";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
