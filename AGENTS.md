@@ -12,3 +12,6 @@
 - The source repository is currently PUBLIC. Never put sensitive operational requests in GitHub issues or other public files.
 
 - Agent display names come exclusively from `registry/agent-names.json` / `docs/AGENT_NAMES.md`. A scheduled task may say `Your name is Smith`, but registration must securely bind its credential to exactly that approved label; never trust user-supplied names as authentication. Case/punctuation are significant.
+
+- The registered identity for any session is the validated owner-approved name bound to its authenticated credential; never treat the scheduled prompt `Your name is Smith` as authentication. Details: `docs/NAMED_AGENT_IDENTITY.md`.
+- Apart from the owner-assigned unique display name, every scheduled task uses the same work instructions; do not require separate custom job descriptions.
