@@ -29,3 +29,23 @@ button.outline{background:transparent;color:#bedbe8;border:1px solid #6f899a}
 .login-panel .fineprint{font-size:12px;color:#95aabc}
 .error{color:#ffd1cd!important;font-size:13px!important}
 @media(max-width:600px){.login-panel{margin:28px auto;padding:22px}.owner-shell{padding:24px 16px}}
+
+/* Owner repository-priority editor */
+.priority-nav{display:inline-flex;align-items:center;color:#d0eaf4;border:1px solid #5f7f93;border-radius:8px;padding:10px 14px;text-decoration:none;font-weight:700}
+.priority-nav:hover,.priority-nav:focus-visible{background:#203b4a}
+.priority-panel{margin-top:28px}
+.priority-panel h2{margin:30px 0 10px;font-size:21px}
+.priority-list{display:grid;gap:12px;padding-left:28px}
+.priority-list-item{border:1px solid #30475b;border-radius:12px;padding:14px 16px;background:#102033}
+.priority-repo{display:grid;gap:6px}
+.priority-repo small{font-size:13px;color:#9db6c6}
+.priority-item-controls{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.priority-item-controls button{min-width:44px}
+.priority-add{display:flex;align-items:end;gap:10px;flex-wrap:wrap;margin:18px 0}
+.priority-add label{font-size:14px;font-weight:700;flex-basis:100%}
+.priority-add select{font:inherit;color:#f1f8fc;background:#102033;border:1px solid #5d7686;border-radius:8px;padding:10px 12px;max-width:100%;min-width:min(360px,100%)}
+.priority-footer{display:flex;align-items:center;gap:18px;flex-wrap:wrap;margin:22px 0 38px}
+.priority-footer span{font-size:14px;color:#bde8e4}
+.priority-fallback{padding-left:0;list-style:none;display:grid;gap:8px}
+.priority-fallback li{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;border-bottom:1px solid #30475b;padding:10px 0;font-size:14px}
+.priority-fallback span{color:#9bb4c6}
