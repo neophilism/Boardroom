@@ -1,5 +1,5 @@
 import {NextResponse} from "next/server";
-import {authorizeOwnerRequest} from "../../../../../../src/server/owner-session";
+import {authorizeOwnerRequest,OwnerOriginRejected} from "../../../../../../src/server/owner-session";
 import {UnauthorizedOwner} from "../../../../../../src/server/owner-auth";
 import {synchronizeInstalledRepositories} from "../../../../../../src/server/repository-sync";
 
@@ -22,6 +22,9 @@ export async function POST(request:Request){
     const result=await synchronizeInstalledRepositories({afterId:afterId as string|null,limit});
     return NextResponse.json(result,{headers});
   }catch(error){
+    if(error instanceof OwnerOriginRejected)
+      return NextResponse.json({error:"Request origin is not authorized",code:"ORIGIN_REJECTED"},
+        {status:403,headers});
     if(error instanceof UnauthorizedOwner)
       return NextResponse.json({error:"Unauthorized"},{status:401,headers});
     console.error("Owner repository sync unavailable");
