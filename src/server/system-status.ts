@@ -15,6 +15,16 @@ export function hasGitHubAppEnvironment(env:NodeJS.ProcessEnv):boolean{
   ].every(k=>typeof env[k]==="string"&&!!env[k]);
 }
 
+/** An installation with no authorized repositories is not yet usable for
+ * Boardroom's claim/import flow, even if its GitHub credential is valid.
+ */
+export function verifiedInstallationInventory(evidence:unknown):boolean{
+  if(!evidence||typeof evidence!=="object"||Array.isArray(evidence))return false;
+  const v=evidence as {total_count?:unknown;repositories?:unknown};
+  return typeof v.total_count==="number"&&Number.isSafeInteger(v.total_count)&&
+    v.total_count>0&&Array.isArray(v.repositories)&&v.repositories.length>0;
+}
+
 export async function getSystemStatus(db:Pool,env:NodeJS.ProcessEnv):Promise<SystemStatus>{
   let database:SystemStatus["database"]={
     connected:false,migrationsReady:false,repositories:0,registeredAgents:0,openOwnerActions:0
@@ -42,9 +52,10 @@ export async function getSystemStatus(db:Pool,env:NodeJS.ProcessEnv):Promise<Sys
     try{
       const evidence=await githubAppRequest("GET","/installation/repositories?per_page=1") as
         {total_count?:number;repositories?:unknown[]};
-      if(Number.isSafeInteger(evidence.total_count)&&
-         (evidence.total_count as number)>=0&&Array.isArray(evidence.repositories)){
+      if(verifiedInstallationInventory(evidence)){
         github={configured:true,verifiedConnected:true,visibleRepositories:evidence.total_count as number};
+      }else if(Number.isSafeInteger(evidence.total_count)&&Array.isArray(evidence.repositories)){
+        github={configured:true,verifiedConnected:false,visibleRepositories:evidence.total_count as number};
       }
     }catch{
       // Invalid installation or denied scope is not proof of connected access.
