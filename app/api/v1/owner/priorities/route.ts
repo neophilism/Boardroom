@@ -1,6 +1,7 @@
 import {NextResponse} from "next/server";
 import {getDatabase} from "../../../../../src/server/db";
-import {authorizeOwner,UnauthorizedOwner} from "../../../../../src/server/owner-auth";
+import {UnauthorizedOwner} from "../../../../../src/server/owner-auth";
+import {authorizeOwnerRequest} from "../../../../../src/server/owner-session";
 import {getRepositoryPriority,parsePriorityOrder,replaceRepositoryPriority,PriorityValidationError} from "../../../../../src/server/priorities";
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
@@ -8,7 +9,7 @@ const headers={"Cache-Control":"no-store"};
 
 export async function GET(request:Request) {
   try{
-    authorizeOwner(request.headers);
+    authorizeOwnerRequest(request);
     const priorities=await getRepositoryPriority(getDatabase());
     return NextResponse.json({priorities},{headers});
   }catch(error){
@@ -20,7 +21,7 @@ export async function GET(request:Request) {
 
 export async function PUT(request:Request) {
   try{
-    authorizeOwner(request.headers);
+    authorizeOwnerRequest(request,true);
     const body:unknown=await request.json().catch(()=>null);
     const ids=parsePriorityOrder(body);
     const updated=await replaceRepositoryPriority(getDatabase(),ids);
