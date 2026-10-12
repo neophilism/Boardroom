@@ -5,10 +5,11 @@ type Stale={run_id:string;repository_id:string;generation:string;expires_at:Date
 type Lease={run_id:string|null;generation:string;expires_at:Date|null};
 
 export function authorizedWatchdogToken(value:string|null,secret:string|undefined):boolean{
-  if(!secret||secret.length<32||!value?.startsWith("Bearer "))return false;
+  if(!secret||!value?.startsWith("Bearer ")||!(/^[A-Za-z0-9_-]{32,256}$/).test(secret))return false;
   const received=value.slice(7);
-  return received.length===secret.length && received.length>=32 &&
-    timingSafeEqual(Buffer.from(received),Buffer.from(secret));
+  if(!(/^[A-Za-z0-9_-]{32,256}$/).test(received))return false;
+  const actual=Buffer.from(received),expected=Buffer.from(secret);
+  return actual.length===expected.length && timingSafeEqual(actual,expected);
 }
 
 /** Mark expired work as RECOVERING. Never release a lease because time elapsed. */
