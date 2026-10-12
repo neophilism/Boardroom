@@ -1,4 +1,4 @@
-import {createHash,timingSafeEqual} from "node:crypto";
+import {timingSafeEqual} from "node:crypto";
 
 export class UnauthorizedOwner extends Error {
   constructor(){super("Owner authorization required");this.name="UnauthorizedOwner";}
@@ -14,13 +14,23 @@ export class OwnerConfigurationError extends Error {
  */
 export function authorizeOwnerCredential(candidate:unknown):void{
   const secret=process.env.BOARDROOM_OWNER_API_TOKEN;
-  if(typeof secret!=="string"||secret.length<32)
+  // This is a high-entropy bearer API token stored only as a runtime secret,
+  // not a user password that needs an offline-resistant password hash.
+  // Compare fixed-size, zero-padded byte buffers in constant time; explicit
+  // byte lengths prevent equality if either value includes trailing NUL bytes.
+  const maxBytes=4096;
+  if(typeof secret!=="string"||secret.length<32||
+     Buffer.byteLength(secret,"utf8")>maxBytes)
     throw new OwnerConfigurationError();
-  if(typeof candidate!=="string"||candidate.length<32||candidate.length>4096)
+  if(typeof candidate!=="string"||candidate.length<32||
+     Buffer.byteLength(candidate,"utf8")>maxBytes)
     throw new UnauthorizedOwner();
-  const expectedHash=createHash("sha256").update(secret,"utf8").digest();
-  const actualHash=createHash("sha256").update(candidate,"utf8").digest();
-  if(!timingSafeEqual(expectedHash,actualHash))throw new UnauthorizedOwner();
+  const expected=Buffer.alloc(maxBytes);
+  const supplied=Buffer.alloc(maxBytes);
+  const secretLength=Buffer.from(secret,"utf8").copy(expected);
+  const suppliedLength=Buffer.from(candidate,"utf8").copy(supplied);
+  const match=timingSafeEqual(expected,supplied);
+  if(!match||secretLength!==suppliedLength)throw new UnauthorizedOwner();
 }
 
 export function authorizeOwner(headers:Headers):void{
