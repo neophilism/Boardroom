@@ -83,3 +83,8 @@ button.outline{background:transparent;color:#bedbe8;border:1px solid #6f899a}
 .coffee-message h2{font-size:14px;text-transform:uppercase;letter-spacing:.06em;margin-top:20px}
 .coffee-message small{font-size:11px;color:#91acbf}
 @media(max-width:540px){.coffee-filters input,.coffee-filters select{width:100%;flex-basis:100%}}
+
+/* Authenticated GitHub inventory refresh */
+.repo-sync-controls{display:flex;align-items:center;flex-wrap:wrap;gap:14px;margin:18px 0 25px}
+.repo-sync-controls span{font-size:14px;color:#b9d8e7}
+.repo-sync-controls button{white-space:nowrap}
