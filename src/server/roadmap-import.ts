@@ -20,7 +20,7 @@ function refToNumber(value:unknown,repo:string):number{
 }
 /** A PR may explicitly advance more than one stable unit, e.g. BR-044/047. */
 export function titleWorkUnitIds(title:string):string[]{
-  const match=title.match(/^([A-Z][A-Z0-9]*-\\d+)((?:\\/(?:[A-Z][A-Z0-9]*-)?\\d+)*)(?::|\\s|$)/i);
+  const match=title.match(/^([A-Z][A-Z0-9]*-\d+)((?:\/(?:[A-Z][A-Z0-9]*-)?\d+)*)(?::|\s|$)/i);
   if(!match)return [];
   const ids=[match[1]];
   const prefix=match[1].slice(0,match[1].indexOf("-")+1);
