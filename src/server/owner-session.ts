@@ -72,12 +72,20 @@ export function authorizeOwnerRequest(request:Request,mutation=false):void{
   if(mutation){
     const origin=request.headers.get("origin");
     const site=request.headers.get("sec-fetch-site");
-    // A valid explicit Origin must match the fixed trusted public service.
-    // Safari and some clients omit Origin for same-origin requests; accept the
-    // omission only when the browser positively indicates same-origin.
-    if((origin!==null&&origin!==trustedOwnerOrigin())||
-       (origin===null&&site!=="same-origin")||
-       (site!==null&&site!=="same-origin"&&site!=="none"))
+    // Always reject a contradictory browser Fetch Metadata signal.
+    if(site!==null&&site!=="same-origin"&&site!=="none")
       throw new OwnerOriginRejected();
+    const expected=trustedOwnerOrigin();
+    if(origin!==null){
+      if(origin!==expected)throw new OwnerOriginRejected();
+    }else if(site!=="same-origin"){
+      // Older/privacy-focused browsers may omit both Origin and Fetch Metadata.
+      // An exact public-origin Referer is a defensible fallback; never trust
+      // unvalidated Host or X-Forwarded-* request headers from the caller.
+      const referer=request.headers.get("referer");
+      let refererOrigin:string|null=null;
+      try{if(referer)refererOrigin=new URL(referer).origin;}catch{}
+      if(refererOrigin!==expected)throw new OwnerOriginRejected();
+    }
   }
 }
