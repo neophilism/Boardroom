@@ -1,4 +1,4 @@
-import { createSign } from "node:crypto";
+import { createPrivateKey, createSign, type KeyObject } from "node:crypto";
 
 export type GitHubRepository = {
   id:number; full_name:string; created_at:string; pushed_at:string|null;
@@ -33,6 +33,23 @@ function requiredEnv(name:string):string{
   }
   return value;
 }
+/** Accept ordinary secret-manager copy formats, then validate an RSA key.
+ * The returned key never leaves server memory; failures contain no key material.
+ */
+export function parseGitHubPrivateKey(input:string):KeyObject{
+  let pem=input.trim().replace(/^\uFEFF/,"");
+  if((pem.startsWith('"')&&pem.endsWith('"'))||
+     (pem.startsWith("'")&&pem.endsWith("'")))pem=pem.slice(1,-1);
+  pem=pem.replace(/\\r\\n/g,"\n").replace(/\\n/g,"\n").replace(/\r\n/g,"\n").trim();
+  try{
+    if(pem.length>20000||!/^-----BEGIN (?:RSA )?PRIVATE KEY-----\n[\s\S]+\n-----END (?:RSA )?PRIVATE KEY-----$/.test(pem))
+      throw new Error("Invalid PEM envelope");
+    const key=createPrivateKey(pem);
+    if(key.asymmetricKeyType!=="rsa"||(key.asymmetricKeyDetails?.modulusLength??0)<2048)
+      throw new Error("An RSA signing key of at least 2048 bits is required");
+    return key;
+  }catch{throw new GitHubAppSetupFailure("PRIVATE_KEY_INVALID");}
+}
 function signInstallationJWT():string{
   const now=Math.floor(Date.now()/1000);
   const header=Buffer.from(JSON.stringify({alg:"RS256",typ:"JWT"})).toString("base64url");
@@ -40,7 +57,7 @@ function signInstallationJWT():string{
   if(!/^\d+$/.test(appId))throw new GitHubAppSetupFailure("APP_ID_INVALID");
   const payload=Buffer.from(JSON.stringify({iat:now-60,exp:now+540,iss:appId})).toString("base64url");
   const data=header+"."+payload;
-  const key=requiredEnv("BOARDROOM_GITHUB_APP_PRIVATE_KEY").replace(/\\n/g,"\n");
+  const key=parseGitHubPrivateKey(requiredEnv("BOARDROOM_GITHUB_APP_PRIVATE_KEY"));
   try{
     return data+"."+createSign("RSA-SHA256").update(data).end().sign(key).toString("base64url");
   }catch{
@@ -189,7 +206,7 @@ export class GitHubAppError extends Error{
     this.httpStatus=httpStatus;
   }
 }
-export async function githubAppRequest(method:"GET"|"POST"|"PUT",path:string,body?:unknown):Promise<unknown>{
+export async function githubAppRequest(method:"GET"|"POST"|"PUT"|"PATCH",path:string,body?:unknown):Promise<unknown>{
   if(!path.startsWith("/")||path.startsWith("//")||path.includes("#")||path.includes("\\"))
     throw new Error("Invalid GitHub App request path");
   const url=new URL("https://api.github.com"+path);
