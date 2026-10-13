@@ -1,10 +1,12 @@
 import type {Pool} from "pg";
 import {SessionConflict,isValidGeneration,isValidRunId} from "./sessions.ts";
 import {githubAppRequest,GitHubAppError} from "./github-app.ts";
+import {commitAssignedFiles} from "./github-atomic-commit.ts";
 
 type RepoScope={repository_id:string;full_name:string;unit_id:string;title:string};
 export type GithubWrite=
   |{kind:"ensure_branch"}
+  |{kind:"commit_files";expectedHeadSha:string;message:string;files:{path:string;contentBase64:string|null}[]}
   |{kind:"upsert_file";path:string;contentBase64:string;expectedSha:string|null;message:string}
   |{kind:"open_draft_pr";description:string}
   |{kind:"ready_pr";number:number};
@@ -24,7 +26,7 @@ export function safeRepositoryPath(input:unknown):string{
   if(parts.some(p=>p===""||p==="."||p===".."))
     throw new GithubWriteValidation("Path traversal or empty path component forbidden");
   const key=input.toLowerCase();
-  if(key.startsWith(".github/")||key.startsWith("registry/")||
+  if(key.startsWith(".github/")||key.startsWith(".circleci/")||key.startsWith("registry/")||
     key==="agents.md"||key==="render.yaml"||
     parts.some(p=>p.toLowerCase().startsWith(".env")||[".git",".npmrc",".pypirc",".ssh",".aws","secrets"].includes(p.toLowerCase()))||
     /\.(?:pem|p12|pfx|key)$/i.test(input))
@@ -38,7 +40,7 @@ export function safeWorkBranch(unitId:string):string{
   return "boardroom/"+unitId;
 }
 function decodeSourceBase64(data:unknown):string{
-  if(typeof data!=="string"||!data.length||data.length>280000||
+  if(typeof data!=="string"||data.length>280000||
     !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(data))
     throw new GithubWriteValidation("Invalid bounded base64 text");
   const bytes=Buffer.from(data,"base64");
@@ -55,6 +57,25 @@ export function parseGithubWrite(value:unknown):GithubWrite{
     throw new GithubWriteValidation("JSON operation object required");
   const v=value as Record<string,unknown>;
   if(v.kind==="ensure_branch")return {kind:"ensure_branch"};
+  if(v.kind==="commit_files"){
+    if(!validSha(v.expectedHeadSha)||!Array.isArray(v.files)||v.files.length<1||v.files.length>50)
+      throw new GithubWriteValidation("A snapshot head SHA and 1-50 source files are required");
+    // Reuse the single-file policy for every addition, edit and deletion.
+    const files=v.files.map(file=>{
+      if(!file||typeof file!=="object"||Array.isArray(file)||Object.keys(file).some(k=>!["path","contentBase64"].includes(k)))
+        throw new GithubWriteValidation("Invalid source file change");
+      const f=file as Record<string,unknown>;
+      const validated=parseGithubWrite({kind:"upsert_file",path:f.path,contentBase64:f.contentBase64===null?"":f.contentBase64,message:v.message});
+      if(validated.kind!=="upsert_file")throw new GithubWriteValidation("Invalid source file change");
+      return {path:validated.path,contentBase64:f.contentBase64 as string|null};
+    });
+    const paths=files.map(f=>f.path);
+    if(new Set(paths).size!==paths.length||paths.some(p=>paths.some(other=>other!==p&&other.startsWith(p+"/"))))
+      throw new GithubWriteValidation("Duplicate or overlapping source paths are forbidden");
+    if(files.reduce((bytes,f)=>bytes+(f.contentBase64===null?0:Buffer.from(f.contentBase64,"base64").length),0)>200000)
+      throw new GithubWriteValidation("Combined source changes exceed 200 KB");
+    return {kind:"commit_files",expectedHeadSha:v.expectedHeadSha,message:(v.message as string).trim(),files};
+  }
   if(v.kind==="upsert_file"){
     const path=safeRepositoryPath(v.path);
     decodeSourceBase64(v.contentBase64);
@@ -103,6 +124,7 @@ async function doWrite(scope:RepoScope,op:GithubWrite){
   const {owner,name}=repoParts(scope.full_name);
   const repoPath="/repos/"+encodeURIComponent(owner)+"/"+encodeURIComponent(name);
   const branch=safeWorkBranch(scope.unit_id);
+  if(op.kind==="commit_files")return commitAssignedFiles(repoPath,branch,op);
   if(op.kind==="ready_pr"){
     const pr=await githubAppRequest("GET",repoPath+"/pulls/"+op.number) as {node_id:string;draft:boolean;head:{ref:string;repo:{id:number}}};
     if(pr.head.ref!==branch||String(pr.head.repo.id)!==scope.repository_id)
@@ -215,6 +237,7 @@ export async function performFencedGithubWrite(db:Pool,runId:string,credentialId
       [runId,scope.repository_id,"github.write."+op.kind,
         JSON.stringify({unitId:scope.unit_id,generation,kind:op.kind,
           path:op.kind==="upsert_file"?op.path:undefined,
+          paths:op.kind==="commit_files"?op.files.map(f=>f.path):undefined,
           result})]
     );
     await client.query("COMMIT");committed=true;

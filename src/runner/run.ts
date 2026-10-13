@@ -1,7 +1,7 @@
 import {BoardroomAgentClient,BoardroomRequestError,type Claimed,type SessionOutcome} from "../sdk/boardroom-agent-client.ts";
 import {ProviderSession,type ProviderName,type ToolDefinition} from "./provider.ts";
 import {CodingSandbox} from "./sandbox.ts";
-import {safeRepositoryPath} from "../server/github-write-gateway.ts";
+import {safeRepositoryPath,parseGithubWrite} from "../server/github-write-gateway.ts";
 import {checkpointProgress,resumablePrNumber,type ResumeProgress} from "./resume.ts";
 import {boundedWorkerLimits} from "../domain/execution-limits.ts";
 
@@ -12,6 +12,7 @@ const WORKER_TOOLS:ToolDefinition[]=[
   {name:"list_files",description:"List the current assigned repository snapshot",parameters:schema({},[])},
   {name:"read_file",description:"Read a UTF-8 file from the current repository",parameters:schema({path:string},["path"])},
   {name:"write_file",description:"Write a UTF-8 source file through the fenced GitHub gateway",parameters:schema({path:string,text:string,message:string},["path","text","message"])},
+  {name:"commit_files",description:"Commit coordinated source additions, edits and deletions atomically. Up to 50 files and 200 KB combined; text:null deletes an existing ordinary source file. Protected paths remain blocked.",parameters:schema({message:string,files:{type:"array",minItems:1,maxItems:50,items:schema({path:string,text:{type:["string","null"]}},["path","text"])}},["message","files"])},
   {name:"run_checks",description:"Run install, lint, typecheck, test, build or check in an isolated credential-free Node container. Install ignores lifecycle scripts; checks have no network.",parameters:schema({name:{enum:["install","lint","typecheck","test","build","check"]}},["name"])},
   {name:"open_pr",description:"Open a mapped draft PR after meaningful passing checks, then mark ready for independent CI/review",parameters:schema({description:string},["description"])},
   {name:"pr_status",description:"Read authoritative CI for the current PR",parameters:schema({},[])},
@@ -148,6 +149,23 @@ export async function runHostedAgent(config:RunnerConfig,activationKey:string,si
               result=await client.githubWrite(runId,generation,{kind:"upsert_file",path:file,contentBase64:Buffer.from(a.text).toString("base64"),expectedSha:existing?.sha??null,message:String(a.message)});
               snapshot=await client.sourceTree(runId,generation);source.delete(file);meaningfulChecksPassed=false;
               if(workspace.sandbox)await workspace.sandbox.put(file,a.text);
+              break;
+            }
+            case "commit_files":{
+              if(!Array.isArray(a.files)||a.files.length>50)throw new Error("Bounded source changes required");
+              const files=a.files.map((f:unknown)=>{
+                if(!f||typeof f!=="object"||Array.isArray(f))throw new Error("Invalid source change");
+                const file=f as Record<string,unknown>;
+                if(file.text!==null&&typeof file.text!=="string")throw new Error("UTF-8 text or explicit deletion required");
+                return {path:file.path,contentBase64:file.text===null?null:Buffer.from(file.text as string).toString("base64")};
+              });
+              const op=parseGithubWrite({kind:"commit_files",expectedHeadSha:snapshot.headSha,message:a.message,files});
+              await client.githubWrite(runId,generation,{kind:"ensure_branch"});
+              result=await client.githubWrite(runId,generation,op);
+              snapshot=await client.sourceTree(runId,generation);source.clear();meaningfulChecksPassed=false;
+              // Recreate the test workspace so deleted files and stale installed
+              // dependencies cannot survive the new immutable source snapshot.
+              if(workspace.sandbox){await workspace.sandbox.dispose();workspace.sandbox=null;}
               break;
             }
             case "run_checks":{

@@ -5,6 +5,7 @@ import {parseGithubWriteRequest,performFencedGithubWrite,GithubWriteValidation}
   from "../../../../../src/server/github-write-gateway";
 import {GitHubAppError} from "../../../../../src/server/github-app";
 import {SessionConflict} from "../../../../../src/server/sessions";
+import {boundedRequestText,RequestBodyTooLarge} from "../../../../../src/server/request-body";
 
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
@@ -14,11 +15,13 @@ export async function POST(request:Request){
   try{
     const db=getDatabase();
     const agent=await authenticateAgent(request.headers,db);
-    const input:unknown=await request.json().catch(()=>null);
+    const input:unknown=JSON.parse(await boundedRequestText(request,300000));
     const {runId,generation,op}=parseGithubWriteRequest(input);
     const result=await performFencedGithubWrite(db,runId,agent.credentialId,generation,op);
     return NextResponse.json(result,{headers});
   }catch(error){
+    if(error instanceof RequestBodyTooLarge)return NextResponse.json({error:"Request too large"},{status:413,headers});
+    if(error instanceof SyntaxError)return NextResponse.json({error:"Invalid JSON request"},{status:400,headers});
     if(error instanceof InvalidAgentCredential)
       return NextResponse.json({error:"Unauthorized"},{status:401,headers});
     if(error instanceof GithubWriteValidation)
