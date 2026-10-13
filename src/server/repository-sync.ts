@@ -1,6 +1,7 @@
 import {getDatabase} from "./db.ts";
 import {listAppRepositories,fetchPullRequests,fetchCanonicalRoadmap,githubAppRequest,type GitHubRepository,type GitHubPull} from "./github-app.ts";
 import {normalizeRoadmap} from "./roadmap-import.ts";
+import {reconcileRoadmapUnits,recordReconciliationFailure} from "./roadmap-reconciliation.ts";
 
 function activityDate(repo:GitHubRepository,pulls:readonly GitHubPull[]):string|null{
   const values=[repo.pushed_at,...pulls.map(p=>p.updated_at)].filter((v):v is string=>!!v&&Number.isFinite(Date.parse(v)));
@@ -32,10 +33,16 @@ export function selectRepositorySyncBatch(installed:readonly GitHubRepository[],
 }
 
 async function syncOne(repository:GitHubRepository):Promise<"VERIFIED"|"MISSING">{
-  const pulls=await fetchPullRequests(repository.full_name);
-  const source=await fetchCanonicalRoadmap(repository.full_name);
-  const plan=normalizeRoadmap(source,repository.full_name,pulls);
   const db=getDatabase();
+  let pulls:GitHubPull[],plan:ReturnType<typeof normalizeRoadmap>;
+  try{
+    pulls=await fetchPullRequests(repository.full_name);
+    const source=await fetchCanonicalRoadmap(repository.full_name);
+    plan=normalizeRoadmap(source,repository.full_name,pulls);
+  }catch{
+    await recordReconciliationFailure(db,repository);
+    throw new Error("GitHub or approved roadmap verification failed; inspect the repository plan and installed App access");
+  }
   const client=await db.connect();
   try{
     await client.query("BEGIN");
@@ -47,29 +54,7 @@ async function syncOne(repository:GitHubRepository):Promise<"VERIFIED"|"MISSING"
       "INSERT INTO repository_leases(repository_id,generation) VALUES($1,0) ON CONFLICT(repository_id) DO NOTHING",
       [repository.id]
     );
-    const knownIds:string[]=[];
-    for(const unit of plan.units){
-      knownIds.push(unit.id);
-      await client.query(
-        `INSERT INTO roadmap_units(repository_id,unit_id,title,version,approved,state,depends_on,planned_prs,acceptance_criteria,source_observed_at)
-        VALUES($1,$2,$3,$4,TRUE,$5,$6::jsonb,$7::jsonb,$8,now())
-        ON CONFLICT(repository_id,unit_id) DO UPDATE SET title=excluded.title,version=excluded.version,
-          approved=TRUE,
-          state=CASE WHEN roadmap_units.state='ACCEPTED' THEN 'ACCEPTED' ELSE excluded.state END,
-          depends_on=excluded.depends_on,planned_prs=excluded.planned_prs,
-          acceptance_criteria=excluded.acceptance_criteria,source_observed_at=now()`,
-        [repository.id,unit.id,unit.title,plan.version,unit.status,
-          JSON.stringify(unit.dependsOn),JSON.stringify(unit.pullRequests),unit.acceptanceCriteria]
-      );
-    }
-    if(plan.verified){
-      await client.query(
-        "UPDATE roadmap_units SET approved=FALSE WHERE repository_id=$1 AND NOT(unit_id=ANY($2::text[]))",
-        [repository.id,knownIds]
-      );
-    }else{
-      await client.query("UPDATE roadmap_units SET approved=FALSE WHERE repository_id=$1",[repository.id]);
-    }
+    await reconcileRoadmapUnits(client,repository.id,plan);
     await client.query(
       `INSERT INTO repository_sync_status(repository_id,last_attempt_at,last_success_at,plan_status,last_plan_version)
       VALUES($1,now(),now(),$2,$3)

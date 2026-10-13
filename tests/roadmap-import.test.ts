@@ -76,3 +76,17 @@ test("partial unit ID prefixes do not map unrelated PRs",()=>{
   assert.deepEqual(result.units[0].pullRequests,[]);
   assert.equal(result.units[0].status,"PENDING");
 });
+test("approved dependency graphs reject unknown, duplicate, cyclic and unsafe units",()=>{
+  const variations=[
+    [{id:"AB-001",title:"Unknown",dependsOn:["AB-999"]}],
+    [{id:"AB-001",title:"Self",dependsOn:["AB-001"]}],
+    [{id:"AB-001",title:"Cycle A",dependsOn:["AB-002"]},{id:"AB-002",title:"Cycle B",dependsOn:["AB-001"]}],
+    [{id:"AB-001",title:"Root",dependsOn:[]},{id:"AB-002",title:"Duplicate",dependsOn:["AB-001","AB-001"]}],
+    [{id:"../unsafe",title:"Unsafe branch",dependsOn:[]}]
+  ];
+  for(const milestones of variations)assert.throws(()=>normalizeRoadmap({...plan,plannedPrCount:milestones.length,milestones},"owner/example",[]));
+});
+test("long acyclic approved plans validate without recursive stack use",()=>{
+  const milestones=Array.from({length:5000},(_,i)=>({id:"LOAD-"+i,title:"Unit "+i,dependsOn:i?["LOAD-"+(i-1)]:[]}));
+  assert.equal(normalizeRoadmap({...plan,plannedPrCount:milestones.length,milestones},"owner/example",[]).units.length,5000);
+});
