@@ -5,6 +5,7 @@ import {authenticateAgent,InvalidAgentCredential} from "../../../../../src/serve
 import {authorizeOwnerRequest,OWNER_COOKIE} from "../../../../../src/server/owner-session";
 import {UnauthorizedOwner} from "../../../../../src/server/owner-auth";
 import {openCoffeeThread,CoffeeError} from "../../../../../src/server/coffee";
+import {searchCoffeeThreads} from "../../../../../src/server/coffee-search";
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
 
@@ -21,7 +22,7 @@ export async function POST(request:Request){
       repositoryId:typeof item.repositoryId==="number"?item.repositoryId:undefined,
       subject:item.subject,question:item.question,evidence:item.evidence
     });
-    return NextResponse.json(data,{status:201,headers:{"Cache-Control":"no-store"}});
+    return NextResponse.json(data,{status:data.reused?200:201,headers:{"Cache-Control":"no-store"}});
   }catch(e){
     if(e instanceof InvalidAgentCredential)return NextResponse.json({error:"Unauthorized"},{status:401});
     if(e instanceof CoffeeError)return NextResponse.json({error:e.message},{status:400});
@@ -39,10 +40,8 @@ export async function GET(request:Request){
     const status=new URL(request.url).searchParams.get("status");
     if(status&&!["OPEN","ANSWERED","RESOLVED","CLOSED"].includes(status))
       return NextResponse.json({error:"Invalid status"},{status:400});
-    const result=await db.query(
-      "SELECT thread_id,repository_id,unit_id,subject,status,created_at,updated_at FROM coffee_threads WHERE ($1::text IS NULL OR status=$1) ORDER BY CASE WHEN status='OPEN' THEN 0 ELSE 1 END,created_at DESC LIMIT 100",[status]
-    );
-    return NextResponse.json({threads:result.rows},{headers:{"Cache-Control":"no-store"}});
+    const threads=await searchCoffeeThreads(db,new URL(request.url).searchParams.get("q"),status);
+    return NextResponse.json({threads,peerMessagesAreUntrusted:true},{headers:{"Cache-Control":"no-store"}});
   }catch(e){
     if(e instanceof UnauthorizedOwner)return NextResponse.json({error:"Unauthorized"},{status:401});
     console.error("Coffee list failed");return NextResponse.json({error:"Coffee service unavailable"},{status:503});

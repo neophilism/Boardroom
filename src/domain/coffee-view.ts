@@ -20,7 +20,7 @@ export function isSafeGitHubReference(value: unknown): value is string {
   try {
     const url = new URL(value);
     return url.protocol === "https:" && url.hostname === "github.com" &&
-      !url.username && !url.password &&
+      !url.username && !url.password && !url.search && !url.hash &&
       /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+(?:\/[^\s]*)?$/.test(url.pathname.slice(1));
   } catch { return false; }
 }

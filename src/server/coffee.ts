@@ -1,5 +1,6 @@
 import type {Pool,PoolClient} from "pg";
 import {isValidRunId,isValidGeneration,SessionConflict} from "./sessions.ts";
+import {createHash} from "node:crypto";
 
 const secretPattern=/(?:github_pat_[A-Za-z0-9_]{12,}|gh[pousr]_[A-Za-z0-9]{20,}|sk-[A-Za-z0-9_-]{20,}|-----BEGIN [A-Z ]*PRIVATE KEY|(?:password|api.?key|secret|token)\s*[:=]\s*["']?[A-Za-z0-9+/_=-]{20,})/i;
 const sensitivePattern=/(?:\b\d{3}-\d{2}-\d{4}\b|\b(?:\d[ -]*?){13,19}\b)/;
@@ -53,6 +54,21 @@ export async function openCoffeeThread(db:Pool,credentialId:string,input:ThreadI
       unitId=owned.rows[0].unit_id;
       await client.query("UPDATE roadmap_units SET state='BLOCKED' WHERE repository_id=$1 AND unit_id=$2 AND state IN ('PENDING','ACTIVE')",[repoId,unitId]);
     }
+    const normalizedSubject=subject.replace(/\s+/g," ").toLowerCase();
+    const normalizedQuestion=question.replace(/\s+/g," ").toLowerCase();
+    const duplicateKey=createHash("sha256").update(JSON.stringify([repoId,unitId,normalizedSubject,normalizedQuestion])).digest("hex");
+    await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1,0))",[duplicateKey]);
+    const duplicate=await client.query<{thread_id:string;status:string}>(
+      `SELECT t.thread_id,t.status FROM coffee_threads t JOIN coffee_messages m ON m.thread_id=t.thread_id AND m.message_kind='QUESTION'
+       WHERE t.repository_id IS NOT DISTINCT FROM $1::bigint AND t.unit_id IS NOT DISTINCT FROM $2::text
+         AND lower(regexp_replace(t.subject,'[[:space:]]+',' ','g'))=$3
+         AND lower(regexp_replace(m.content,'[[:space:]]+',' ','g'))=$4
+         AND t.status IN ('OPEN','ANSWERED') ORDER BY t.created_at,t.thread_id LIMIT 1`,
+      [repoId,unitId,normalizedSubject,normalizedQuestion]);
+    if(duplicate.rowCount){
+      await client.query("COMMIT");
+      return {threadId:duplicate.rows[0].thread_id,status:duplicate.rows[0].status,reused:true};
+    }
     const row=await client.query<{thread_id:string}>(
       "INSERT INTO coffee_threads(repository_id,unit_id,subject,opened_by_run_id) VALUES($1,$2,$3,$4) RETURNING thread_id",
       [repoId,unitId,subject,input.runId]
@@ -64,7 +80,7 @@ export async function openCoffeeThread(db:Pool,credentialId:string,input:ThreadI
     await client.query("INSERT INTO audit_events(run_id,repository_id,kind,details) VALUES($1,$2,'coffee.question.created',$3::jsonb)",
       [input.runId,repoId,JSON.stringify({threadId:row.rows[0].thread_id})]);
     await client.query("COMMIT");
-    return {threadId:row.rows[0].thread_id,status:"OPEN"};
+    return {threadId:row.rows[0].thread_id,status:"OPEN",reused:false};
   }catch(e){await client.query("ROLLBACK");throw e}finally{client.release()}
 }
 export async function answerCoffeeThread(
