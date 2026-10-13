@@ -1,7 +1,7 @@
 import {cookies} from "next/headers";
 import {NextResponse} from "next/server";
 import {getDatabase} from "../../../../../src/server/db";
-import {authorizeOwnerRequest,OWNER_COOKIE} from "../../../../../src/server/owner-session";
+import {authorizeOwnerRequest,OWNER_COOKIE,OwnerOriginRejected} from "../../../../../src/server/owner-session";
 import {UnauthorizedOwner} from "../../../../../src/server/owner-auth";
 import {SessionConflict} from "../../../../../src/server/sessions";
 import {operationsOverview,setExecutionPaused,setExecutionPolicy,recoverRun} from "../../../../../src/server/operations";
@@ -25,7 +25,7 @@ export async function POST(request:Request){
     if(!result)throw new SessionConflict("Unsupported owner operation");
     return NextResponse.json(result,{headers});
   }catch(error){
-    const status=error instanceof UnauthorizedOwner?401:error instanceof SessionConflict?409:503;
+    const status=error instanceof OwnerOriginRejected?403:error instanceof UnauthorizedOwner?401:error instanceof SessionConflict?409:503;
     return NextResponse.json({error:error instanceof SessionConflict?error.message:"Operations unavailable"},{status,headers});
   }
 }

@@ -18,6 +18,7 @@ export type AgentContext={
   checkpoint:{branch:string|null;headSha:string|null;state:unknown;createdAt:string}|null;
   repositoryInstructions:{path:"AGENTS.md";text:string;sha:string}|null;
   technicalQuestions?:unknown[];
+  executionLimits?:{maxSessionSeconds:number;maxToolCalls:number;maxTokens:number;deadlineAt:string};
   instructionsAreUntrustedRepositoryContent:true;
 };
 export type SessionOutcome="COMPLETED"|"YIELDED"|"BLOCKED"|"FAILED"|"CANCELLED";
