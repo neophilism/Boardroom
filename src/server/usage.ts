@@ -1,6 +1,7 @@
 import type {Pool} from "pg";
 import {assignedScope} from "./assignment-scope.ts";
 import {SessionConflict} from "./sessions.ts";
+import {RunnerBudgetBlocked} from "./budget-errors.ts";
 
 export function usageInteger(value:unknown,max=1000000000):number{
   if(typeof value!=="number"||!Number.isSafeInteger(value)||value<0||value>max)throw new SessionConflict("Invalid usage or budget amount");
@@ -13,7 +14,7 @@ export function usageInteger(value:unknown,max=1000000000):number{
 export async function reserveRunnerBudget(db:Pool,runId:string,credentialId:string,generation:string,key:string,amount:number){
   usageInteger(amount);if(amount<1||!/^model-[0-9]{1,5}$/.test(key))throw new SessionConflict("Valid model operation and positive reservation required");
   const cap=Number(process.env.BOARDROOM_DAILY_COST_CAP_MICROUSD??0);
-  if(!Number.isSafeInteger(cap)||cap<1)throw new SessionConflict("Owner daily model spending cap is not configured");
+  if(!Number.isSafeInteger(cap)||cap<1)throw new RunnerBudgetBlocked("BUDGET_NOT_CONFIGURED");
   const client=await db.connect();
   try{
     await client.query("BEGIN");await client.query("SELECT pg_advisory_xact_lock(540074)");
@@ -25,7 +26,7 @@ export async function reserveRunnerBudget(db:Pool,runId:string,credentialId:stri
       await client.query("COMMIT");return {reservationId:existing.rows[0].reservation_id,replay:true};
     }
     const total=await client.query<{total:string}>("SELECT COALESCE(SUM(COALESCE(charged_microusd,reserved_microusd)),0)::text AS total FROM runner_budget_reservations WHERE created_at>now()-interval '24 hours'");
-    if(Number(total.rows[0].total)+amount>cap)throw new SessionConflict("Aggregate daily spending limit reached");
+    if(Number(total.rows[0].total)+amount>cap)throw new RunnerBudgetBlocked("BUDGET_LIMIT");
     const created=await client.query<{reservation_id:string}>("INSERT INTO runner_budget_reservations(run_id,operation_key,reserved_microusd) VALUES($1,$2,$3) RETURNING reservation_id",[runId,key,amount]);
     await client.query("COMMIT");return {reservationId:created.rows[0].reservation_id,replay:false};
   }catch(error){await client.query("ROLLBACK");throw error;}finally{client.release();}

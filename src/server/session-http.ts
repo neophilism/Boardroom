@@ -3,6 +3,7 @@ import { getDatabase } from "./db";
 import { authenticateAgent, InvalidAgentCredential } from "./agent-auth";
 import { isValidRunId, isValidGeneration, SessionConflict } from "./sessions";
 import type { Pool } from "pg";
+import {RunnerBudgetBlocked} from "./budget-errors";
 
 type Action = (db: Pool, runId: string, credentialId: string, generation: string, body: Record<string,unknown>) => Promise<unknown>;
 
@@ -19,6 +20,7 @@ export async function authorizedSessionRequest(request: Request, runId: string, 
     return NextResponse.json(value, {headers:{"Cache-Control":"no-store"}});
   } catch(error) {
     if (error instanceof InvalidAgentCredential) return NextResponse.json({error:"Unauthorized"},{status:401});
+    if (error instanceof RunnerBudgetBlocked) return NextResponse.json({error:error.message,code:error.code},{status:409,headers:{"Cache-Control":"no-store"}});
     if (error instanceof SessionConflict) return NextResponse.json({error:error.message},{status:409});
     console.error("Boardroom session operation failed");
     return NextResponse.json({error:"Session service unavailable"},{status:503});

@@ -5,6 +5,8 @@ import {claimAssignment,type ClaimedAssignment} from "../src/server/assignment.t
 import {heartbeatRun,saveCheckpoint,finishRun,SessionConflict} from "../src/server/sessions.ts";
 import {finishIdleSession} from "../src/server/idle-session.ts";
 import {admitAgentRun} from "../src/server/admission.ts";
+import {reserveRunnerBudget,recordRunnerUsage} from "../src/server/usage.ts";
+import {RunnerBudgetBlocked} from "../src/server/budget-errors.ts";
 
 const url=process.env.DATABASE_URL;
 if(!url||!url.includes("boardroom_test"))
@@ -153,4 +155,31 @@ test("500 named activations contend for 50 repos without duplicate ownership",as
   assert.equal(revoked.rows[0].enabled,false);
   const newLease=await db.query<{generation:string;run_id:string|null}>("SELECT generation::text,run_id FROM repository_leases WHERE repository_id=$1",[grant.repositoryId]);
   assert.ok(BigInt(newLease.rows[0].generation)>BigInt(grant.generation));assert.equal(newLease.rows[0].run_id,null);
+});
+test("real budget reservations retain uncertain charges and serialize competing calls",async()=>{
+  const prior=process.env.BOARDROOM_DAILY_COST_CAP_MICROUSD;
+  process.env.BOARDROOM_DAILY_COST_CAP_MICROUSD="1000";
+  try{
+    const repositoryId="950000001";
+    await db.query("INSERT INTO repositories(repository_id,full_name,created_at) VALUES($1,'ci/budget',now())",[repositoryId]);
+    await db.query("INSERT INTO roadmap_units(repository_id,unit_id,title,version,approved,state) VALUES($1,'BUDGET-001','Budget fixture',1,TRUE,'MERGED')",[repositoryId]);
+    const credential=await db.query<{credential_id:string}>("INSERT INTO agent_credentials(label,provider,token_digest) VALUES('PAL','test',$1) RETURNING credential_id",["f".repeat(64)]);
+    const credentialId=credential.rows[0].credential_id;
+    const run=await db.query<{run_id:string}>("INSERT INTO agent_runs(provider,credential_id,state) VALUES('test',$1,'RUNNING') RETURNING run_id",[credentialId]);
+    const runId=run.rows[0].run_id;
+    await db.query("INSERT INTO repository_leases(repository_id,run_id,generation,expires_at,last_heartbeat_at,assigned_at) VALUES($1,$2,1,now()+interval '180 seconds',now(),now())",[repositoryId,runId]);
+    await db.query("INSERT INTO work_assignments(repository_id,run_id,lease_generation,unit_id) VALUES($1,$2,1,'BUDGET-001')",[repositoryId,runId]);
+    assert.equal((await reserveRunnerBudget(db,runId,credentialId,"1","model-0",900)).replay,false);
+    assert.equal((await reserveRunnerBudget(db,runId,credentialId,"1","model-0",900)).replay,true);
+    await assert.rejects(reserveRunnerBudget(db,runId,credentialId,"1","model-1",200),e=>e instanceof RunnerBudgetBlocked&&e.code==="BUDGET_LIMIT");
+    await recordRunnerUsage(db,runId,credentialId,"1",{operationKey:"model-0",inputTokens:10,outputTokens:10,costMicroUsd:450});
+    await reserveRunnerBudget(db,runId,credentialId,"1","model-1",300);
+    const competing=await Promise.allSettled([reserveRunnerBudget(db,runId,credentialId,"1","model-2",200),reserveRunnerBudget(db,runId,credentialId,"1","model-3",200)]);
+    assert.equal(competing.filter(r=>r.status==="fulfilled").length,1);
+    assert.equal((await db.query("SELECT SUM(COALESCE(charged_microusd,reserved_microusd))::text AS total FROM runner_budget_reservations WHERE run_id=$1",[runId])).rows[0].total,"950");
+    await assert.rejects(recordRunnerUsage(db,runId,credentialId,"1",{operationKey:"model-0",inputTokens:0,outputTokens:0,costMicroUsd:0}),SessionConflict);
+    await finishRun(db,runId,credentialId,"1","YIELDED");
+  }finally{
+    if(prior===undefined)delete process.env.BOARDROOM_DAILY_COST_CAP_MICROUSD;else process.env.BOARDROOM_DAILY_COST_CAP_MICROUSD=prior;
+  }
 });

@@ -45,6 +45,7 @@ export function runnerConfiguration(env:Record<string,string|undefined>):RunnerC
     maxSeconds,maxCalls,maxTokens,maxCostMicroUsd,inputUsdPerMillion,outputUsdPerMillion};
 }
 export async function runHostedAgent(config:RunnerConfig,activationKey:string,signal?:AbortSignal){
+  if(signal?.aborted)return {status:"CANCELLED"};
   const client=new BoardroomAgentClient({baseUrl:config.baseUrl,bearerToken:config.token,assignedName:config.name});
   const arrival=await client.arrive(activationKey);
   if(!arrival.shouldWork||!arrival.runId)return {status:"BUSY_OR_REPLAY"};
@@ -55,10 +56,12 @@ export async function runHostedAgent(config:RunnerConfig,activationKey:string,si
   const controller=new AbortController(),deadline=setTimeout(()=>controller.abort(),config.maxSeconds*1000);
   const cancel=()=>controller.abort();signal?.addEventListener("abort",cancel,{once:true});
   if(signal?.aborted)controller.abort();
-  let heartbeatBusy=false,heartbeatFailed=false;
-  const heartbeat=setInterval(async()=>{
-    if(heartbeatBusy||controller.signal.aborted)return;heartbeatBusy=true;
-    try{await client.heartbeat(runId,generation);}catch{heartbeatFailed=true;controller.abort();}finally{heartbeatBusy=false;}
+  let heartbeatFailed=false,heartbeatRequest:Promise<void>|null=null;
+  const heartbeat=setInterval(()=>{
+    if(heartbeatRequest||controller.signal.aborted)return;
+    heartbeatRequest=(async()=>{
+      try{await client.heartbeat(runId,generation);}catch{heartbeatFailed=true;controller.abort();}
+    })().finally(()=>{heartbeatRequest=null;});
   },45000);
   const workspace:{sandbox:CodingSandbox|null}={sandbox:null};
   let outcome:SessionOutcome="YIELDED",finished=false,releaseSafe=true;
@@ -196,9 +199,19 @@ export async function runHostedAgent(config:RunnerConfig,activationKey:string,si
       }
       model.results(results);
     }
-  }catch{outcome=controller.signal.aborted?"YIELDED":"FAILED";}
+  }catch(error){
+    if(error instanceof BoardroomRequestError&&error.code==="BUDGET_LIMIT")outcome="YIELDED";
+    else if(error instanceof BoardroomRequestError&&error.code==="BUDGET_NOT_CONFIGURED"){
+      outcome="BLOCKED";
+      try{await client.ownerAction({runId,generation,actionKey:"boardroom:daily-model-spending",title:"Authorize a daily hosted-model spending cap",type:"APPROVAL",
+        instructions:"Set BOARDROOM_DAILY_COST_CAP_MICROUSD to an explicitly authorized positive daily cap in the existing Boardroom Render environment, and verify the selected provider's spending limits. No paid model request was sent by this activation. Do not increase any cap without the owner's approval.",
+        requestedPermissions:["Owner configuration of the existing Render service"],secureEntryLocation:"Existing Boardroom Render service: Environment",priceEstimateCents:null});}catch{/* Preserve the blocked outcome; never invent a successfully created card. */}
+    }else outcome=controller.signal.aborted?"YIELDED":"FAILED";
+  }
   finally{
     clearInterval(heartbeat);clearTimeout(deadline);signal?.removeEventListener("abort",cancel);
+    if(heartbeatRequest)await heartbeatRequest;
+    if(heartbeatFailed)releaseSafe=false;
     if(workspace.sandbox)try{await workspace.sandbox.dispose();}catch{releaseSafe=false;}
     if(releaseSafe&&!heartbeatFailed){
       try{
