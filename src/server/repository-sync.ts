@@ -2,6 +2,7 @@ import {getDatabase} from "./db.ts";
 import {listAppRepositories,fetchPullRequests,fetchCanonicalRoadmap,githubAppRequest,type GitHubRepository,type GitHubPull} from "./github-app.ts";
 import {normalizeRoadmap} from "./roadmap-import.ts";
 import {reconcileRoadmapUnits,recordReconciliationFailure} from "./roadmap-reconciliation.ts";
+import {ensureDefaultRepositoryPriority} from "./repository-priority-bootstrap.ts";
 
 function activityDate(repo:GitHubRepository,pulls:readonly GitHubPull[]):string|null{
   const values=[repo.pushed_at,...pulls.map(p=>p.updated_at)].filter((v):v is string=>!!v&&Number.isFinite(Date.parse(v)));
@@ -97,12 +98,6 @@ export async function synchronizeInstalledRepositories(options:RepositorySyncOpt
     }
   }
   const db=getDatabase();
-  await db.query(
-    `INSERT INTO repository_priority(repository_id,position)
-     SELECT repository_id,1 FROM repositories
-     WHERE full_name=$1 AND NOT EXISTS (SELECT 1 FROM repository_priority)
-     ON CONFLICT DO NOTHING`,
-    [owner+"/Boardroom"]
-  );
+  await ensureDefaultRepositoryPriority(db,owner+"/Boardroom");
   return report;
 }
