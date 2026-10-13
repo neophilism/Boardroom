@@ -151,7 +151,7 @@ export async function fetchPullRequests(fullName:string):Promise<GitHubPull[]>{
 export async function fetchCanonicalRoadmap(fullName:string):Promise<unknown|null>{
   const [owner,name]=fullName.split("/");
   if(!owner||!name)throw new Error("Invalid GitHub repository identity");
-  const path="/repos/"+encodeURIComponent(owner)+"/"+encodeURIComponent(name)+"/contents/registry/roadmap.json";
+  const path="/repos/"+encodeURIComponent(owner)+"/"+encodeURIComponent(name)+"/contents/registry/prs.json";
   const response=await gh(path);
   if(response.status===404)return null;
   const file=await response.json() as {content?:string;encoding?:string;size?:number};

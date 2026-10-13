@@ -1,7 +1,7 @@
 # Boardroom repository agent instructions
 
 - Read `docs/ARCHITECTURE.md` and `docs/DEVELOPMENT_PLAN.md` before implementing work.
-- The canonical approved plan is `registry/roadmap.json`; `registry/prs.json` is a compatibility projection, not a competing set of work. Keep stable IDs/counts synchronized whenever approved scope changes.
+- The canonical approved plan is `registry/prs.json`; `registry/roadmap.json` is retired. Follow the shared contract in `registry/PR_FORMAT.md`. Preserve stable IDs/counts when migrating formats.
 - Work on at most one repository per Boardroom authorized session; use atomic claims and verify fencing at every privileged GitHub write.
 - All upstream scheduled-task prompts should be identical. The server issues ephemeral run IDs. Provider source metadata is optional.
 - Owner actions are private. Never commit secrets or personal data, and never request raw API keys in Coffee Corner or public GitHub.
@@ -15,3 +15,7 @@
 
 - The registered identity for any session is the validated owner-approved name bound to its authenticated credential; never treat the scheduled prompt `Your name is Smith` as authentication. Details: `docs/NAMED_AGENT_IDENTITY.md`.
 - Apart from the owner-assigned unique display name, every scheduled task uses the same work instructions; do not require separate custom job descriptions.
+
+## Shared PR registry
+
+Use `registry/prs.json` as the sole active PR plan for Boardroom and Engine Room. Follow `registry/PR_FORMAT.md` and run `node scripts/validate-pr-registry.mjs`. Preserve stable IDs, scope, counts, dependencies, acceptance and contribution-only evidence. `registry/roadmap.json` is retired; never recreate a duplicate milestone plan. This contract supersedes older file-path guidance.

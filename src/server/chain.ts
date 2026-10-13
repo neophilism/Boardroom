@@ -14,7 +14,7 @@ export async function advanceAssignedWork(db:Pool,runId:string,credentialId:stri
     const current=await client.query<{state:string}>("SELECT state FROM roadmap_units WHERE repository_id=$1 AND unit_id=$2",[scope.repository_id,scope.unit_id]);
     if(!["MERGED","ACCEPTED"].includes(current.rows[0]?.state))throw new SessionConflict("Current unit needs observed merge evidence before chaining");
     const next=await client.query<{unit_id:string}>(`SELECT w.unit_id FROM roadmap_units w
-      WHERE w.repository_id=$1 AND w.unit_id<>$2 AND w.approved=TRUE AND w.state IN ('PENDING','ACTIVE','OPEN_PR','BLOCKED')
+      WHERE w.repository_id=$1 AND w.unit_id<>$2 AND w.approved=TRUE AND registry_prerequisites_satisfied(w.repository_id,w.unit_id) AND w.state IN ('PENDING','ACTIVE','OPEN_PR','BLOCKED')
       AND (w.state<>'BLOCKED' OR EXISTS(SELECT 1 FROM coffee_threads t JOIN coffee_messages m ON m.thread_id=t.thread_id
         WHERE t.repository_id=w.repository_id AND t.unit_id=w.unit_id AND t.status='ANSWERED' AND m.message_kind='ANSWER' AND jsonb_array_length(m.evidence)>0))
       AND NOT EXISTS(SELECT 1 FROM jsonb_array_elements_text(w.depends_on) d(id)
