@@ -9,7 +9,7 @@ const db=new Pool({connectionString:url,max:2});
 after(async()=>db.end());
 test("source refresh preserves a technical hold but opens a follow-up after prior acceptance",async()=>{
   const repositoryId=940000001;
-  await db.query("INSERT INTO repositories(repository_id,full_name,created_at) VALUES($1,'ci/reconciliation',now())",[repositoryId]);
+  await db.query("INSERT INTO repositories(repository_id,full_name,created_at,enabled) VALUES($1,'ci/reconciliation',now(),FALSE)",[repositoryId]);
   await db.query("INSERT INTO roadmap_units(repository_id,unit_id,title,version,approved,state) VALUES($1,'CI-001','Blocked',1,TRUE,'BLOCKED'),($1,'CI-002','Active',1,TRUE,'ACTIVE'),($1,'CI-003','Accepted',1,TRUE,'ACCEPTED')",[repositoryId]);
   const plan:CanonicalPlan={version:1,verified:true,units:[
     {id:"CI-001",title:"Blocked",dependsOn:[],pullRequests:[],status:"PENDING",acceptanceCriteria:null},
