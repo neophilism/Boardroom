@@ -14,4 +14,6 @@ test("tool name, required arguments, and extra authority fields fail closed",()=
     assert.throws(()=>validateAgentTool(name as string,args),AgentToolError);
   assert.throws(()=>validateAgentTool("boardroom_claim",{runId:1}),AgentToolError);
   assert.throws(()=>validateAgentTool("boardroom_source",{runId:"x",generation:"1",kind:"admin"}),AgentToolError);
+  for(const field of ["constructor","__proto__","toString"])
+    assert.throws(()=>validateAgentTool("boardroom_arrive",JSON.parse('{"'+field+'":"unexpected"}')),AgentToolError);
 });

@@ -66,7 +66,7 @@ export function validateAgentTool(name:string,args:unknown):Record<string,unknow
   const definition=AGENT_TOOLS.find(t=>t.name===name);
   if(!definition||!args||typeof args!=="object"||Array.isArray(args))throw new AgentToolError();
   const value=args as Record<string,unknown>;
-  if(Object.keys(value).some(k=>!(k in definition.inputSchema.properties))||
+  if(Object.keys(value).some(k=>!Object.hasOwn(definition.inputSchema.properties,k))||
     definition.inputSchema.required.some(k=>value[k]===undefined))throw new AgentToolError();
   for(const [key,input] of Object.entries(value))
     if(!validSchema(input,definition.inputSchema.properties[key] as Record<string,unknown>))throw new AgentToolError();
