@@ -32,7 +32,7 @@ export default async function OwnerActionsPage(){
     <p>Agent-submitted requests requiring an account, permission, purchase, or decision. Enter credentials only in the designated external service’s secure configuration.</p>
     <div className="summary-strip"><strong>{open.length}</strong> open or awaiting verification <span>·</span> <strong>{actions.length}</strong> total recorded</div>
     {actions.length===0?<section className="action-card"><h2>No requests</h2><p>No owner-only blockers have been registered yet.</p></section>:
-      <div className="action-grid">{actions.map(a=><article className="action-card" key={a.action_id}>
+      <div className="action-grid">{actions.map(a=><article className="action-card" id={"action-"+a.action_id} key={a.action_id}>
         <div className="card-top"><span className="action-type">{a.action_type.replaceAll("_"," ")}</span><span className="status-label">{a.status.replaceAll("_"," ")}</span></div>
         <h2>{a.title}</h2><p className="instruction">{a.instructions}</p>
         {a.requested_permissions.length>0&&<div><h3>Required permissions</h3><ul>{a.requested_permissions.map((p,i)=><li key={i}>{p}</li>)}</ul></div>}
@@ -43,3 +43,4 @@ export default async function OwnerActionsPage(){
       </article>)}</div>}
   </main>;
 }
+
