@@ -24,6 +24,7 @@ export type AgentContext={
 export type SessionOutcome="COMPLETED"|"YIELDED"|"BLOCKED"|"FAILED"|"CANCELLED";
 export type GithubWrite=
   |{kind:"ensure_branch"}
+  |{kind:"commit_files";expectedHeadSha:string;message:string;files:{path:string;contentBase64:string|null}[]}
   |{kind:"upsert_file";path:string;contentBase64:string;expectedSha:string|null;message:string}
   |{kind:"open_draft_pr";description:string}
   |{kind:"ready_pr";number:number};
