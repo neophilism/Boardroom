@@ -7,7 +7,7 @@ import {SessionConflict} from "../src/server/sessions.ts";
 const url=process.env.DATABASE_URL;
 if(!url||!url.includes("boardroom_test"))throw new Error("Dependency fixtures require the explicit boardroom_test database");
 const db=new Pool({connectionString:url,max:2});
-const repos=["950000001","950000002","950000003","950000004"];
+const repos=["995000001","995000002","995000003","995000004"];
 before(async()=>{
   for(const [i,id] of repos.entries()){
     // Disabled fixtures cannot compete with the separate lease benchmark.
@@ -63,7 +63,7 @@ test("new or declined owner prerequisites block writes until independently resol
   await assert.rejects(assertWorkPrerequisites(db,repos[0],"CI-999"),SessionConflict);
 });
 test("cyclic compatibility records terminate selection safely without double claims",async()=>{
-  await db.query("UPDATE roadmap_units SET state='PENDING' WHERE repository_id=ANY($1::bigint[])",[repos.slice(0,3)]);
+  await db.query("UPDATE roadmap_units SET state='PENDING' WHERE repository_id=ANY($1::bigint[]) AND unit_id='CI-001'",[repos.slice(0,3)]);
   await db.query("INSERT INTO compatibility_dependencies(repository_id,unit_id,prerequisite_repository_id,prerequisite_unit_id) VALUES($1,'CI-001',$2,'CI-001')",[repos[2],repos[0]]);
   const client=await db.connect();
   try{
