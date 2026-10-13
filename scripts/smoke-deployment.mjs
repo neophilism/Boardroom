@@ -37,9 +37,10 @@ async function verify(){
   }
   const privateApi=await request("/api/v1/owner/agents");
   assert.equal(privateApi.status,401,"Unauthenticated agent registry API must reject");
-  const oauth=await verifyAgentInterface(base,request);
+  const connectionMode=await verifyAgentInterface(base,request);
   console.log("Observed MCP discovery and anonymous operational denial: passed");
-  console.log("Observed native OAuth discovery:",oauth,"(owner connection/trial still required)");
+  if(connectionMode==="ENABLED")console.log("Observed native OAuth discovery: ENABLED (owner connection/trial still required)");
+  else console.log("Observed native OAuth discovery: DISABLED (enable before native connection)");
   console.log("Live Boardroom smoke checks passed.");
   console.log("Observed Render revision:",evidence.revision??"unknown");
   console.log("Observed readiness:",evidence.readiness);
