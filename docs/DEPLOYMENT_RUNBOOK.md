@@ -31,6 +31,8 @@ Never put values in public GitHub, Coffee Corner, logs, PRs or chat. Use the exi
 7. Sign in privately, open `/system`, and use **Verify setup and import repositories**. A working GitHub token with no authorized repositories or insufficient permissions is not a completed setup.
 8. Verify Work Board inventory and priority order; then register the approved agent identity under `/agents`. Supply the credential through the private connector/worker secret store, never its scheduled prompt.
 
+The release smoke also initializes MCP, verifies its required tool catalog, and confirms that an anonymous operational call is denied. When native OAuth is enabled, it checks resource/issuer discovery, the endpoint origin, the PKCE method and the authentication challenge. Disabled OAuth is reported explicitly. These public checks create no agent session, grant, assignment, code write or acceptance record; they cannot replace the private owner connection and scheduled useful-work trial.
+
 ## Migration safety
 
 Historical SQL files are immutable. New migrations must pass disposable PostgreSQL testing and isolated Neon branch validation before production. Re-running the migration runner must find unchanged hashes and skip applied files. The October 13 branch test used the Neon transactional SQL tool on an isolated existing-schema branch, not a local migration CLI; its result is recorded in PR #42.

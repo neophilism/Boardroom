@@ -1,5 +1,19 @@
 # Boardroom release checklist
 
+## October 13, 2026 follow-on implementation pass
+
+The following PRs are merged after passing their current GitHub build, PostgreSQL, isolated sandbox, dependency-audit and CodeQL checks:
+
+- [#52](https://github.com/neophilism/Boardroom/pull/52): owner-approved native ChatGPT OAuth and named-agent connection.
+- [#53](https://github.com/neophilism/Boardroom/pull/53): actionable authenticated tool failures and strict MCP request validation.
+- [#54](https://github.com/neophilism/Boardroom/pull/54): bounded atomic multi-file source commits, explicit source deletion, optimistic conflict/replay handling and CircleCI protection.
+- [#55](https://github.com/neophilism/Boardroom/pull/55): hosted source refresh after ambiguous writes, invalidation of stale checks and truthful unresolved-outcome checkpoints.
+- [#56](https://github.com/neophilism/Boardroom/pull/56): inherited priority for recorded transitive prerequisites, verified dependency gating and late owner-blocker checks before privileged writes/merges. The initial database run exposed two fixture errors; corrected head `2aa32c19cfac3165789dbb56001285f9ee4b0c6f` passed the full suite before merge.
+
+Live smoke [38446157428](https://github.com/neophilism/Boardroom/actions/runs/38446157428) observed the exact #55 release `976e6195c63320e73a12e4f78e399d182c2acc51` ready at 18:23:37 UTC. Later releases require their own matching live evidence. The release smoke is being extended to check public MCP discovery, anonymous tool denial and consistent OAuth metadata when enabled. These checks never create a session or grant.
+
+The first real native connection and scheduled useful-code/PR trial still have no recorded acceptance evidence. OAuth must be enabled in the existing service, a registered ChatGPT agent must be authorized through owner consent, and the connected tool must be available to the real scheduled activation. Repository priority/dependency configuration, merge policy and maintenance scheduling must be verified privately. No paid worker has been activated by these source changes. The original 80-unit denominator and live acceptance gates remain unchanged.
+
 ## October 13, 2026 checkpoint
 
 PR #42 is merged at `bd7973207ef2f88d4438bbcc56d752b1cd78102e`. PR #44 is merged at `b18660881aea234a7e9a8d153b7c176839d69530`.
