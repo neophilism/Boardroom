@@ -67,6 +67,7 @@ export default async function WorkBoardPage(){
         <Link className="priority-nav" href="/system">System status</Link>
         <Link className="priority-nav" href="/recovery">Recovery queue</Link>
         <Link className="priority-nav" href="/operations">Operations</Link>
+        <Link className="priority-nav" href="/reports">Daily report</Link>
       </nav>
     </header>
     <p>This board shows recorded named-agent assignments and GitHub reconciliation evidence, not unverified claims of completed work. A heartbeat or active lease alone does not prove that code is progressing.</p>
@@ -95,3 +96,4 @@ export default async function WorkBoardPage(){
       </section>}
   </main>;
 }
+
