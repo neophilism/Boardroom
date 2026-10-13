@@ -15,6 +15,7 @@ type WorkBoardRow={
   runId:string|null;runState:string|null;agentName:string|null;provider:string|null;
   leaseExpiresAt:Date|null;lastHeartbeatAt:Date|null;unitId:string|null;
   planStatus:string|null;planRefreshedAt:Date|null;openUnitCount:string;
+  planError:string|null;
 };
 
 async function loadBoard():Promise<{rows:WorkBoardRow[];observedAt:number}>{
@@ -25,7 +26,7 @@ async function loadBoard():Promise<{rows:WorkBoardRow[];observedAt:number}>{
       r.last_development_at AS "lastDevelopmentAt",r.created_at AS "createdAt",
       l.run_id::text AS "runId",ar.state AS "runState",ac.label AS "agentName",ar.provider AS "provider",
       l.expires_at AS "leaseExpiresAt",l.last_heartbeat_at AS "lastHeartbeatAt",wa.unit_id AS "unitId",
-      rs.plan_status AS "planStatus",rs.last_success_at AS "planRefreshedAt",
+      rs.plan_status AS "planStatus",rs.last_success_at AS "planRefreshedAt",rs.last_error AS "planError",
       COALESCE(work.open_count,0)::text AS "openUnitCount"
      FROM repositories r
      LEFT JOIN repository_priority p ON p.repository_id=r.repository_id
@@ -88,6 +89,7 @@ export default async function WorkBoardPage(){
               <dt>Last verified development</dt><dd>{formatEastern(r.lastDevelopmentAt?.toISOString()??null)}</dd>
               <dt>Heartbeat</dt><dd>{formatEastern(r.lastHeartbeatAt?.toISOString()??null)}</dd>
               <dt>Roadmap source</dt><dd>{r.planStatus||"Not reconciled"}</dd>
+              {r.planStatus==="ERROR"&&<><dt>Required correction</dt><dd>Verify the installed App&apos;s access and fix the canonical roadmap&apos;s IDs, counts, PR references and dependency graph, then reconcile again.</dd></>}
               <dt>Last plan reconciliation</dt><dd>{formatEastern(r.planRefreshedAt?.toISOString()??null)}</dd>
             </dl>
             {status==="RECOVERING"||status==="UNKNOWN"?<p role="status" className="work-warning">Execution health is unverified. Do not assume this repository can be reassigned until recovery/fencing succeeds.</p>:null}

@@ -43,12 +43,12 @@ export function normalizeRoadmap(raw:unknown,fullName:string,pulls:readonly GitH
   const ids=new Set<string>();
   const mapped=p.milestones.map(rawMilestone=>{
     const m=record(rawMilestone);
-    if(typeof m.id!=="string"||m.id.length<2||m.id.length>128||ids.has(m.id))
+    if(typeof m.id!=="string"||!/^[A-Za-z0-9][A-Za-z0-9._-]{1,100}$/.test(m.id)||m.id.includes("..")||m.id.endsWith(".lock")||ids.has(m.id))
       throw new Error("Missing or duplicate stable work-unit ID");
     ids.add(m.id);
     if(typeof m.title!=="string"||!m.title.trim())throw new Error("Missing unit title");
     const dependsOn=m.dependsOn??[];
-    if(!Array.isArray(dependsOn)||dependsOn.some(x=>typeof x!=="string"))
+    if(!Array.isArray(dependsOn)||dependsOn.some(x=>typeof x!=="string")||new Set(dependsOn).size!==dependsOn.length)
       throw new Error("Invalid work-unit dependencies");
     const refs=m.pullRequests??[];
     if(!Array.isArray(refs))throw new Error("Invalid linked PR references");
@@ -71,5 +71,19 @@ export function normalizeRoadmap(raw:unknown,fullName:string,pulls:readonly GitH
       acceptanceCriteria:typeof m.acceptanceCriteria==="string"?m.acceptanceCriteria:null
     };
   });
+  // Validate the entire approved graph before making any unit eligible. Use
+  // Kahn's algorithm so large plans cannot exhaust the JavaScript call stack.
+  const unresolved=new Map(mapped.map(unit=>[unit.id,unit.dependsOn.length]));
+  const children=new Map<string,string[]>();
+  for(const unit of mapped)for(const dependency of unit.dependsOn){
+    if(!ids.has(dependency)||dependency===unit.id)throw new Error("Unknown or self-referential roadmap dependency");
+    children.set(dependency,[...(children.get(dependency)??[]),unit.id]);
+  }
+  const ready=mapped.filter(unit=>!unit.dependsOn.length).map(unit=>unit.id);
+  for(let position=0;position<ready.length;position++)for(const child of children.get(ready[position])??[]){
+    const remaining=unresolved.get(child)!-1;unresolved.set(child,remaining);
+    if(remaining===0)ready.push(child);
+  }
+  if(ready.length!==mapped.length)throw new Error("Roadmap contains a dependency cycle");
   return {version:version as number,units:mapped,verified:true};
 }
