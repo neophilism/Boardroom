@@ -10,7 +10,7 @@ Every scheduled task receives the **same workflow instructions**. Only the exact
 
 Boardroom has a provider-neutral TypeScript client, `src/sdk/boardroom-agent-client.ts`, for a **trusted runtime with a secure agent credential**. It exposes the arrival, claim, context, heartbeat, checkpoint, draft PR write gateway, PR CI evidence, Coffee Corner, Owner Action and finish APIs. Mutating requests are never blindly retried; ambiguous outcomes must be reconciled.
 
-A plain ChatGPT Scheduled prompt does not automatically acquire this SDK or arbitrary API credentials. ChatGPT Work supports app connections for eligible scheduled tasks; a private custom MCP connector may provide the Boardroom tools, but it must be independently developed, securely authenticated (normally OAuth), installed and **tested in a real scheduled run**. The code does not establish that this last step works.
+A plain ChatGPT Scheduled prompt does not automatically acquire this SDK or arbitrary API credentials. ChatGPT Work supports app connections for eligible scheduled tasks. The opt-in native OAuth connection is implemented in [Native ChatGPT Setup](NATIVE_CHATGPT_SETUP.md); it must be enabled, linked to an owner-approved named agent, installed and **tested in a real scheduled run**. Source code and public client metadata do not establish that this last step works. Before arrival inspect `boardroom_profile` and stop if its authenticated name differs from the assigned name in the task.
 
 ## First proof
 

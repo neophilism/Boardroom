@@ -6,6 +6,7 @@ import {getDatabase} from "../../src/server/db";
 import {getSystemStatus} from "../../src/server/system-status";
 import VerifySetup from "./verify-controls";
 import {githubDiagnosticHint} from "../../src/domain/github-setup-hints";
+import {oauthEnabled} from "../../src/server/oauth-contract";
 
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
@@ -47,6 +48,7 @@ export default async function BoardroomSystemPage(){
       <section className="work-card">
         <div className="card-top"><strong>Unattended development</strong><span className="status-label">NOT VERIFIED</span></div>
         <h2>Scheduled-task integration pending</h2>
+        <p>Native ChatGPT connection: {oauthEnabled()?"OAuth is enabled; connect and test a named agent.":"OAuth is disabled. Enable BOARDROOM_OAUTH_ENABLED only when ready to authorize the native connection."}</p>
         <p>Neither a real ChatGPT scheduled Work run nor its authenticated code-write and safe release has been verified. Boardroom will not claim autonomous operation based on CI or deployment status alone.</p>
       </section>
     </div>
