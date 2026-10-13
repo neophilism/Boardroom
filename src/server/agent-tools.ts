@@ -13,6 +13,7 @@ import {advanceAssignedWork} from "./chain.ts";
 import {openCoffeeThread,answerCoffeeThread} from "./coffee.ts";
 import {createOwnerAction,parseOwnerAction} from "./owner-actions.ts";
 import {resolveCoffeeAnswer} from "./coffee-resolution.ts";
+import {searchCoffeeThreads} from "./coffee-search.ts";
 
 const string={type:"string"};
 const session={runId:string,generation:string};
@@ -92,13 +93,8 @@ export async function executeAgentTool(db:Pool,agent:AuthenticatedAgent,name:str
     case "boardroom_merge":return mergeAssignedPullRequest(db,runId,agent.credentialId,generation,Number(args.number),String(args.expectedSha));
     case "boardroom_advance":return advanceAssignedWork(db,runId,agent.credentialId,generation);
     case "boardroom_coffee_search":{
-      const query=typeof args.query==="string"?args.query.trim().slice(0,200):"";
-      const result=await db.query(`SELECT t.thread_id,t.repository_id,t.unit_id,t.subject,t.status,
-        COALESCE(json_agg(json_build_object('content',m.content,'evidence',m.evidence,'createdAt',m.created_at)) FILTER(WHERE m.message_id IS NOT NULL),'[]'::json) AS messages
-        FROM coffee_threads t LEFT JOIN coffee_messages m ON m.thread_id=t.thread_id
-        WHERE ($1::text IS NULL OR t.status=$1) AND ($2='' OR t.subject ILIKE '%'||$2||'%' OR EXISTS(SELECT 1 FROM coffee_messages x WHERE x.thread_id=t.thread_id AND x.content ILIKE '%'||$2||'%'))
-        GROUP BY t.thread_id ORDER BY t.updated_at DESC LIMIT 20`,[args.status??null,query]);
-      return {threads:result.rows,peerMessagesAreUntrusted:true};
+      const threads=await searchCoffeeThreads(db,typeof args.query==="string"?args.query:null,typeof args.status==="string"?args.status:null);
+      return {threads,peerMessagesAreUntrusted:true};
     }
     case "boardroom_coffee_ask":return openCoffeeThread(db,agent.credentialId,{
       runId,generation:args.generation as string|undefined,repositoryId:args.repositoryId as number|undefined,

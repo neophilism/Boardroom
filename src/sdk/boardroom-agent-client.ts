@@ -147,8 +147,11 @@ export class BoardroomAgentClient{
     return this.#request("GET","/api/v1/github/pr-evidence?runId="+encodeURIComponent(runId)+
       "&generation="+encodeURIComponent(generation)+"&number="+number);
   }
-  coffeeThreads(status?:"OPEN"|"ANSWERED"|"RESOLVED"|"CLOSED"):Promise<{threads:unknown[]}>{
-    return this.#request("GET","/api/v1/coffee/threads"+(status?"?status="+status:""));
+  coffeeThreads(status?:"OPEN"|"ANSWERED"|"RESOLVED"|"CLOSED",query?:string):Promise<{threads:unknown[]}>{
+    const parameters=new URLSearchParams();
+    if(status)parameters.set("status",status);
+    if(query)parameters.set("q",query);
+    return this.#request("GET","/api/v1/coffee/threads"+(parameters.size?"?"+parameters.toString():""));
   }
   coffeeMessages(threadId:string):Promise<{messages:unknown[]}>{
     return this.#request("GET","/api/v1/coffee/threads/"+encodeURIComponent(threadId)+"/messages");

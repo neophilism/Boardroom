@@ -70,3 +70,11 @@ test("idle finish and Coffee Corner answers use authenticated paths",async()=>{
   assert.ok(f.requests[0].url.endsWith("/api/v1/coffee/threads?status=OPEN"));
   assert.ok(f.requests[1].url.endsWith("/idle"));
 });
+test("Coffee text filters are encoded without overriding state or authority",async()=>{
+  const f=fake([{status:200,value:{threads:[]}}]);
+  const client=new BoardroomAgentClient({baseUrl:"https://boardroom.example",bearerToken:secret,assignedName:"Smith",transport:f.transport});
+  await client.coffeeThreads("RESOLVED","API & status=OPEN %_");
+  const url=new URL(f.requests[0].url);
+  assert.equal(url.searchParams.get("status"),"RESOLVED");
+  assert.equal(url.searchParams.get("q"),"API & status=OPEN %_");
+});
