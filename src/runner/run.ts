@@ -10,6 +10,7 @@ const string={type:"string"};
 const schema=(properties:Record<string,unknown>,required:string[])=>({type:"object",properties,required,additionalProperties:false});
 const WORKER_TOOLS:ToolDefinition[]=[
   {name:"list_files",description:"List the current assigned repository snapshot",parameters:schema({},[])},
+  {name:"refresh_source",description:"Reconcile the assigned remote branch after a conflict, interrupted write or outside update. Discards stale cached files and test results; never repeats a write.",parameters:schema({},[])},
   {name:"read_file",description:"Read a UTF-8 file from the current repository",parameters:schema({path:string},["path"])},
   {name:"write_file",description:"Write a UTF-8 source file through the fenced GitHub gateway",parameters:schema({path:string,text:string,message:string},["path","text","message"])},
   {name:"commit_files",description:"Commit coordinated source additions, edits and deletions atomically. Up to 50 files and 200 KB combined; text:null deletes an existing ordinary source file. Protected paths remain blocked.",parameters:schema({message:string,files:{type:"array",minItems:1,maxItems:50,items:schema({path:string,text:{type:["string","null"]}},["path","text"])}},["message","files"])},
@@ -72,6 +73,7 @@ export async function runHostedAgent(config:RunnerConfig,activationKey:string,si
   let snapshot:Awaited<ReturnType<BoardroomAgentClient["sourceTree"]>>={repository:assignment.fullName,headSha:"",entries:[]};
   let calls=0,modelTurns=0,tokens=0,cost=0,prNumber:number|null=null;
   let meaningfulChecksPassed=false;
+  let sourceNeedsRefresh=false;
   let progress:ResumeProgress={prNumber:null};
   function applyRepositoryLimits(context:Awaited<ReturnType<BoardroomAgentClient["context"]>>){
     const caps=boundedWorkerLimits({maxSessionSeconds:config.maxSeconds,maxToolCalls:config.maxCalls,maxTokens:config.maxTokens},context.executionLimits);
@@ -87,6 +89,15 @@ export async function runHostedAgent(config:RunnerConfig,activationKey:string,si
     else deadline=setTimeout(()=>controller.abort(),until-Date.now());
   }
   const source=new Map<string,{sha:string;text:string}>();
+  async function refreshSource(){
+    // Invalidate before network access. A failed refresh never restores stale
+    // test success or permits another write from the obsolete snapshot.
+    sourceNeedsRefresh=true;meaningfulChecksPassed=false;source.clear();
+    if(workspace.sandbox){await workspace.sandbox.dispose();workspace.sandbox=null;}
+    const observed=await client.sourceTree(runId,generation);
+    snapshot=observed;sourceNeedsRefresh=false;
+    return {headSha:snapshot.headSha,files:snapshot.entries.map(e=>e.path),testsNeedRerun:true};
+  }
   async function readFile(file:string){
     if(source.has(file))return source.get(file)!;
     const result=await client.sourceFile(runId,generation,file,snapshot.headSha);
@@ -138,17 +149,22 @@ export async function runHostedAgent(config:RunnerConfig,activationKey:string,si
         calls++;controller.signal.throwIfAborted();
         const a=call.arguments;let result:unknown;
         try{
+          if(sourceNeedsRefresh&&["list_files","read_file","write_file","commit_files","run_checks","open_pr","merge_and_continue"].includes(call.name)){
+            results.push({call,result:{error:"SOURCE_RECONCILIATION_REQUIRED",nextAction:"Call refresh_source before further source work or checks. The previous write may already have succeeded; do not repeat it blindly."},error:true});
+            continue;
+          }
           switch(call.name){
             case "list_files":result={headSha:snapshot.headSha,files:snapshot.entries.map(e=>e.path)};break;
+            case "refresh_source":result=await refreshSource();break;
             case "read_file":result=await readFile(String(a.path));break;
             case "write_file":{
               const file=safeRepositoryPath(a.path);
               if(typeof a.text!=="string"||Buffer.byteLength(a.text)>200000)throw new Error("Bounded UTF-8 source required");
+              sourceNeedsRefresh=true;meaningfulChecksPassed=false;
               await client.githubWrite(runId,generation,{kind:"ensure_branch"});
               const existing=snapshot.entries.some(e=>e.path===file)?await readFile(file):null;
               result=await client.githubWrite(runId,generation,{kind:"upsert_file",path:file,contentBase64:Buffer.from(a.text).toString("base64"),expectedSha:existing?.sha??null,message:String(a.message)});
-              snapshot=await client.sourceTree(runId,generation);source.delete(file);meaningfulChecksPassed=false;
-              if(workspace.sandbox)await workspace.sandbox.put(file,a.text);
+              await refreshSource();
               break;
             }
             case "commit_files":{
@@ -160,12 +176,12 @@ export async function runHostedAgent(config:RunnerConfig,activationKey:string,si
                 return {path:file.path,contentBase64:file.text===null?null:Buffer.from(file.text as string).toString("base64")};
               });
               const op=parseGithubWrite({kind:"commit_files",expectedHeadSha:snapshot.headSha,message:a.message,files});
+              sourceNeedsRefresh=true;meaningfulChecksPassed=false;
               await client.githubWrite(runId,generation,{kind:"ensure_branch"});
               result=await client.githubWrite(runId,generation,op);
-              snapshot=await client.sourceTree(runId,generation);source.clear();meaningfulChecksPassed=false;
               // Recreate the test workspace so deleted files and stale installed
               // dependencies cannot survive the new immutable source snapshot.
-              if(workspace.sandbox){await workspace.sandbox.dispose();workspace.sandbox=null;}
+              await refreshSource();
               break;
             }
             case "run_checks":{
@@ -223,7 +239,7 @@ export async function runHostedAgent(config:RunnerConfig,activationKey:string,si
             case "coffee_resolve":result=await client.resolveCoffee(runId,generation,String(a.threadId),String(a.messageId),String(a.adr));break;
             case "owner_action":result=await client.ownerAction({runId,generation,...a});break;
             case "checkpoint":{
-              result=await client.checkpoint(runId,generation,{branch:"boardroom/"+currentUnitId,headSha:snapshot.headSha||null,state:{summary:a.summary,nextAction:a.nextAction,prNumber}});
+              result=await client.checkpoint(runId,generation,{branch:"boardroom/"+currentUnitId,headSha:sourceNeedsRefresh?null:snapshot.headSha||null,state:{summary:a.summary,nextAction:a.nextAction,prNumber,sourceNeedsRefresh}});
               progress={summary:typeof a.summary==="string"?a.summary:undefined,nextAction:typeof a.nextAction==="string"?a.nextAction:undefined,prNumber};
               break;
             }
@@ -231,7 +247,9 @@ export async function runHostedAgent(config:RunnerConfig,activationKey:string,si
             default:throw new Error("Unsupported hosted worker tool");
           }
           results.push({call,result});
-        }catch{results.push({call,result:{error:"Tool unavailable, conflict, failed checks, or owner policy prerequisite. Reconcile current state; use a private Owner Action for owner-only blockers."},error:true});}
+        }catch{results.push({call,result:sourceNeedsRefresh?
+          {error:"SOURCE_RECONCILIATION_REQUIRED",nextAction:"Call refresh_source to observe the remote branch before further writes or tests. A failed response does not prove that the write failed."}:
+          {error:"Tool unavailable, conflict, failed checks, or owner policy prerequisite. Reconcile current state; use a private Owner Action for owner-only blockers."},error:true});}
       }
       model.results(results);
     }
@@ -251,9 +269,10 @@ export async function runHostedAgent(config:RunnerConfig,activationKey:string,si
     if(workspace.sandbox)try{await workspace.sandbox.dispose();}catch{releaseSafe=false;}
     if(releaseSafe&&!heartbeatFailed){
       try{
-        await client.checkpoint(runId,generation,{branch:"boardroom/"+currentUnitId,headSha:snapshot.headSha||null,state:{
-          ...progress,nextAction:progress.nextAction??"Resume from remote branch and independently verify current PR",
-          prNumber,modelTurns,toolCalls:calls,reportedTokens:tokens}});
+        if(sourceNeedsRefresh)try{await refreshSource();}catch{/* Handoff must explicitly preserve the unresolved remote state. */}
+        await client.checkpoint(runId,generation,{branch:"boardroom/"+currentUnitId,headSha:sourceNeedsRefresh?null:snapshot.headSha||null,state:{
+          ...progress,nextAction:sourceNeedsRefresh?"Reconcile the remote branch before source work; the last write outcome is unknown.":progress.nextAction??"Resume from remote branch and independently verify current PR",
+          sourceNeedsRefresh,prNumber,modelTurns,toolCalls:calls,reportedTokens:tokens}});
         await client.coffeeThreads("OPEN"); // Bounded final peer-help inspection; do not fabricate answers.
         await client.finish(runId,generation,outcome);
       }catch{releaseSafe=false;}
