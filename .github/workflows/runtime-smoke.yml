@@ -7,6 +7,9 @@ on:
     - cron: '21 */12 * * *'
 permissions:
   contents: read
+concurrency:
+  group: boardroom-live-release
+  cancel-in-progress: true
 jobs:
   http-smoke:
     name: Public HTTPS, readiness, and owner access denial
@@ -18,4 +21,6 @@ jobs:
         with:
           node-version: '22'
       - name: Verify deployed Boardroom web service
-        run: node scripts/smoke-deployment.mjs
+        env:
+          BOARDROOM_EXPECTED_REVISION: ${{ github.sha }}
+        run: node --experimental-strip-types scripts/smoke-deployment.mjs
