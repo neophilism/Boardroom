@@ -1,17 +1,18 @@
 /** Public checks; an expected SHA enables strict release verification, not agent acceptance. */
 import assert from "node:assert/strict";
+import {verifyAgentInterface} from "../src/server/agent-interface-smoke.ts";
 import {checkDeploymentEvidence,expectedReleaseRevision} from "../src/domain/deployment-evidence.ts";
 
 const base="https://boardroom-iamn.onrender.com";
 const expectedRevision=expectedReleaseRevision(process.env.BOARDROOM_EXPECTED_REVISION);
 const deadline=Date.now()+12*60*1000;
 const pause=ms=>new Promise(resolve=>setTimeout(resolve,ms));
-async function request(path){
+async function request(path,options={}){
   const remaining=deadline-Date.now();
   if(remaining<=0)throw new Error("Deployment verification deadline exceeded");
   return fetch(base+path,{
-    method:"GET",redirect:"manual",
-    headers:{"Accept":"application/json, text/html"},
+    ...options,method:options.method??"GET",redirect:"manual",
+    headers:{"Accept":"application/json, text/html",...options.headers},
     signal:AbortSignal.timeout(Math.min(55000,remaining))
   });
 }
@@ -36,6 +37,10 @@ async function verify(){
   }
   const privateApi=await request("/api/v1/owner/agents");
   assert.equal(privateApi.status,401,"Unauthenticated agent registry API must reject");
+  const connectionMode=await verifyAgentInterface(base,request);
+  console.log("Observed MCP discovery and anonymous operational denial: passed");
+  if(connectionMode==="ENABLED")console.log("Observed native OAuth discovery: ENABLED (owner connection/trial still required)");
+  else console.log("Observed native OAuth discovery: DISABLED (enable before native connection)");
   console.log("Live Boardroom smoke checks passed.");
   console.log("Observed Render revision:",evidence.revision??"unknown");
   console.log("Observed readiness:",evidence.readiness);
