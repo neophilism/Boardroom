@@ -2,6 +2,7 @@ import test,{after} from "node:test";
 import assert from "node:assert/strict";
 import {Pool} from "pg";
 import {getOperationalDigest} from "../src/server/operational-digest.ts";
+import {REQUIRED_CONFIG} from "../src/server/readiness.ts";
 const url=process.env.DATABASE_URL;
 if(!url||!url.includes("boardroom_test"))throw new Error("Digest fixtures require the explicit boardroom_test database");
 const db=new Pool({connectionString:url,max:2});
@@ -14,9 +15,11 @@ test("real schema produces a private digest from receipts and pending actions",a
   await db.query("INSERT INTO audit_events(repository_id,kind,details) VALUES($1,'agent.run.finished',$2::jsonb)",
     [repositoryId,JSON.stringify({outcome:"COMPLETED",unverifiedClaim:"must-not-appear"})]);
   await db.query("INSERT INTO owner_actions(action_key,title,action_type,instructions,created_at) VALUES('ci:digest:credential','Configure fixture credential','CREDENTIAL','Private fixture instructions must-not-appear',now()-interval '8 days')");
-  const report=await getOperationalDigest(db,{NODE_ENV:"test"});
+  const env:NodeJS.ProcessEnv={NODE_ENV:"test",...Object.fromEntries(REQUIRED_CONFIG.map(name=>[name,"x".repeat(40)]))};
+  const report=await getOperationalDigest(db,env);
   assert.ok(report.activity.some(a=>a.repository==="ci/digest"&&a.url.endsWith("/commit/"+sha)));
   assert.ok(report.ownerActions.some(a=>a.title==="Configure fixture credential"&&a.attention==="OVERDUE"));
   assert.ok(!JSON.stringify(report).includes("must-not-appear"));
   assert.equal(report.deployment.ready,true);
+  assert.equal((await getOperationalDigest(db,{NODE_ENV:"test"})).deployment.ready,false);
 });
