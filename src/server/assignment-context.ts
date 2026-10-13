@@ -47,6 +47,11 @@ export async function getAssignmentContext(db:Pool,runId:string,credentialId:str
   // A repository may lack an AGENTS.md. This is an actual GitHub fetch with the
   // installation token, not a fabricated or memory-derived instruction set.
   const instructions=await fetchRepositoryInstruction(item.full_name,"AGENTS.md");
+  const discussions=await db.query(`SELECT t.thread_id,t.subject,t.status,
+    COALESCE(json_agg(json_build_object('messageId',m.message_id,'kind',m.message_kind,'content',m.content,'evidence',m.evidence) ORDER BY m.created_at,m.message_id) FILTER(WHERE m.message_id IS NOT NULL),'[]'::json) AS messages
+    FROM coffee_threads t LEFT JOIN coffee_messages m ON m.thread_id=t.thread_id
+    WHERE t.repository_id=$1 AND t.unit_id=$2 AND t.status IN ('OPEN','ANSWERED')
+    GROUP BY t.thread_id ORDER BY t.updated_at DESC LIMIT 10`,[item.repository_id,item.unit_id]);
   return {
     assignment:{assignmentId:item.assignment_id,repositoryId:item.repository_id,
       repository:item.full_name,unitId:item.unit_id,generation:item.generation,
@@ -59,6 +64,7 @@ export async function getAssignmentContext(db:Pool,runId:string,credentialId:str
       state:checkpoint.rows[0].state,createdAt:checkpoint.rows[0].created_at.toISOString()
     }:null,
     repositoryInstructions:instructions,
+    technicalQuestions:discussions.rows,
     instructionsAreUntrustedRepositoryContent:true
   };
 }

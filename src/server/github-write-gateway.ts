@@ -6,7 +6,8 @@ type RepoScope={repository_id:string;full_name:string;unit_id:string;title:strin
 export type GithubWrite=
   |{kind:"ensure_branch"}
   |{kind:"upsert_file";path:string;contentBase64:string;expectedSha:string|null;message:string}
-  |{kind:"open_draft_pr";description:string};
+  |{kind:"open_draft_pr";description:string}
+  |{kind:"ready_pr";number:number};
 
 export class GithubWriteValidation extends Error{
   constructor(message:string){super(message);this.name="GithubWriteValidation";}
@@ -72,6 +73,8 @@ export function parseGithubWrite(value:unknown):GithubWrite{
       throw new GithubWriteValidation("Invalid PR description");
     return {kind:"open_draft_pr",description};
   }
+  if(v.kind==="ready_pr"&&Number.isSafeInteger(v.number)&&(v.number as number)>0)
+    return {kind:"ready_pr",number:v.number as number};
   throw new GithubWriteValidation("Unsupported write operation");
 }
 export function parseGithubWriteRequest(value:unknown){
@@ -100,6 +103,17 @@ async function doWrite(scope:RepoScope,op:GithubWrite){
   const {owner,name}=repoParts(scope.full_name);
   const repoPath="/repos/"+encodeURIComponent(owner)+"/"+encodeURIComponent(name);
   const branch=safeWorkBranch(scope.unit_id);
+  if(op.kind==="ready_pr"){
+    const pr=await githubAppRequest("GET",repoPath+"/pulls/"+op.number) as {node_id:string;draft:boolean;head:{ref:string;repo:{id:number}}};
+    if(pr.head.ref!==branch||String(pr.head.repo.id)!==scope.repository_id)
+      throw new SessionConflict("PR is outside the assigned work branch");
+    if(!pr.draft)return {kind:"ready_pr",number:op.number,replay:true};
+    const result=await githubAppRequest("POST","/graphql",{
+      query:"mutation($id:ID!){markPullRequestReadyForReview(input:{pullRequestId:$id}){pullRequest{number isDraft}}}",
+      variables:{id:pr.node_id}}) as {errors?:unknown[]};
+    if(result.errors?.length)throw new GitHubAppError(409);
+    return {kind:"ready_pr",number:op.number,replay:false};
+  }
   if(op.kind==="ensure_branch"){
     const {sha}=await defaultBranch(repoPath);
     try{
@@ -119,6 +133,21 @@ async function doWrite(scope:RepoScope,op:GithubWrite){
     }
   }
   if(op.kind==="upsert_file"){
+    // An interrupted success is reconciled from GitHub before attempting PUT.
+    // Content equality prevents duplicate commits on a retried file write.
+    try{
+      const existing=await githubAppRequest("GET",repoPath+"/contents/"+
+        op.path.split("/").map(encodeURIComponent).join("/")+"?ref="+encodeURIComponent(branch)) as
+        {content?:string;sha?:string;encoding?:string};
+      if(existing.encoding==="base64"&&existing.content?.replace(/\s/g,"")===op.contentBase64){
+        const ref=await githubAppRequest("GET",repoPath+"/git/ref/heads/"+branch) as {object:{sha:string}};
+        return {kind:"upsert_file",branch,path:op.path,blobSha:existing.sha,commitSha:ref.object.sha,replay:true};
+      }
+      if(existing.sha!==op.expectedSha)throw new GitHubAppError(409);
+    }catch(error){
+      if(!(error instanceof GitHubAppError)||error.httpStatus!==404)throw error;
+      if(op.expectedSha!==null)throw new GitHubAppError(409);
+    }
     const body:Record<string,unknown>={
       message:op.message,branch,content:op.contentBase64,
     };
@@ -161,18 +190,24 @@ export async function performFencedGithubWrite(db:Pool,runId:string,credentialId
     const grant=await client.query<RepoScope>(
       `SELECT r.repository_id::text AS repository_id,r.full_name,a.unit_id,w.title
        FROM agent_runs ar
+       JOIN agent_credentials c ON c.credential_id=ar.credential_id
        JOIN work_assignments a ON a.run_id=ar.run_id AND a.released_at IS NULL
        JOIN repository_leases l ON l.repository_id=a.repository_id AND l.run_id=a.run_id
          AND l.generation=a.lease_generation
        JOIN repositories r ON r.repository_id=a.repository_id
        JOIN roadmap_units w ON w.repository_id=a.repository_id AND w.unit_id=a.unit_id
+       LEFT JOIN repository_execution_policy policy ON policy.repository_id=r.repository_id
        WHERE ar.run_id=$1 AND ar.credential_id=$2 AND ar.state='RUNNING'
+         AND c.enabled=TRUE AND c.revoked_at IS NULL
          AND a.lease_generation=$3::bigint AND l.expires_at>now()+interval '25 seconds'
          AND r.enabled=TRUE AND r.archived=FALSE AND w.approved=TRUE
+         AND ar.started_at>now()-make_interval(secs=>COALESCE(policy.max_session_seconds,1800))
        FOR UPDATE OF l`,
       [runId,credentialId,generation]
     );
     if(grant.rowCount!==1)throw new SessionConflict("Writable repo lease unavailable or needs heartbeat");
+    const pause=await client.query<{paused:boolean}>("SELECT paused FROM execution_controls WHERE singleton=TRUE");
+    if(pause.rows[0]?.paused)throw new SessionConflict("Owner paused execution");
     const scope=grant.rows[0];
     const result=await doWrite(scope,op);
     await client.query(

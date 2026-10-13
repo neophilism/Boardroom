@@ -1,0 +1,40 @@
+name: Bounded hosted Boardroom agents
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '7 * * * *'
+permissions:
+  contents: read
+jobs:
+  activate:
+    if: vars.BOARDROOM_RUN_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    environment: boardroom-worker
+    concurrency:
+      group: boardroom-named-hosted-worker
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Run one named worker with bounded usage and isolated checks
+        run: npm run agent:run
+        env:
+          BOARDROOM_RUN_ENABLED: ${{ vars.BOARDROOM_RUN_ENABLED }}
+          BOARDROOM_BASE_URL: ${{ vars.BOARDROOM_BASE_URL }}
+          BOARDROOM_AGENT_NAME: ${{ vars.BOARDROOM_AGENT_NAME }}
+          BOARDROOM_AGENT_TOKEN: ${{ secrets.BOARDROOM_AGENT_TOKEN }}
+          BOARDROOM_MODEL_PROVIDER: ${{ vars.BOARDROOM_MODEL_PROVIDER }}
+          BOARDROOM_MODEL: ${{ vars.BOARDROOM_MODEL }}
+          BOARDROOM_MAX_COST_MICROUSD: ${{ vars.BOARDROOM_MAX_COST_MICROUSD }}
+          BOARDROOM_INPUT_USD_PER_MILLION: ${{ vars.BOARDROOM_INPUT_USD_PER_MILLION }}
+          BOARDROOM_OUTPUT_USD_PER_MILLION: ${{ vars.BOARDROOM_OUTPUT_USD_PER_MILLION }}
+          BOARDROOM_MAX_TOKENS: ${{ vars.BOARDROOM_MAX_TOKENS }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          XAI_API_KEY: ${{ secrets.XAI_API_KEY }}

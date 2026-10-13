@@ -5,8 +5,13 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 
 async function migrate(): Promise<void> {
-  const connectionString = process.env.DATABASE_URL_MIGRATIONS ?? process.env.DATABASE_URL;
+  let connectionString = process.env.DATABASE_URL_MIGRATIONS ?? process.env.DATABASE_URL_UNPOOLED ?? process.env.DATABASE_URL;
   if (!connectionString) throw new Error("DATABASE_URL_MIGRATIONS or DATABASE_URL must be configured");
+  const parsed=new URL(connectionString);
+  if(parsed.hostname.endsWith(".neon.tech")&&parsed.hostname.includes("-pooler.")){
+    parsed.hostname=parsed.hostname.replace("-pooler.",".");
+    connectionString=parsed.toString();
+  }
   const db = new Client({ connectionString });
   await db.connect();
   try {
@@ -40,4 +45,4 @@ async function migrate(): Promise<void> {
     try { await db.query("SELECT pg_advisory_unlock(540001)"); } finally { await db.end(); }
   }
 }
-migrate().catch(error => { console.error(error); process.exitCode = 1; });
+migrate().catch(() => { console.error("Boardroom migration failed; verify database access and migration ledger in the private operator console."); process.exitCode = 1; });

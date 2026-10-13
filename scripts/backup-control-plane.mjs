@@ -1,0 +1,12 @@
+import {spawn} from "node:child_process";
+import {chmod} from "node:fs/promises";
+const uri=process.env.DATABASE_URL_MIGRATIONS??process.env.DATABASE_URL_UNPOOLED;
+const file=process.argv[2];
+if(!uri||!file||!file.endsWith('.dump'))throw new Error("Protected direct database URL and a private .dump destination are required");
+const parsed=new URL(uri);
+if(parsed.hostname.includes('-pooler.'))throw new Error("Use a direct migration connection for backup");
+process.umask(0o077);
+const child=spawn('pg_dump',['--format=custom','--no-owner','--no-acl','--file',file],{env:{...process.env,PGDATABASE:uri},stdio:'ignore'});
+const code=await new Promise(resolve=>{child.once('error',()=>resolve(1));child.once('exit',resolve);});
+if(code!==0)throw new Error("Private control-plane backup failed");
+await chmod(file,0o600);console.log("Private control-plane backup completed. Store only in an access-controlled backup destination.");

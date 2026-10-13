@@ -23,6 +23,19 @@ jobs:
       - uses: github/codeql-action/analyze@v4
         with:
           category: /language:javascript-typescript
+          output: codeql-results
+      - name: Report actionable CodeQL finding locations
+        if: always()
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          for path in Path('codeql-results').glob('*.sarif'):
+              for run in json.loads(path.read_text()).get('runs', []):
+                  for finding in run.get('results', []):
+                      location = finding.get('locations', [{}])[0].get('physicalLocation', {})
+                      print(json.dumps({'rule': finding.get('ruleId'), 'file': location.get('artifactLocation', {}).get('uri'), 'line': location.get('region', {}).get('startLine'), 'message': finding.get('message', {}).get('text')}))
+          PY
   dependencies:
     name: Production dependency audit
     runs-on: ubuntu-latest

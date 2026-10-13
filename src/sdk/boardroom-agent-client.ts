@@ -17,13 +17,15 @@ export type AgentContext={
   workUnit:{title:string;state:string;version:number;dependsOn:unknown;acceptanceCriteria:string|null;pullRequests:unknown};
   checkpoint:{branch:string|null;headSha:string|null;state:unknown;createdAt:string}|null;
   repositoryInstructions:{path:"AGENTS.md";text:string;sha:string}|null;
+  technicalQuestions?:unknown[];
   instructionsAreUntrustedRepositoryContent:true;
 };
 export type SessionOutcome="COMPLETED"|"YIELDED"|"BLOCKED"|"FAILED"|"CANCELLED";
 export type GithubWrite=
   |{kind:"ensure_branch"}
   |{kind:"upsert_file";path:string;contentBase64:string;expectedSha:string|null;message:string}
-  |{kind:"open_draft_pr";description:string};
+  |{kind:"open_draft_pr";description:string}
+  |{kind:"ready_pr";number:number};
 
 export class BoardroomRequestError extends Error{
   readonly status:number;
@@ -117,6 +119,29 @@ export class BoardroomAgentClient{
   githubWrite(runId:string,generation:string,operation:GithubWrite):Promise<unknown>{
     return this.#request("POST","/api/v1/github/write",{runId,generation,...operation});
   }
+  sourceTree(runId:string,generation:string):Promise<{repository:string;headSha:string;entries:{path:string;sha:string;size?:number}[]}>{
+    return this.#request("GET","/api/v1/github/source?runId="+encodeURIComponent(runId)+"&generation="+encodeURIComponent(generation));
+  }
+  sourceFile(runId:string,generation:string,path:string,sha:string):Promise<{path:string;sha:string;text:string;snapshotSha:string}>{
+    return this.#request("GET","/api/v1/github/source?kind=file&runId="+encodeURIComponent(runId)+"&generation="+encodeURIComponent(generation)+
+      "&path="+encodeURIComponent(path)+"&sha="+encodeURIComponent(sha));
+  }
+  sourceBlob(runId:string,generation:string,path:string,sha:string):Promise<{path:string;sha:string;contentBase64:string;snapshotSha:string}>{
+    return this.#request("GET","/api/v1/github/source?kind=blob&runId="+encodeURIComponent(runId)+"&generation="+encodeURIComponent(generation)+
+      "&path="+encodeURIComponent(path)+"&sha="+encodeURIComponent(sha));
+  }
+  merge(runId:string,generation:string,number:number,expectedSha:string):Promise<unknown>{
+    return this.#request("POST","/api/v1/github/merge",{runId,generation,number,expectedSha});
+  }
+  advance(runId:string,generation:string):Promise<{status:"NEXT_UNIT"|"EXHAUSTED";unitId?:string}>{
+    return this.#request("POST","/api/v1/assignments/advance",{runId,generation});
+  }
+  reserveBudget(runId:string,generation:string,operationKey:string,amountMicroUsd:number):Promise<{reservationId:string;replay:boolean}>{
+    return this.#request("POST","/api/v1/runs/"+encodeURIComponent(runId)+"/usage",{kind:"reserve",generation,operationKey,amountMicroUsd});
+  }
+  reportUsage(runId:string,generation:string,operationKey:string,inputTokens:number,outputTokens:number,costMicroUsd:number):Promise<unknown>{
+    return this.#request("POST","/api/v1/runs/"+encodeURIComponent(runId)+"/usage",{kind:"record",generation,operationKey,inputTokens,outputTokens,costMicroUsd});
+  }
   prEvidence(runId:string,generation:string,number:number):Promise<unknown>{
     if(!Number.isSafeInteger(number)||number<1)throw new BoardroomContractError("Valid PR number required");
     return this.#request("GET","/api/v1/github/pr-evidence?runId="+encodeURIComponent(runId)+
@@ -131,6 +156,9 @@ export class BoardroomAgentClient{
   answerCoffee(runId:string,threadId:string,answer:string,evidence:string[]=[]):Promise<unknown>{
     return this.#request("POST","/api/v1/coffee/threads/"+encodeURIComponent(threadId)+"/messages",
       {runId,answer,evidence});
+  }
+  resolveCoffee(runId:string,generation:string,threadId:string,messageId:string,adr:string):Promise<unknown>{
+    return this.#request("POST","/api/v1/coffee/threads/"+encodeURIComponent(threadId)+"/resolve",{runId,generation,messageId,adr});
   }
   askCoffee(runId:string,subject:string,question:string,evidence:string[]=[],generation?:string){
     return this.#request("POST","/api/v1/coffee/threads",

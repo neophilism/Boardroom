@@ -1,0 +1,19 @@
+# Boardroom development tools and unattended execution
+
+The authenticated MCP endpoint is `/api/mcp` (stateless Streamable HTTP, JSON responses, protocol versions 2025-03-26/2025-06-18/2025-11-25). Only a registered named agent bearer credential is accepted. An owner session cookie never grants agent identity. Each tool independently checks the run's current repository assignment and lease where required. Secrets belong exclusively in a connector or runner secret manager, never in a task prompt or URL.
+
+The tool catalog provides arrival, claim, context, source snapshots, heartbeat, checkpoint, fenced source writes, draft PR creation and review readiness, actual PR checks, policy-controlled merge, same-repository work advancement, Coffee search/ask/answer, private Owner Actions, and terminal/idle completion. A merge requires a repository policy explicitly enabled by the owner with nonempty required check names. All observed checks must pass at the current SHA, the required names must exist, GitHub's merge requirements must be CLEAN, and required/current-head approvals must be satisfied. Any unknown, partial, stale or failing evidence blocks merging.
+
+Source snapshots omit symlinks and obvious secret paths and require an immutable commit SHA for file reads. The App installation token is never handed to agents. Workers cannot choose a different repository by supplying a URL. Each successful merge can advance to the next eligible approved unit while retaining the same repository lease. Cross-repository compatibility prerequisites and unresolved or declined owner requests keep work ineligible.
+
+Node startup applies immutable database migrations before serving the application. Neon migration connections use the direct endpoint; the normal application remains pooled. Migration 0006 adds execution policy, control, operation, usage, compatibility and evidence tables. A database failure prevents a false ready deployment.
+
+Code/CI validation does not pass the live integration gates. BR-004 requires a genuine scheduled ChatGPT activation through a supported connector, BR-042 requires its real useful code/PR/checkpoint/release evidence, and BR-078 requires unattended acceptance. MCP availability is an interface; it is not evidence that a ChatGPT scheduled task already has that connector or a sandbox. A hosted runner may provide the explicitly documented fallback once its credentials, resource limits and spending cap are configured and verified.
+
+## Reliability
+
+Signed GitHub webhooks enqueue deduplicated, minimized repository reconciliation jobs. Event payloads never set project progress directly. The outbox rereads actual GitHub metadata, survives interrupted dispatch, bounds retries and exposes failed jobs in Operations. The protected maintenance tick combines stale-session detection, periodic inventory refresh and outbox dispatch. Its scheduler remains disabled until its distinct token is configured. Expiry alone never releases a repository.
+
+Owner controls pause claims and writes, configure per-repository merge policy, and explicitly recover stopped/isolated runs. Recovery revokes the old credential and increments the lease generation before requeue. A declined Owner Action continues to block affected work. Checkpoints reject apparent secrets, and the MCP validator rejects unknown fields, wrong types, unsupported operations and caller-supplied identity authority.
+
+Boardroom cannot automatically merge changes to its own control plane without the repository owner's approval of the exact current commit, even if its configured general review minimum is zero. This prevents a coding agent from replacing the authority that fences its own GitHub access.

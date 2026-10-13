@@ -1,0 +1,23 @@
+name: Verify isolated coding harness
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  sandbox:
+    name: Real sandbox isolation and cancellation
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: node --experimental-strip-types --test tests-sandbox/*.test.ts
+        env:
+          BOARDROOM_DOCKER_TESTS: 'true'

@@ -61,6 +61,9 @@ export async function heartbeatRun(db: Pool, runId: string, credentialId: string
     if (run.state !== "RUNNING") throw new SessionConflict("Run is not active");
     const assignment = await lockedAssignment(client,runId,generation);
     await lockedLease(client,assignment,runId,generation,true);
+    const budget=await client.query<{within_budget:boolean}>(`SELECT ar.started_at>now()-make_interval(secs=>COALESCE(p.max_session_seconds,1800)) AS within_budget
+      FROM agent_runs ar LEFT JOIN repository_execution_policy p ON p.repository_id=$2 WHERE ar.run_id=$1`,[runId,assignment.repository_id]);
+    if(budget.rows[0]?.within_budget!==true)throw new SessionConflict("Session time budget exhausted; checkpoint and finish");
     const result = await client.query<{expires_at:Date}>(
       "UPDATE repository_leases SET last_heartbeat_at=now(), expires_at=now()+interval '180 seconds' WHERE repository_id=$1 AND run_id=$2 AND generation=$3::bigint AND expires_at>now() RETURNING expires_at",
       [assignment.repository_id,runId,generation]
@@ -92,6 +95,8 @@ export function validateCheckpoint(input: unknown): CheckpointPayload {
   const state = value.state;
   if (!state || typeof state !== "object" || Array.isArray(state) ||
       JSON.stringify(state).length > 16000) throw new SessionConflict("Invalid or oversized checkpoint");
+  if(/(?:github_pat_[A-Za-z0-9_]{12,}|gh[pousr]_[A-Za-z0-9]{20,}|sk-[A-Za-z0-9_-]{20,}|-----BEGIN [A-Z ]*PRIVATE KEY|postgres(?:ql)?:\/\/[^\s]+@|(?:password|api.?key|secret|token)\s{0,8}["']?\s{0,8}[:=]\s{0,8}["']?[A-Za-z0-9+/_=-]{20,})/i.test(JSON.stringify(state)))
+    throw new SessionConflict("Possible secret in checkpoint; store only secure references");
   return {branch:branch as string|null,headSha:headSha as string|null,state:state as Record<string,unknown>};
 }
 
