@@ -1,0 +1,90 @@
+version: 2.1
+
+# Native CircleCI configuration for Boardroom.
+# Keeps the full application, PostgreSQL 17 and Docker sandbox checks.
+# GitHub CodeQL and deployed-runtime smoke remain separately required
+# until equivalent CircleCI verification has been validated.
+jobs:
+  application:
+    docker:
+      - image: cimg/node:22.20
+    resource_class: medium
+    steps:
+      - checkout
+      - run:
+          name: Install application dependencies
+          command: npm install --no-audit --no-fund
+      - run:
+          name: Lint
+          command: npm run lint
+      - run:
+          name: TypeScript
+          command: npm run typecheck
+      - run:
+          name: All unit tests
+          command: npm test
+      - run:
+          name: Production build
+          command: npm run build
+
+  postgres-integration:
+    docker:
+      - image: cimg/node:22.20
+      - image: cimg/postgres:17.6
+        environment:
+          POSTGRES_DB: boardroom_test
+          POSTGRES_USER: boardroom_ci
+          POSTGRES_PASSWORD: ci_only_password
+    resource_class: medium
+    environment:
+      DATABASE_URL: postgres://boardroom_ci:ci_only_password@127.0.0.1:5432/boardroom_test
+    steps:
+      - checkout
+      - run:
+          name: Install dependencies
+          command: npm install --no-audit --no-fund
+      - run:
+          name: Apply exact production database migrations
+          command: npm run migrate
+      - run:
+          name: Real PostgreSQL lease and fencing tests
+          command: node --experimental-strip-types --test tests-integration/*.test.ts
+
+  sandbox-isolation:
+    machine:
+      image: ubuntu-2404:current
+    resource_class: medium
+    environment:
+      BOARDROOM_DOCKER_TESTS: "true"
+    steps:
+      - checkout
+      - run:
+          name: Install Node 22 and project dependencies
+          command: |
+            curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
+            sudo apt-get install -y nodejs
+            npm ci --ignore-scripts --no-audit --no-fund
+      - run:
+          name: Real Docker sandbox isolation and cancellation tests
+          command: node --experimental-strip-types --test tests-sandbox/*.test.ts
+
+  dependency-audit:
+    docker:
+      - image: cimg/node:22.20
+    resource_class: small
+    steps:
+      - checkout
+      - run:
+          name: Install dependencies
+          command: npm install --ignore-scripts --no-fund --no-audit
+      - run:
+          name: Production security dependency audit
+          command: npm audit --omit=dev --audit-level=high
+
+workflows:
+  full-ci:
+    jobs:
+      - application
+      - postgres-integration
+      - sandbox-isolation
+      - dependency-audit
