@@ -40,5 +40,5 @@ test("ledger order does not affect readiness",async()=>{
 });
 test("missing environment prevents database access",async()=>{
   const db={query:async()=>{throw new Error("Database must not be queried");}} as unknown as Pool;
-  assert.equal(await checkReadiness(db,{}),false);
+  assert.equal(await checkReadiness(db,{NODE_ENV:"test"}),false);
 });
