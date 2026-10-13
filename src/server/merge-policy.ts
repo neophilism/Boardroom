@@ -5,6 +5,7 @@ import {titleWorkUnitIds} from "./roadmap-import.ts";
 import {safeWorkBranch} from "./github-write-gateway.ts";
 import {assessObservedChecks,type CheckRun,type LegacyStatus} from "./pr-evidence.ts";
 import {SessionConflict} from "./sessions.ts";
+import {assertWorkPrerequisites} from "./work-prerequisites.ts";
 
 export type MergePolicy={auto_merge:boolean;required_checks:string[];minimum_reviews:number};
 export function aggregateLinkedPrState(unitId:string,linked:number[],pulls:readonly GitHubPull[],confirmedMerged:number):"MERGED"|"OPEN_PR"|"UNKNOWN"{
@@ -54,10 +55,7 @@ export async function mergeAssignedPullRequest(db:Pool,runId:string,credentialId
     const policy=policyResult.rows[0]??{auto_merge:false,required_checks:[],minimum_reviews:0};
     const controls=await client.query<{paused:boolean}>("SELECT paused FROM execution_controls WHERE singleton=TRUE");
     if(controls.rows[0]?.paused)throw new SessionConflict("Owner paused execution");
-    const incompatible=await client.query(`SELECT 1 FROM compatibility_dependencies d JOIN roadmap_units w
-      ON w.repository_id=d.prerequisite_repository_id AND w.unit_id=d.prerequisite_unit_id
-      WHERE d.repository_id=$1 AND d.unit_id=$2 AND w.state NOT IN ('MERGED','ACCEPTED') LIMIT 1`,[scope.repository_id,scope.unit_id]);
-    if(incompatible.rowCount)throw new SessionConflict("Cross-repository compatibility prerequisite unresolved");
+    await assertWorkPrerequisites(client,scope.repository_id,scope.unit_id);
     const api=repositoryApiPath(scope.full_name);
     async function reconcileMergedUnit(){
       const refs=await client.query<{planned_prs:unknown}>("SELECT planned_prs FROM roadmap_units WHERE repository_id=$1 AND unit_id=$2",[scope.repository_id,scope.unit_id]);

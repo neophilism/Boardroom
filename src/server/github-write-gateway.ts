@@ -2,6 +2,7 @@ import type {Pool} from "pg";
 import {SessionConflict,isValidGeneration,isValidRunId} from "./sessions.ts";
 import {githubAppRequest,GitHubAppError} from "./github-app.ts";
 import {commitAssignedFiles} from "./github-atomic-commit.ts";
+import {assertWorkPrerequisites} from "./work-prerequisites.ts";
 
 type RepoScope={repository_id:string;full_name:string;unit_id:string;title:string};
 export type GithubWrite=
@@ -231,6 +232,7 @@ export async function performFencedGithubWrite(db:Pool,runId:string,credentialId
     const pause=await client.query<{paused:boolean}>("SELECT paused FROM execution_controls WHERE singleton=TRUE");
     if(pause.rows[0]?.paused)throw new SessionConflict("Owner paused execution");
     const scope=grant.rows[0];
+    await assertWorkPrerequisites(client,scope.repository_id,scope.unit_id);
     const result=await doWrite(scope,op);
     await client.query(
       "INSERT INTO audit_events(run_id,repository_id,kind,details) VALUES($1,$2,$3,$4::jsonb)",
