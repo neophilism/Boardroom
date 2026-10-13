@@ -22,11 +22,17 @@ type Existing = { assignment_id: string; repository_id: string; full_name: strin
  * Expired but still assigned leases are excluded until explicit fenced recovery.
  */
 export const REPOSITORY_CLAIM_QUERY = String.raw`
-  WITH RECURSIVE inherited_priority(repository_id,position) AS (
+  WITH RECURSIVE dependency_edges AS (
+    SELECT repository_id,unit_id,prerequisite_repository_id,prerequisite_unit_id FROM compatibility_dependencies
+    UNION
+    SELECT w.repository_id,w.unit_id,r.repository_id,d.value->>'unitId'
+    FROM roadmap_units w CROSS JOIN LATERAL jsonb_array_elements(w.external_dependencies) d(value)
+    JOIN repositories r ON r.full_name=d.value->>'repository'
+  ), inherited_priority(repository_id,position) AS (
     SELECT repository_id,position FROM repository_priority
     UNION
     SELECT d.prerequisite_repository_id,p.position
-    FROM inherited_priority p JOIN compatibility_dependencies d ON d.repository_id=p.repository_id
+    FROM inherited_priority p JOIN dependency_edges d ON d.repository_id=p.repository_id
     JOIN roadmap_units consumer ON consumer.repository_id=d.repository_id AND consumer.unit_id=d.unit_id
     LEFT JOIN roadmap_units prerequisite ON prerequisite.repository_id=d.prerequisite_repository_id
       AND prerequisite.unit_id=d.prerequisite_unit_id
@@ -44,6 +50,7 @@ export const REPOSITORY_CLAIM_QUERY = String.raw`
     FROM roadmap_units w
     WHERE w.repository_id = r.repository_id
       AND w.approved = TRUE
+      AND registry_prerequisites_satisfied(w.repository_id,w.unit_id)
       AND w.state IN ('PENDING', 'ACTIVE', 'OPEN_PR','BLOCKED')
       AND (w.state<>'BLOCKED' OR EXISTS(SELECT 1 FROM coffee_threads t JOIN coffee_messages m ON m.thread_id=t.thread_id WHERE t.repository_id=w.repository_id AND t.unit_id=w.unit_id AND t.status='ANSWERED' AND m.message_kind='ANSWER' AND jsonb_array_length(m.evidence)>0))
       AND NOT EXISTS (

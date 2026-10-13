@@ -1,0 +1,33 @@
+import test,{after} from "node:test";
+import assert from "node:assert/strict";
+import {Pool} from "pg";
+import {reconcileRoadmapUnits} from "../src/server/roadmap-reconciliation.ts";
+import {assertWorkPrerequisites} from "../src/server/work-prerequisites.ts";
+import type {CanonicalPlan} from "../src/server/roadmap-import.ts";
+const url=process.env.DATABASE_URL;
+if(!url||!url.includes("boardroom_test"))throw new Error("Registry fixtures require boardroom_test");
+const db=new Pool({connectionString:url,max:2});after(async()=>db.end());
+test("source-owned external dependencies block missing, unapproved and unmerged prerequisites",async()=>{
+  const consumer=945000001,upstream=945000002;
+  await db.query("INSERT INTO repositories(repository_id,full_name,created_at,enabled) VALUES($1,'ci/registry-consumer',now(),FALSE)",[consumer]);
+  const plan:CanonicalPlan={version:1,verified:true,units:[{id:"CI-001",title:"Consumer",dependsOn:[],pullRequests:[],status:"PENDING",acceptanceCriteria:null,
+    externalDependencies:[{repository:"ci/registry-upstream",unitId:"UP-001"}],externalPrerequisites:[]}]};
+  await reconcileRoadmapUnits(db,consumer,plan);
+  await assert.rejects(assertWorkPrerequisites(db,String(consumer),"CI-001"),/Registry external/);
+  await db.query("INSERT INTO repositories(repository_id,full_name,created_at,enabled) VALUES($1,'ci/registry-upstream',now(),FALSE)",[upstream]);
+  await db.query("INSERT INTO roadmap_units(repository_id,unit_id,title,version,approved,state) VALUES($1,'UP-001','Upstream',1,TRUE,'PENDING')",[upstream]);
+  await assert.rejects(assertWorkPrerequisites(db,String(consumer),"CI-001"));
+  await db.query("UPDATE roadmap_units SET state='MERGED' WHERE repository_id=$1",[upstream]);
+  await assert.doesNotReject(assertWorkPrerequisites(db,String(consumer),"CI-001"));
+  await db.query("UPDATE roadmap_units SET approved=FALSE WHERE repository_id=$1",[upstream]);
+  await assert.rejects(assertWorkPrerequisites(db,String(consumer),"CI-001"));
+  await db.query("UPDATE roadmap_units SET approved=TRUE WHERE repository_id=$1",[upstream]);
+  await db.query("UPDATE roadmap_units SET state='ACCEPTED' WHERE repository_id=$1",[consumer]);
+  plan.units[0].externalPrerequisites=["Independent review still pending"];
+  await reconcileRoadmapUnits(db,consumer,plan);
+  assert.equal((await db.query("SELECT state FROM roadmap_units WHERE repository_id=$1",[consumer])).rows[0].state,"PENDING");
+  await assert.rejects(assertWorkPrerequisites(db,String(consumer),"CI-001"));
+  plan.units[0].externalPrerequisites=[];
+  await reconcileRoadmapUnits(db,consumer,plan);
+  await assert.doesNotReject(assertWorkPrerequisites(db,String(consumer),"CI-001"));
+});

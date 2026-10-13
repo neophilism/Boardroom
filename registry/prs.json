@@ -1,490 +1,1777 @@
 {
-  "schemaVersion": 1,
   "repository": "neophilism/Boardroom",
-  "roadmapVersion": 2,
+  "title": "Boardroom",
   "planVerified": true,
   "plannedPrCount": 80,
+  "sourceFiles": [
+    "docs/DEVELOPMENT_PLAN.md",
+    "docs/ARCHITECTURE.md",
+    "AGENTS.md"
+  ],
+  "priority": "highest",
+  "schemaVersion": 1,
+  "roadmapVersion": 2,
   "observedAt": "2026-10-12T13:44:21.256Z",
   "units": [
     {
       "id": "BR-001",
       "title": "Canonical project roadmap and agent instructions",
       "origin": "original",
-      "prs": []
+      "prs": [],
+      "priority": "P0",
+      "phase": "F1",
+      "dependsOn": [],
+      "scope": [
+        "Commit approved machine-readable plan, architecture, repository instructions, and stable work-unit naming."
+      ],
+      "acceptanceCriteria": "Roadmap is valid, counted from actual milestones, and readable by existing Engine Room importers.",
+      "verification": [
+        "Roadmap is valid, counted from actual milestones, and readable by existing Engine Room importers."
+      ],
+      "contributingPrs": [],
+      "externalDependencies": [],
+      "externalPrerequisites": []
     },
     {
       "id": "BR-002",
       "title": "TypeScript application skeleton and CI",
       "origin": "original",
-      "prs": []
+      "prs": [],
+      "priority": "P0",
+      "phase": "F1",
+      "dependsOn": [
+        "BR-001"
+      ],
+      "scope": [
+        "Initialize Next.js API/UI, shared typed package, formatting, lint, tests, and GitHub Actions."
+      ],
+      "acceptanceCriteria": "Fresh checkout builds and tests; deliberate failing check blocks merging.",
+      "verification": [
+        "Fresh checkout builds and tests; deliberate failing check blocks merging."
+      ],
+      "contributingPrs": [],
+      "externalDependencies": [],
+      "externalPrerequisites": []
     },
     {
       "id": "BR-003",
       "title": "Minimal authenticated arrival endpoint",
       "origin": "original",
-      "prs": []
+      "prs": [],
+      "priority": "P0",
+      "phase": "F1",
+      "dependsOn": [
+        "BR-002"
+      ],
+      "scope": [
+        "Expose a private minimal check-in endpoint and idempotent arrival acknowledgment for temporary sessions."
+      ],
+      "acceptanceCriteria": "Authenticated request creates a traceable arrival; unauthenticated and replayed requests are rejected or deduplicated.",
+      "verification": [
+        "Authenticated request creates a traceable arrival; unauthenticated and replayed requests are rejected or deduplicated."
+      ],
+      "contributingPrs": [],
+      "externalDependencies": [],
+      "externalPrerequisites": []
     },
     {
       "id": "BR-004",
       "title": "Live ChatGPT scheduled-execution feasibility gate",
       "origin": "original",
-      "prs": []
+      "prs": [],
+      "priority": "P0",
+      "phase": "F1",
+      "dependsOn": [
+        "BR-003"
+      ],
+      "scope": [
+        "Demonstrate one real scheduled ChatGPT task invoking the Boardroom integration, receiving an assignment, and reporting a result; record connector limits."
+      ],
+      "acceptanceCriteria": "Evidence from a real scheduled run documents what works and any approval pauses; no synthetic run passes this gate.",
+      "verification": [
+        "Evidence from a real scheduled run documents what works and any approval pauses; no synthetic run passes this gate."
+      ],
+      "contributingPrs": [],
+      "externalDependencies": [],
+      "externalPrerequisites": []
     },
     {
       "id": "BR-005",
       "title": "Supported provider connector or external-runner fallback",
       "origin": "original",
-      "prs": []
+      "prs": [],
+      "priority": "P0",
+      "phase": "F1",
+      "dependsOn": [
+        "BR-004"
+      ],
+      "scope": [
+        "Implement a custom supported tool/app interface if available; otherwise a clearly labeled hosted-worker activation path with identical agent instructions."
+      ],
+      "acceptanceCriteria": "At least one supported unattended execution route invokes the API and is demonstrably usable; unsupported routes remain disabled.",
+      "verification": [
+        "At least one supported unattended execution route invokes the API and is demonstrably usable; unsupported routes remain disabled."
+      ],
+      "contributingPrs": [],
+      "externalDependencies": [],
+      "externalPrerequisites": []
     },
     {
       "id": "BR-006",
       "title": "Neon schema, migrations, and transaction outbox",
       "origin": "original",
-      "prs": []
+      "prs": [],
+      "priority": "P0",
+      "phase": "F1",
+      "dependsOn": [
+        "BR-002"
+      ],
+      "scope": [
+        "Create migrations and domain types for repositories, sessions, leases, work units, owner requests, discussions, checkpoints, and outbox."
+      ],
+      "acceptanceCriteria": "Clean and incremental migration tests pass; transaction rollback leaves no orphan assignments.",
+      "verification": [
+        "Clean and incremental migration tests pass; transaction rollback leaves no orphan assignments."
+      ],
+      "contributingPrs": [],
+      "externalDependencies": [],
+      "externalPrerequisites": []
     },
     {
       "id": "BR-007",
       "title": "Owner authentication and restricted administration",
       "origin": "original",
-      "prs": []
+      "prs": [],
+      "priority": "P0",
+      "phase": "F1",
+      "dependsOn": [
+        "BR-006"
+      ],
+      "scope": [
+        "Protect owner endpoints and private application, add roles and strong session controls, audit security changes."
+      ],
+      "acceptanceCriteria": "Anonymous and agent credentials cannot access owner data or modify administrative controls.",
+      "verification": [
+        "Anonymous and agent credentials cannot access owner data or modify administrative controls."
+      ],
+      "contributingPrs": [],
+      "externalDependencies": [],
+      "externalPrerequisites": []
     },
     {
       "id": "BR-008",
       "title": "Scoped GitHub App onboarding",
       "origin": "original",
-      "prs": []
+      "prs": [],
+      "priority": "P0",
+      "phase": "F1",
+      "dependsOn": [
+        "BR-006"
+      ],
+      "scope": [
+        "Implement GitHub App installation/read permissions, repository access discovery, webhook verification foundation, and credential rotation."
+      ],
+      "acceptanceCriteria": "Can securely enumerate allowed repositories and fetch authoritative metadata without embedding a personal token.",
+      "verification": [
+        "Can securely enumerate allowed repositories and fetch authoritative metadata without embedding a personal token."
+      ],
+      "contributingPrs": [],
+      "externalDependencies": [],
+      "externalPrerequisites": []
     },
     {
       "id": "BR-009",
       "title": "Repository inventory and rename-safe identity",
       "origin": "original",
-      "prs": []
+      "prs": [],
+      "priority": "P0",
+      "phase": "F2",
+      "dependsOn": [
+        "BR-008"
+      ],
+      "scope": [
+        "Import registered repositories using immutable numeric GitHub IDs; track archived, disabled, and restricted repositories."
+      ],
+      "acceptanceCriteria": "A repo rename preserves its identity, history, priority, and prior assignments.",
+      "verification": [
+        "A repo rename preserves its identity, history, priority, and prior assignments."
+      ],
+      "contributingPrs": [],
+      "externalDependencies": [],
+      "externalPrerequisites": []
     },
     {
       "id": "BR-010",
       "title": "Canonical roadmap/PR-registry adapter",
       "origin": "original",
-      "prs": []
+      "prs": [],
+      "priority": "P0",
+      "phase": "F2",
+      "dependsOn": [
+        "BR-009"
+      ],
+      "scope": [
+        "Read existing registry/roadmap.json and registry/prs.json contracts with explicit precedence, validation, and conflict diagnostics."
+      ],
+      "acceptanceCriteria": "Conflicting or invalid sources fail visibly; historical plan counts and work-unit IDs are preserved.",
+      "verification": [
+        "Conflicting or invalid sources fail visibly; historical plan counts and work-unit IDs are preserved."
+      ],
+      "contributingPrs": [],
+      "externalDependencies": [],
+      "externalPrerequisites": []
     },
     {
       "id": "BR-011",
       "title": "Verified work-unit and dependency eligibility",
       "origin": "original",
-      "prs": []
+      "prs": [],
+      "priority": "P0",
+      "phase": "F2",
+      "dependsOn": [
+        "BR-010"
+      ],
+      "scope": [
+        "Calculate which approved PR units are actionable, merged, blocked, or await prerequisite work."
+      ],
+      "acceptanceCriteria": "No new tasks are fabricated and already completed work is never silently reassigned.",
+      "verification": [
+        "No new tasks are fabricated and already completed work is never silently reassigned."
+      ],
+      "contributingPrs": [],
+      "externalDependencies": [],
+      "externalPrerequisites": []
     },
     {
       "id": "BR-012",
       "title": "Ordered owner priority repositories list",
       "origin": "original",
-      "prs": []
+      "prs": [],
+      "priority": "P0",
+      "phase": "F2",
+      "dependsOn": [
+        "BR-007",
+        "BR-009"
+      ],
+      "scope": [
+        "Create private edit/reorder APIs for the owner-maintained priority list."
+      ],
+      "acceptanceCriteria": "First available top-ranked priority repository wins over every ordinary repository.",
+      "verification": [
+        "First available top-ranked priority repository wins over every ordinary repository."
+      ],
+      "contributingPrs": [],
+      "externalDependencies": [],
+      "externalPrerequisites": []
     },
     {
       "id": "BR-013",
       "title": "Authoritative least-recently-updated comparator",
       "origin": "original",
-      "prs": []
+      "prs": [],
+      "priority": "P0",
+      "phase": "F2",
+      "dependsOn": [
+        "BR-009"
+      ],
+      "scope": [
+        "Derive latest genuine development event from GitHub, with creation-date fallback and deterministic tie-breaks."
+      ],
+      "acceptanceCriteria": "Oldest eligible nonpriority repo is chosen; local refresh timestamps do not affect ordering.",
+      "verification": [
+        "Oldest eligible nonpriority repo is chosen; local refresh timestamps do not affect ordering."
+      ],
+      "contributingPrs": [],
+      "externalDependencies": [],
+      "externalPrerequisites": []
     },
     {
       "id": "BR-014",
       "title": "Stateless identical-prompt session admission",
       "origin": "original",
-      "prs": []
+      "prs": [],
+      "priority": "P0",
+      "phase": "F2",
+      "dependsOn": [
+        "BR-003",
+        "BR-006"
+      ],
+      "scope": [
+        "Generate a new unique run ID for every scheduled arrival; do not require customized per-task instructions or retained agent memory."
+      ],
+      "acceptanceCriteria": "Two identical prompts from different accounts can safely start independent sessions.",
+      "verification": [
+        "Two identical prompts from different accounts can safely start independent sessions."
+      ],
+      "contributingPrs": [],
+      "externalDependencies": [],
+      "externalPrerequisites": []
     },
     {
       "id": "BR-015",
       "title": "Optional activation-source metadata and replay protection",
       "origin": "original",
-      "prs": []
+      "prs": [],
+      "priority": "P0",
+      "phase": "F2",
+      "dependsOn": [
+        "BR-014"
+      ],
+      "scope": [
+        "Record provider and nonsecret source/schedule identifiers when available; permit unidentifiable-but-authenticated ephemeral runs."
+      ],
+      "acceptanceCriteria": "No false account-wide singleton; duplicate delivery is idempotent where verified invocation identity exists.",
+      "verification": [
+        "No false account-wide singleton; duplicate delivery is idempotent where verified invocation identity exists."
+      ],
+      "contributingPrs": [],
+      "externalDependencies": [],
+      "externalPrerequisites": []
     },
     {
       "id": "BR-016",
       "title": "Atomic exclusive repository assignment",
       "origin": "original",
-      "prs": []
+      "prs": [],
+      "priority": "P0",
+      "phase": "F2",
+      "dependsOn": [
+        "BR-011",
+        "BR-012",
+        "BR-013",
+        "BR-014"
+      ],
+      "scope": [
+        "Claim an eligible repository transactionally with a unique owner, generation counter, and race-safe row locking."
+      ],
+      "acceptanceCriteria": "Hundreds of simultaneous claims yield at most one active owner for each repository.",
+      "verification": [
+        "Hundreds of simultaneous claims yield at most one active owner for each repository."
+      ],
+      "contributingPrs": [],
+      "externalDependencies": [],
+      "externalPrerequisites": []
     },
     {
       "id": "BR-017",
       "title": "Leases, heartbeats, and session renewal",
       "origin": "original",
-      "prs": []
+      "prs": [],
+      "priority": "P0",
+      "phase": "F2",
+      "dependsOn": [
+        "BR-016"
+      ],
+      "scope": [
+        "Define server-clock lease expiry, bounded heartbeat intervals, and renewal authorization."
+      ],
+      "acceptanceCriteria": "Expired or unknown sessions cannot renew; healthy sessions retain their assignment.",
+      "verification": [
+        "Expired or unknown sessions cannot renew; healthy sessions retain their assignment."
+      ],
+      "contributingPrs": [],
+      "externalDependencies": [],
+      "externalPrerequisites": []
     },
     {
       "id": "BR-018",
       "title": "Session states, outcomes, and idempotent release",
       "origin": "original",
-      "prs": []
+      "prs": [],
+      "priority": "P0",
+      "phase": "F2",
+      "dependsOn": [
+        "BR-017"
+      ],
+      "scope": [
+        "Implement RUNNING, YIELDED, COMPLETED, BLOCKED, RECOVERING, FAILED, and UNKNOWN transitions with audit history."
+      ],
+      "acceptanceCriteria": "Duplicate completion is harmless; release never frees a newer session's lease.",
+      "verification": [
+        "Duplicate completion is harmless; release never frees a newer session's lease."
+      ],
+      "contributingPrs": [],
+      "externalDependencies": [],
+      "externalPrerequisites": []
     },
     {
       "id": "BR-019",
       "title": "Repository selection conformance suite",
       "origin": "original",
-      "prs": []
+      "prs": [],
+      "priority": "P0",
+      "phase": "F2",
+      "dependsOn": [
+        "BR-016",
+        "BR-018"
+      ],
+      "scope": [
+        "Test strict priority-first selection, oldest-update fallback, simultaneous claims, ties, and idling."
+      ],
+      "acceptanceCriteria": "Deterministic cases and high-contention integration tests all pass.",
+      "verification": [
+        "Deterministic cases and high-contention integration tests all pass."
+      ],
+      "contributingPrs": [],
+      "externalDependencies": [],
+      "externalPrerequisites": []
     },
     {
       "id": "BR-020",
       "title": "Blocked repository and recovery-eligibility policies",
       "origin": "original",
-      "prs": []
+      "prs": [],
+      "priority": "P0",
+      "phase": "F2",
+      "dependsOn": [
+        "BR-011",
+        "BR-018"
+      ],
+      "scope": [
+        "Prevent repeated selection of unrecoverable work while preserving automatic retries after blockers clear."
+      ],
+      "acceptanceCriteria": "Blocked repositories leave the eligible pool with auditable reasons and become eligible after verification.",
+      "verification": [
+        "Blocked repositories leave the eligible pool with auditable reasons and become eligible after verification."
+      ],
+      "contributingPrs": [],
+      "externalDependencies": [],
+      "externalPrerequisites": []
     },
     {
       "id": "BR-021",
       "title": "Owner action relational model and states",
       "origin": "original",
-      "prs": []
+      "prs": [],
+      "priority": "P0",
+      "phase": "F3",
+      "dependsOn": [
+        "BR-006",
+        "BR-007"
+      ],
+      "scope": [
+        "Create durable owner actions with repository/work unit, blockers, required human authority, severity, costs, and lifecycle."
+      ],
+      "acceptanceCriteria": "Every request has a unique ID, creator session, immutable audit history, and status transitions.",
+      "verification": [
+        "Every request has a unique ID, creator session, immutable audit history, and status transitions."
+      ],
+      "contributingPrs": [],
+      "externalDependencies": [],
+      "externalPrerequisites": []
     },
     {
       "id": "BR-022",
       "title": "Agent escalation and owner-only classifier",
       "origin": "original",
-      "prs": []
+      "prs": [],
+      "priority": "P0",
+      "phase": "F3",
+      "dependsOn": [
+        "BR-021"
+      ],
+      "scope": [
+        "Define which unmet conditions require an owner rather than Coffee Corner or autonomous troubleshooting."
+      ],
+      "acceptanceCriteria": "Agent cannot ask owner for a task another authorized agent can perform; genuinely human-only blockers are posted.",
+      "verification": [
+        "Agent cannot ask owner for a task another authorized agent can perform; genuinely human-only blockers are posted."
+      ],
+      "contributingPrs": [],
+      "externalDependencies": [],
+      "externalPrerequisites": []
     },
     {
       "id": "BR-023",
       "title": "Action templates for accounts, credentials, purchases, and approvals",
       "origin": "original",
-      "prs": []
+      "prs": [],
+      "priority": "P0",
+      "phase": "F3",
+      "dependsOn": [
+        "BR-022"
+      ],
+      "scope": [
+        "Provide structured actionable requests with exact target systems, minimum permissions, prerequisites, expected expense, and verification."
+      ],
+      "acceptanceCriteria": "An example GitHub token/account/purchase request is specific, concise, and secret-free.",
+      "verification": [
+        "An example GitHub token/account/purchase request is specific, concise, and secret-free."
+      ],
+      "contributingPrs": [],
+      "externalDependencies": [],
+      "externalPrerequisites": []
     },
     {
       "id": "BR-024",
       "title": "Duplicate merging and blocker aggregation",
       "origin": "original",
-      "prs": []
+      "prs": [],
+      "priority": "P0",
+      "phase": "F3",
+      "dependsOn": [
+        "BR-021",
+        "BR-023"
+      ],
+      "scope": [
+        "Deduplicate requests for the same missing key, provider account, approval, or configuration prerequisite across repositories."
+      ],
+      "acceptanceCriteria": "Multiple agents needing one prerequisite generate one owner card with all affected projects listed.",
+      "verification": [
+        "Multiple agents needing one prerequisite generate one owner card with all affected projects listed."
+      ],
+      "contributingPrs": [],
+      "externalDependencies": [],
+      "externalPrerequisites": []
     },
     {
       "id": "BR-025",
       "title": "Private Owner Action Board inbox",
       "origin": "original",
-      "prs": []
+      "prs": [],
+      "priority": "P0",
+      "phase": "F3",
+      "dependsOn": [
+        "BR-024"
+      ],
+      "scope": [
+        "Implement a single owner dashboard for outstanding, blocked, awaiting verification, complete, and declined actions."
+      ],
+      "acceptanceCriteria": "Owner can sort, filter, inspect, and change action state without opening individual chat windows.",
+      "verification": [
+        "Owner can sort, filter, inspect, and change action state without opening individual chat windows."
+      ],
+      "contributingPrs": [],
+      "externalDependencies": [],
+      "externalPrerequisites": []
     },
     {
       "id": "BR-026",
       "title": "Owner action detail and evidence view",
       "origin": "original",
-      "prs": []
+      "prs": [],
+      "priority": "P0",
+      "phase": "F3",
+      "dependsOn": [
+        "BR-025"
+      ],
+      "scope": [
+        "Display step-by-step instructions, exact requested secret name or scope, affected repositories, links, urgency, and reason."
+      ],
+      "acceptanceCriteria": "A user can carry out an action without asking which permission or destination is required.",
+      "verification": [
+        "A user can carry out an action without asking which permission or destination is required."
+      ],
+      "contributingPrs": [],
+      "externalDependencies": [],
+      "externalPrerequisites": []
     },
     {
       "id": "BR-027",
       "title": "Secure credentials and external-account handoff",
       "origin": "original",
-      "prs": []
+      "prs": [],
+      "priority": "P0",
+      "phase": "F3",
+      "dependsOn": [
+        "BR-023",
+        "BR-025"
+      ],
+      "scope": [
+        "Use secret-store references or scoped platform secret-entry flows, with presence/capability verification; never put values in chat, logs, DB plaintext, or public GitHub."
+      ],
+      "acceptanceCriteria": "Secret values never appear in Boardroom messages; agents receive only scoped capabilities and verification outcome.",
+      "verification": [
+        "Secret values never appear in Boardroom messages; agents receive only scoped capabilities and verification outcome."
+      ],
+      "contributingPrs": [],
+      "externalDependencies": [],
+      "externalPrerequisites": []
     },
     {
       "id": "BR-028",
       "title": "Owner approval boundaries and purchase controls",
       "origin": "original",
-      "prs": []
+      "prs": [],
+      "priority": "P0",
+      "phase": "F3",
+      "dependsOn": [
+        "BR-021",
+        "BR-007"
+      ],
+      "scope": [
+        "Implement explicit approvals for spending, destructive actions, privilege changes, legal/political risks, and production release gates."
+      ],
+      "acceptanceCriteria": "Unapproved risky actions cannot be executed even when a scheduled run attempts them.",
+      "verification": [
+        "Unapproved risky actions cannot be executed even when a scheduled run attempts them."
+      ],
+      "contributingPrs": [],
+      "externalDependencies": [],
+      "externalPrerequisites": []
     },
     {
       "id": "BR-029",
       "title": "Resolution, verify-and-requeue, and decline handling",
       "origin": "original",
-      "prs": []
+      "prs": [],
+      "priority": "P0",
+      "phase": "F3",
+      "dependsOn": [
+        "BR-024",
+        "BR-027"
+      ],
+      "scope": [
+        "When an owner completes an action, validate fulfillment and automatically re-enable affected work; support clarification and rejection."
+      ],
+      "acceptanceCriteria": "A verified completed secret/account task unblocks all dependent repositories without manual prompts to agents.",
+      "verification": [
+        "A verified completed secret/account task unblocks all dependent repositories without manual prompts to agents."
+      ],
+      "contributingPrs": [],
+      "externalDependencies": [],
+      "externalPrerequisites": []
     },
     {
       "id": "BR-030",
       "title": "Action notifications, batching, and safe audit trail",
       "origin": "original",
-      "prs": []
+      "prs": [],
+      "priority": "P0",
+      "phase": "F3",
+      "dependsOn": [
+        "BR-025",
+        "BR-029"
+      ],
+      "scope": [
+        "Generate consolidated owner summaries, age-based reminders, redaction, and one-click action references."
+      ],
+      "acceptanceCriteria": "No repetitive duplicate alerts and no personally sensitive material in emailed notification bodies.",
+      "verification": [
+        "No repetitive duplicate alerts and no personally sensitive material in emailed notification bodies."
+      ],
+      "contributingPrs": [],
+      "externalDependencies": [],
+      "externalPrerequisites": []
     },
     {
       "id": "BR-031",
       "title": "Repository context assembler",
       "origin": "original",
-      "prs": []
+      "prs": [],
+      "priority": "P0",
+      "phase": "F4",
+      "dependsOn": [
+        "BR-010",
+        "BR-016"
+      ],
+      "scope": [
+        "Load AGENTS.md, canonical approved units, historical decisions, dependency status, current branches, and checkpoints."
+      ],
+      "acceptanceCriteria": "Any new model run can understand and resume a repo without chat memory.",
+      "verification": [
+        "Any new model run can understand and resume a repo without chat memory."
+      ],
+      "contributingPrs": [],
+      "externalDependencies": [],
+      "externalPrerequisites": []
     },
     {
       "id": "BR-032",
       "title": "Provider-neutral tool protocol and typed SDK",
       "origin": "original",
-      "prs": []
+      "prs": [],
+      "priority": "P0",
+      "phase": "F4",
+      "dependsOn": [
+        "BR-005",
+        "BR-018"
+      ],
+      "scope": [
+        "Expose standard claim, context, checkpoint, question, owner-action, and completion tools via versioned API/MCP or equivalent."
+      ],
+      "acceptanceCriteria": "Provider SDKs pass schema, authorization, and negative conformance tests.",
+      "verification": [
+        "Provider SDKs pass schema, authorization, and negative conformance tests."
+      ],
+      "contributingPrs": [],
+      "externalDependencies": [],
+      "externalPrerequisites": []
     },
     {
       "id": "BR-033",
       "title": "Isolated coding execution harness",
       "origin": "original",
-      "prs": []
+      "prs": [],
+      "priority": "P0",
+      "phase": "F4",
+      "dependsOn": [
+        "BR-032"
+      ],
+      "scope": [
+        "Provide a short-lived sandbox/worktree or supported hosted worker with bounded compute and revocable access."
+      ],
+      "acceptanceCriteria": "A live worker checks out its assigned repo, executes tests, and is terminated on cancellation.",
+      "verification": [
+        "A live worker checks out its assigned repo, executes tests, and is terminated on cancellation."
+      ],
+      "contributingPrs": [],
+      "externalDependencies": [],
+      "externalPrerequisites": []
     },
     {
       "id": "BR-034",
       "title": "Fenced GitHub write gateway",
       "origin": "original",
-      "prs": []
+      "prs": [],
+      "priority": "P0",
+      "phase": "F4",
+      "dependsOn": [
+        "BR-017",
+        "BR-033",
+        "BR-008"
+      ],
+      "scope": [
+        "Route privileged writes through an authorizer validating repo, run, permission, current generation, and expected refs."
+      ],
+      "acceptanceCriteria": "Old, unauthorized, or cross-repository sessions cannot push or merge through Boardroom.",
+      "verification": [
+        "Old, unauthorized, or cross-repository sessions cannot push or merge through Boardroom."
+      ],
+      "contributingPrs": [],
+      "externalDependencies": [],
+      "externalPrerequisites": []
     },
     {
       "id": "BR-035",
       "title": "Safe branch management and write idempotency",
       "origin": "original",
-      "prs": []
+      "prs": [],
+      "priority": "P0",
+      "phase": "F4",
+      "dependsOn": [
+        "BR-034"
+      ],
+      "scope": [
+        "Create/reuse deterministic per-unit branches, avoid duplicate commits, check SHA preconditions, and handle conflicts."
+      ],
+      "acceptanceCriteria": "Retried operations do not duplicate branches or overwrite concurrently updated refs.",
+      "verification": [
+        "Retried operations do not duplicate branches or overwrite concurrently updated refs."
+      ],
+      "contributingPrs": [],
+      "externalDependencies": [],
+      "externalPrerequisites": []
     },
     {
       "id": "BR-036",
       "title": "Work-unit-linked PR creation and updates",
       "origin": "original",
-      "prs": []
+      "prs": [],
+      "priority": "P0",
+      "phase": "F4",
+      "dependsOn": [
+        "BR-035"
+      ],
+      "scope": [
+        "Create PRs titled with stable Boardroom roadmap IDs; update existing PRs rather than generating duplicates."
+      ],
+      "acceptanceCriteria": "Exact ID matching links real GitHub PRs to approved units and preserves canonical denominator.",
+      "verification": [
+        "Exact ID matching links real GitHub PRs to approved units and preserves canonical denominator."
+      ],
+      "contributingPrs": [],
+      "externalDependencies": [],
+      "externalPrerequisites": []
     },
     {
       "id": "BR-037",
       "title": "CI, test, and acceptance-evidence collector",
       "origin": "original",
-      "prs": []
+      "prs": [],
+      "priority": "P0",
+      "phase": "F4",
+      "dependsOn": [
+        "BR-036"
+      ],
+      "scope": [
+        "Ingest authoritative check suites, test status, unit acceptance, and timestamps with provenance."
+      ],
+      "acceptanceCriteria": "Failing tests prohibit a false completion or automatic merge.",
+      "verification": [
+        "Failing tests prohibit a false completion or automatic merge."
+      ],
+      "contributingPrs": [],
+      "externalDependencies": [],
+      "externalPrerequisites": []
     },
     {
       "id": "BR-038",
       "title": "Review and safe merge policy engine",
       "origin": "original",
-      "prs": []
+      "prs": [],
+      "priority": "P0",
+      "phase": "F4",
+      "dependsOn": [
+        "BR-037",
+        "BR-028"
+      ],
+      "scope": [
+        "Enforce protected-branch checks, required reviews, compatibility conditions, and owner-only exceptions."
+      ],
+      "acceptanceCriteria": "Only correctly authorized green PRs can merge; bypass attempts are denied and logged.",
+      "verification": [
+        "Only correctly authorized green PRs can merge; bypass attempts are denied and logged."
+      ],
+      "contributingPrs": [],
+      "externalDependencies": [],
+      "externalPrerequisites": []
     },
     {
       "id": "BR-039",
       "title": "Continuous eligible PR-chain workflow",
       "origin": "original",
-      "prs": []
+      "prs": [],
+      "priority": "P0",
+      "phase": "F4",
+      "dependsOn": [
+        "BR-011",
+        "BR-038"
+      ],
+      "scope": [
+        "After a verified unit finishes, pick the next approved eligible unit in the same claimed repo without user prompting."
+      ],
+      "acceptanceCriteria": "One session may complete successive PR units while never taking a second repository.",
+      "verification": [
+        "One session may complete successive PR units while never taking a second repository."
+      ],
+      "contributingPrs": [],
+      "externalDependencies": [],
+      "externalPrerequisites": []
     },
     {
       "id": "BR-040",
       "title": "Durable Git checkpoints and handoff manifest",
       "origin": "original",
-      "prs": []
+      "prs": [],
+      "priority": "P0",
+      "phase": "F4",
+      "dependsOn": [
+        "BR-035",
+        "BR-018"
+      ],
+      "scope": [
+        "Persist branch/head SHA, tests, remaining work, retry info, links, and code pushed remotely."
+      ],
+      "acceptanceCriteria": "Another independent session can find every unfinished change and its next action.",
+      "verification": [
+        "Another independent session can find every unfinished change and its next action."
+      ],
+      "contributingPrs": [],
+      "externalDependencies": [],
+      "externalPrerequisites": []
     },
     {
       "id": "BR-041",
       "title": "Cross-session resume and interruption handling",
       "origin": "original",
-      "prs": []
+      "prs": [],
+      "priority": "P0",
+      "phase": "F4",
+      "dependsOn": [
+        "BR-040",
+        "BR-039"
+      ],
+      "scope": [
+        "Detect existing draft work, resume by approved work-unit ID, and yield safely at execution limits."
+      ],
+      "acceptanceCriteria": "A new scheduled ChatGPT/provider run resumes real incomplete code without the original chat.",
+      "verification": [
+        "A new scheduled ChatGPT/provider run resumes real incomplete code without the original chat."
+      ],
+      "contributingPrs": [],
+      "externalDependencies": [],
+      "externalPrerequisites": []
     },
     {
       "id": "BR-042",
       "title": "Real scheduled-task-to-GitHub end-to-end trial",
       "origin": "original",
-      "prs": []
+      "prs": [],
+      "priority": "P0",
+      "phase": "F4",
+      "dependsOn": [
+        "BR-004",
+        "BR-034",
+        "BR-036",
+        "BR-041"
+      ],
+      "scope": [
+        "Demonstrate scheduled arrival, claim, working code change, test, mapped PR, checkpoint, and release in an authorized test repo."
+      ],
+      "acceptanceCriteria": "End-to-end evidence includes real run, assignment, PR, CI, and finish timestamps; synthetic demo is insufficient.",
+      "verification": [
+        "End-to-end evidence includes real run, assignment, PR, CI, and finish timestamps; synthetic demo is insufficient."
+      ],
+      "contributingPrs": [],
+      "externalDependencies": [],
+      "externalPrerequisites": []
     },
     {
       "id": "BR-043",
       "title": "Cross-repository compatibility dependency planner",
       "origin": "original",
-      "prs": []
+      "prs": [],
+      "priority": "P0",
+      "phase": "F4",
+      "dependsOn": [
+        "BR-011",
+        "BR-038"
+      ],
+      "scope": [
+        "Record producer/consumer contracts and versioned migrations; gate incompatible cross-project changes."
+      ],
+      "acceptanceCriteria": "A breaking shared API migration blocks incompatible merges until an approved transition is verified.",
+      "verification": [
+        "A breaking shared API migration blocks incompatible merges until an approved transition is verified."
+      ],
+      "contributingPrs": [],
+      "externalDependencies": [],
+      "externalPrerequisites": []
     },
     {
       "id": "BR-044",
       "title": "Threaded engineering collaboration schema",
       "origin": "original",
-      "prs": []
+      "prs": [],
+      "priority": "P0",
+      "phase": "F5",
+      "dependsOn": [
+        "BR-006",
+        "BR-007"
+      ],
+      "scope": [
+        "Store scoped project threads, questions, messages, status, linked PRs and responsible work units."
+      ],
+      "acceptanceCriteria": "Messages remain searchable and associated with verifiable engineering subjects.",
+      "verification": [
+        "Messages remain searchable and associated with verifiable engineering subjects."
+      ],
+      "contributingPrs": [],
+      "externalDependencies": [],
+      "externalPrerequisites": []
     },
     {
       "id": "BR-045",
       "title": "Search-before-asking knowledge retrieval",
       "origin": "original",
-      "prs": []
+      "prs": [],
+      "priority": "P0",
+      "phase": "F5",
+      "dependsOn": [
+        "BR-044",
+        "BR-031"
+      ],
+      "scope": [
+        "Search existing threads, repository ADRs, and relevant code/doc references before posting a duplicate question."
+      ],
+      "acceptanceCriteria": "Agent receives relevant prior resolutions without relying on previous chat memory.",
+      "verification": [
+        "Agent receives relevant prior resolutions without relying on previous chat memory."
+      ],
+      "contributingPrs": [],
+      "externalDependencies": [],
+      "externalPrerequisites": []
     },
     {
       "id": "BR-046",
       "title": "Project-scoped question workflow",
       "origin": "original",
-      "prs": []
+      "prs": [],
+      "priority": "P0",
+      "phase": "F5",
+      "dependsOn": [
+        "BR-044",
+        "BR-022"
+      ],
+      "scope": [
+        "Permit an agent to post a concrete question with blocker classification, evidence, and optional deadline."
+      ],
+      "acceptanceCriteria": "Questions are readable in English and never require other agents to stop ongoing work.",
+      "verification": [
+        "Questions are readable in English and never require other agents to stop ongoing work."
+      ],
+      "contributingPrs": [],
+      "externalDependencies": [],
+      "externalPrerequisites": []
     },
     {
       "id": "BR-047",
       "title": "Evidence-based peer-answer workflow",
       "origin": "original",
-      "prs": []
+      "prs": [],
+      "priority": "P0",
+      "phase": "F5",
+      "dependsOn": [
+        "BR-046"
+      ],
+      "scope": [
+        "Allow agents to answer questions only within documented relevant work knowledge, with links and uncertainty disclosure."
+      ],
+      "acceptanceCriteria": "Unsupported claims are distinguishable from source-backed engineering answers.",
+      "verification": [
+        "Unsupported claims are distinguishable from source-backed engineering answers."
+      ],
+      "contributingPrs": [],
+      "externalDependencies": [],
+      "externalPrerequisites": []
     },
     {
       "id": "BR-048",
       "title": "Asynchronous help and automatic unblock",
       "origin": "original",
-      "prs": []
+      "prs": [],
+      "priority": "P0",
+      "phase": "F5",
+      "dependsOn": [
+        "BR-047",
+        "BR-020"
+      ],
+      "scope": [
+        "Track answered questions, integrate accepted answers into blocked work eligibility, and notify next eligible session."
+      ],
+      "acceptanceCriteria": "A useful answer makes the work resumable without a human chat intervention.",
+      "verification": [
+        "A useful answer makes the work resumable without a human chat intervention."
+      ],
+      "contributingPrs": [],
+      "externalDependencies": [],
+      "externalPrerequisites": []
     },
     {
       "id": "BR-049",
       "title": "Architecture deliberation and repository ADR persistence",
       "origin": "original",
-      "prs": []
+      "prs": [],
+      "priority": "P0",
+      "phase": "F5",
+      "dependsOn": [
+        "BR-047",
+        "BR-034"
+      ],
+      "scope": [
+        "Document meaningful technical decisions in GitHub ADRs, not chat alone; respect owner approval boundaries."
+      ],
+      "acceptanceCriteria": "Every accepted architectural change has a durable repository reference and compatibility checks.",
+      "verification": [
+        "Every accepted architectural change has a durable repository reference and compatibility checks."
+      ],
+      "contributingPrs": [],
+      "externalDependencies": [],
+      "externalPrerequisites": []
     },
     {
       "id": "BR-050",
       "title": "End-of-session Coffee Corner service step",
       "origin": "original",
-      "prs": []
+      "prs": [],
+      "priority": "P0",
+      "phase": "F5",
+      "dependsOn": [
+        "BR-047",
+        "BR-040",
+        "BR-018"
+      ],
+      "scope": [
+        "After finishing real work and checkpointing, answer bounded unanswered qualified questions before departure."
+      ],
+      "acceptanceCriteria": "Completed session makes a best-effort peer-help pass without extending forever or leaking the lease.",
+      "verification": [
+        "Completed session makes a best-effort peer-help pass without extending forever or leaking the lease."
+      ],
+      "contributingPrs": [],
+      "externalDependencies": [],
+      "externalPrerequisites": []
     },
     {
       "id": "BR-051",
       "title": "Discussion privacy, moderation, and prompt-injection controls",
       "origin": "original",
-      "prs": []
+      "prs": [],
+      "priority": "P0",
+      "phase": "F5",
+      "dependsOn": [
+        "BR-046",
+        "BR-007"
+      ],
+      "scope": [
+        "Apply project-scope access, personal-data and secret scanning, retention policy, rate limiting, and distrust of instructions in messages."
+      ],
+      "acceptanceCriteria": "Sensitive fixtures are blocked/redacted; chat messages cannot elevate agents' privileges.",
+      "verification": [
+        "Sensitive fixtures are blocked/redacted; chat messages cannot elevate agents' privileges."
+      ],
+      "contributingPrs": [],
+      "externalDependencies": [],
+      "externalPrerequisites": []
     },
     {
       "id": "BR-052",
       "title": "Deterministic watchdog and stalled-session detection",
       "origin": "original",
-      "prs": []
+      "prs": [],
+      "priority": "P0",
+      "phase": "F6",
+      "dependsOn": [
+        "BR-017",
+        "BR-018"
+      ],
+      "scope": [
+        "Monitor runner health, heartbeat age, idling, stuck approvals, and sessions over budget."
+      ],
+      "acceptanceCriteria": "Health classification never claims RUNNING from a stale heartbeat alone.",
+      "verification": [
+        "Health classification never claims RUNNING from a stale heartbeat alone."
+      ],
+      "contributingPrs": [],
+      "externalDependencies": [],
+      "externalPrerequisites": []
     },
     {
       "id": "BR-053",
       "title": "Verified process cancellation and recovery hold",
       "origin": "original",
-      "prs": []
+      "prs": [],
+      "priority": "P0",
+      "phase": "F6",
+      "dependsOn": [
+        "BR-052",
+        "BR-034"
+      ],
+      "scope": [
+        "Terminate or isolate old execution before writable reassignment; provide recovery hold for unknown termination."
+      ],
+      "acceptanceCriteria": "No second authorized writable process starts while the original can still write.",
+      "verification": [
+        "No second authorized writable process starts while the original can still write."
+      ],
+      "contributingPrs": [],
+      "externalDependencies": [],
+      "externalPrerequisites": []
     },
     {
       "id": "BR-054",
       "title": "Stale-session fencing and takeover race tests",
       "origin": "original",
-      "prs": []
+      "prs": [],
+      "priority": "P0",
+      "phase": "F6",
+      "dependsOn": [
+        "BR-053"
+      ],
+      "scope": [
+        "Prove lease generations are checked at every privileged write and cancellation race."
+      ],
+      "acceptanceCriteria": "A late original worker is rejected after safe takeover even under injected latency.",
+      "verification": [
+        "A late original worker is rejected after safe takeover even under injected latency."
+      ],
+      "contributingPrs": [],
+      "externalDependencies": [],
+      "externalPrerequisites": []
     },
     {
       "id": "BR-055",
       "title": "Transactional outbox dispatcher and operation ledger",
       "origin": "original",
-      "prs": []
+      "prs": [],
+      "priority": "P0",
+      "phase": "F6",
+      "dependsOn": [
+        "BR-006",
+        "BR-033",
+        "BR-035"
+      ],
+      "scope": [
+        "Persist intended dispatch and GitHub side effects before execution, with idempotency keys and crash replay."
+      ],
+      "acceptanceCriteria": "Crash between DB commit and queue submission loses no assignment; retry causes no duplicate write.",
+      "verification": [
+        "Crash between DB commit and queue submission loses no assignment; retry causes no duplicate write."
+      ],
+      "contributingPrs": [],
+      "externalDependencies": [],
+      "externalPrerequisites": []
     },
     {
       "id": "BR-056",
       "title": "Retry policies, backoff, and dead-letter handling",
       "origin": "original",
-      "prs": []
+      "prs": [],
+      "priority": "P0",
+      "phase": "F6",
+      "dependsOn": [
+        "BR-055",
+        "BR-020"
+      ],
+      "scope": [
+        "Classify transient provider/API failures versus permanent blockers with bounded retry budgets."
+      ],
+      "acceptanceCriteria": "Rate limits cause jittered retries; persistent errors create visible incidents and do not loop forever.",
+      "verification": [
+        "Rate limits cause jittered retries; persistent errors create visible incidents and do not loop forever."
+      ],
+      "contributingPrs": [],
+      "externalDependencies": [],
+      "externalPrerequisites": []
     },
     {
       "id": "BR-057",
       "title": "GitHub webhook ingestion with signatures and deduplication",
       "origin": "original",
-      "prs": []
+      "prs": [],
+      "priority": "P0",
+      "phase": "F6",
+      "dependsOn": [
+        "BR-008",
+        "BR-037"
+      ],
+      "scope": [
+        "Ingest authenticated PR, push, repository, and workflow events with delivery IDs."
+      ],
+      "acceptanceCriteria": "Duplicate/out-of-order deliveries cannot regress verified project state.",
+      "verification": [
+        "Duplicate/out-of-order deliveries cannot regress verified project state."
+      ],
+      "contributingPrs": [],
+      "externalDependencies": [],
+      "externalPrerequisites": []
     },
     {
       "id": "BR-058",
       "title": "Periodic authoritative GitHub reconciliation",
       "origin": "original",
-      "prs": []
+      "prs": [],
+      "priority": "P0",
+      "phase": "F6",
+      "dependsOn": [
+        "BR-057",
+        "BR-010"
+      ],
+      "scope": [
+        "Reconcile missed webhooks and source freshness while respecting rate limits and conditional requests."
+      ],
+      "acceptanceCriteria": "Real GitHub state repairs missing webhook updates without snapshot freshness being misrepresented.",
+      "verification": [
+        "Real GitHub state repairs missing webhook updates without snapshot freshness being misrepresented."
+      ],
+      "contributingPrs": [],
+      "externalDependencies": [],
+      "externalPrerequisites": []
     },
     {
       "id": "BR-059",
       "title": "Operational metrics, diagnostics, and alert routing",
       "origin": "original",
-      "prs": []
+      "prs": [],
+      "priority": "P0",
+      "phase": "F6",
+      "dependsOn": [
+        "BR-052",
+        "BR-058"
+      ],
+      "scope": [
+        "Expose queue latency, throughput, stale leases, error rate, retry frequency, budget usage, and source freshness."
+      ],
+      "acceptanceCriteria": "Failures have actionable root-cause and evidence links; owner is not spammed by repeated symptoms.",
+      "verification": [
+        "Failures have actionable root-cause and evidence links; owner is not spammed by repeated symptoms."
+      ],
+      "contributingPrs": [],
+      "externalDependencies": [],
+      "externalPrerequisites": []
     },
     {
       "id": "BR-060",
       "title": "Concurrency and chaos acceptance test suite",
       "origin": "original",
-      "prs": []
+      "prs": [],
+      "priority": "P0",
+      "phase": "F6",
+      "dependsOn": [
+        "BR-019",
+        "BR-054",
+        "BR-055",
+        "BR-058"
+      ],
+      "scope": [
+        "Simulate simultaneous arrivals, process death, missed heartbeats, provider outages, webhook replay, and restarts."
+      ],
+      "acceptanceCriteria": "Exclusive assignment, safe recovery, and durable progress pass repeatable fault injection.",
+      "verification": [
+        "Exclusive assignment, safe recovery, and durable progress pass repeatable fault injection."
+      ],
+      "contributingPrs": [],
+      "externalDependencies": [],
+      "externalPrerequisites": []
     },
     {
       "id": "BR-061",
       "title": "Private Boardroom UI shell and navigation",
       "origin": "original",
-      "prs": []
+      "prs": [],
+      "priority": "P1",
+      "phase": "F7",
+      "dependsOn": [
+        "BR-007"
+      ],
+      "scope": [
+        "Build responsive authenticated navigation for Work Board, Coffee Corner, Owner Actions, Operations, and audit."
+      ],
+      "acceptanceCriteria": "All private views deny unauthorized access and work on desktop/mobile.",
+      "verification": [
+        "All private views deny unauthorized access and work on desktop/mobile."
+      ],
+      "contributingPrs": [],
+      "externalDependencies": [],
+      "externalPrerequisites": []
     },
     {
       "id": "BR-062",
       "title": "Live repository Work Board and priority editor",
       "origin": "original",
-      "prs": []
+      "prs": [],
+      "priority": "P1",
+      "phase": "F7",
+      "dependsOn": [
+        "BR-012",
+        "BR-013",
+        "BR-018",
+        "BR-061"
+      ],
+      "scope": [
+        "Show repository availability, current assignment, work ID, last actual update, and editable priority order."
+      ],
+      "acceptanceCriteria": "Refresh accurately reflects live leases and priority changes without stale status confusion.",
+      "verification": [
+        "Refresh accurately reflects live leases and priority changes without stale status confusion."
+      ],
+      "contributingPrs": [],
+      "externalDependencies": [],
+      "externalPrerequisites": []
     },
     {
       "id": "BR-063",
       "title": "Unified Owner Action Board UX",
       "origin": "original",
-      "prs": []
+      "prs": [],
+      "priority": "P1",
+      "phase": "F7",
+      "dependsOn": [
+        "BR-025",
+        "BR-026",
+        "BR-028",
+        "BR-029",
+        "BR-061"
+      ],
+      "scope": [
+        "Provide action templates, affected-project grouping, secure instructions, verify/reopen, and owner approval interface."
+      ],
+      "acceptanceCriteria": "Owner can find and complete all pending manual requests in one private view.",
+      "verification": [
+        "Owner can find and complete all pending manual requests in one private view."
+      ],
+      "contributingPrs": [],
+      "externalDependencies": [],
+      "externalPrerequisites": []
     },
     {
       "id": "BR-064",
       "title": "Coffee Corner UX and discussion search",
       "origin": "original",
-      "prs": []
+      "prs": [],
+      "priority": "P1",
+      "phase": "F7",
+      "dependsOn": [
+        "BR-045",
+        "BR-051",
+        "BR-061"
+      ],
+      "scope": [
+        "Build threaded work-only discussion interface with source references and question state."
+      ],
+      "acceptanceCriteria": "Owner can observe and search all authorized engineering discussions; agents can participate through API.",
+      "verification": [
+        "Owner can observe and search all authorized engineering discussions; agents can participate through API."
+      ],
+      "contributingPrs": [],
+      "externalDependencies": [],
+      "externalPrerequisites": []
     },
     {
       "id": "BR-065",
       "title": "Agent sessions, recovery, and event timeline",
       "origin": "original",
-      "prs": []
+      "prs": [],
+      "priority": "P1",
+      "phase": "F7",
+      "dependsOn": [
+        "BR-052",
+        "BR-059",
+        "BR-061"
+      ],
+      "scope": [
+        "Display ephemeral runs, originating provider when known, checkpoints, Git events, time spent, error provenance, and audit."
+      ],
+      "acceptanceCriteria": "Reports distinguish scheduled activation from actual code work and verified completion.",
+      "verification": [
+        "Reports distinguish scheduled activation from actual code work and verified completion."
+      ],
+      "contributingPrs": [],
+      "externalDependencies": [],
+      "externalPrerequisites": []
     },
     {
       "id": "BR-066",
       "title": "Owner operational controls and priority overrides",
       "origin": "original",
-      "prs": []
+      "prs": [],
+      "priority": "P1",
+      "phase": "F7",
+      "dependsOn": [
+        "BR-062",
+        "BR-065",
+        "BR-028"
+      ],
+      "scope": [
+        "Add safe pause/resume, cancel, priority reorder, budget change, disable provider, and hold/recover actions."
+      ],
+      "acceptanceCriteria": "Owner changes are RBAC-checked, auditable, and cannot accidentally release an active fenced worker.",
+      "verification": [
+        "Owner changes are RBAC-checked, auditable, and cannot accidentally release an active fenced worker."
+      ],
+      "contributingPrs": [],
+      "externalDependencies": [],
+      "externalPrerequisites": []
     },
     {
       "id": "BR-067",
       "title": "Engine Room read-only operational integration",
       "origin": "original",
-      "prs": []
+      "prs": [],
+      "priority": "P1",
+      "phase": "F7",
+      "dependsOn": [
+        "BR-059",
+        "BR-065"
+      ],
+      "scope": [
+        "Publish versioned health/assignment API and add compatible Engine Room presentation without writing PR progress manually."
+      ],
+      "acceptanceCriteria": "Engine Room shows Boardroom execution data separately from GitHub-derived roadmap progress.",
+      "verification": [
+        "Engine Room shows Boardroom execution data separately from GitHub-derived roadmap progress."
+      ],
+      "contributingPrs": [],
+      "externalDependencies": [],
+      "externalPrerequisites": []
     },
     {
       "id": "BR-068",
       "title": "Overnight summary and consolidated digests",
       "origin": "original",
-      "prs": []
+      "prs": [],
+      "priority": "P1",
+      "phase": "F7",
+      "dependsOn": [
+        "BR-030",
+        "BR-058",
+        "BR-065"
+      ],
+      "scope": [
+        "Summarize verified PRs, commits, tests, deployments, blocking Owner Actions, failures, and next priorities."
+      ],
+      "acceptanceCriteria": "Single digest links to evidence and does not confuse model claims with observed GitHub facts.",
+      "verification": [
+        "Single digest links to evidence and does not confuse model claims with observed GitHub facts."
+      ],
+      "contributingPrs": [],
+      "externalDependencies": [],
+      "externalPrerequisites": []
     },
     {
       "id": "BR-069",
       "title": "Multi-account ChatGPT scheduled-task onboarding",
       "origin": "original",
-      "prs": []
+      "prs": [],
+      "priority": "P1",
+      "phase": "F8",
+      "dependsOn": [
+        "BR-004",
+        "BR-042",
+        "BR-060"
+      ],
+      "scope": [
+        "Document one identical task prompt and provider connection steps; verify 5-account/50-task-style arrivals without requiring numbered instructions."
+      ],
+      "acceptanceCriteria": "Independent overlapping scheduled arrivals cooperate under repository leases and owner can audit real sessions.",
+      "verification": [
+        "Independent overlapping scheduled arrivals cooperate under repository leases and owner can audit real sessions."
+      ],
+      "contributingPrs": [],
+      "externalDependencies": [],
+      "externalPrerequisites": []
     },
     {
       "id": "BR-070",
       "title": "Claude scheduled-agent adapter",
       "origin": "original",
-      "prs": []
+      "prs": [],
+      "priority": "P1",
+      "phase": "F8",
+      "dependsOn": [
+        "BR-032",
+        "BR-060"
+      ],
+      "scope": [
+        "Implement supported Claude-origin activation and tool interoperability without privileged shortcuts."
+      ],
+      "acceptanceCriteria": "Claude sessions pass the same claim, code, checkpoint, and end tests as the primary adapter.",
+      "verification": [
+        "Claude sessions pass the same claim, code, checkpoint, and end tests as the primary adapter."
+      ],
+      "contributingPrs": [],
+      "externalDependencies": [],
+      "externalPrerequisites": []
     },
     {
       "id": "BR-071",
       "title": "Grok scheduled-agent adapter",
       "origin": "original",
-      "prs": []
+      "prs": [],
+      "priority": "P1",
+      "phase": "F8",
+      "dependsOn": [
+        "BR-032",
+        "BR-060"
+      ],
+      "scope": [
+        "Implement supported Grok-origin activation and tool interoperability without privileged shortcuts."
+      ],
+      "acceptanceCriteria": "Grok sessions pass the same claim, code, checkpoint, and end tests as the primary adapter.",
+      "verification": [
+        "Grok sessions pass the same claim, code, checkpoint, and end tests as the primary adapter."
+      ],
+      "contributingPrs": [],
+      "externalDependencies": [],
+      "externalPrerequisites": []
     },
     {
       "id": "BR-072",
       "title": "Provider conformance and capability registry",
       "origin": "original",
-      "prs": []
+      "prs": [],
+      "priority": "P1",
+      "phase": "F8",
+      "dependsOn": [
+        "BR-069",
+        "BR-070",
+        "BR-071"
+      ],
+      "scope": [
+        "Publish provider capability checks, error contracts, version negotiation, execution limits, and unsupported-path behavior."
+      ],
+      "acceptanceCriteria": "New provider adapters cannot register as writable until all mandatory conformance tests pass.",
+      "verification": [
+        "New provider adapters cannot register as writable until all mandatory conformance tests pass."
+      ],
+      "contributingPrs": [],
+      "externalDependencies": [],
+      "externalPrerequisites": []
     },
     {
       "id": "BR-073",
       "title": "Large-scale scheduling and concurrency benchmark",
       "origin": "original",
-      "prs": []
+      "prs": [],
+      "priority": "P1",
+      "phase": "F8",
+      "dependsOn": [
+        "BR-060",
+        "BR-072"
+      ],
+      "scope": [
+        "Load test 500+ registered activation sources, hundreds of arrival requests, and contention across many repositories."
+      ],
+      "acceptanceCriteria": "No artificial ten-agent limit, no double claims, measured latency/error/cost under documented capacity.",
+      "verification": [
+        "No artificial ten-agent limit, no double claims, measured latency/error/cost under documented capacity."
+      ],
+      "contributingPrs": [],
+      "externalDependencies": [],
+      "externalPrerequisites": []
     },
     {
       "id": "BR-074",
       "title": "Per-session and aggregate usage/budget guardrails",
       "origin": "original",
-      "prs": []
+      "prs": [],
+      "priority": "P1",
+      "phase": "F8",
+      "dependsOn": [
+        "BR-033",
+        "BR-066"
+      ],
+      "scope": [
+        "Track tokens, model charges, platform compute, quotas, and owner-configured thresholds."
+      ],
+      "acceptanceCriteria": "Over-budget jobs safely checkpoint/yield; charges are visible and never silently increased.",
+      "verification": [
+        "Over-budget jobs safely checkpoint/yield; charges are visible and never silently increased."
+      ],
+      "contributingPrs": [],
+      "externalDependencies": [],
+      "externalPrerequisites": []
     },
     {
       "id": "BR-075",
       "title": "Security hardening, privacy review, and threat tests",
       "origin": "original",
-      "prs": []
+      "prs": [],
+      "priority": "P1",
+      "phase": "F8",
+      "dependsOn": [
+        "BR-027",
+        "BR-034",
+        "BR-051",
+        "BR-060"
+      ],
+      "scope": [
+        "Harden RLS, webhooks, credentials, write gateway, audit retention, abuse controls, and owner-action redaction."
+      ],
+      "acceptanceCriteria": "Cross-tenant/provider, prompt-injection, secret-exposure, and privilege-escalation tests fail closed.",
+      "verification": [
+        "Cross-tenant/provider, prompt-injection, secret-exposure, and privilege-escalation tests fail closed."
+      ],
+      "contributingPrs": [],
+      "externalDependencies": [],
+      "externalPrerequisites": []
     },
     {
       "id": "BR-076",
       "title": "Backup, point-in-time restore, and disaster recovery",
       "origin": "original",
-      "prs": []
+      "prs": [],
+      "priority": "P1",
+      "phase": "F8",
+      "dependsOn": [
+        "BR-055",
+        "BR-075"
+      ],
+      "scope": [
+        "Implement verified backup/restore of Neon coordination state and retention of GitHub handoff references."
+      ],
+      "acceptanceCriteria": "Fresh recovery environment restores assignments as safely unowned/reconciling, never blindly active.",
+      "verification": [
+        "Fresh recovery environment restores assignments as safely unowned/reconciling, never blindly active."
+      ],
+      "contributingPrs": [],
+      "externalDependencies": [],
+      "externalPrerequisites": []
     },
     {
       "id": "BR-077",
       "title": "Production deployments and service-capacity runbook",
       "origin": "original",
-      "prs": []
+      "prs": [],
+      "priority": "P1",
+      "phase": "F8",
+      "dependsOn": [
+        "BR-060",
+        "BR-076"
+      ],
+      "scope": [
+        "Document Render/Neon topology, webhook URLs, zero-downtime migration, resource capacity, incident rollback, and onboarding."
+      ],
+      "acceptanceCriteria": "Reproducible staging-to-production deployment with health and rollback evidence.",
+      "verification": [
+        "Reproducible staging-to-production deployment with health and rollback evidence."
+      ],
+      "contributingPrs": [],
+      "externalDependencies": [],
+      "externalPrerequisites": []
     },
     {
       "id": "BR-078",
       "title": "Final unattended multi-agent acceptance and audit",
       "origin": "original",
-      "prs": []
+      "prs": [],
+      "priority": "P1",
+      "phase": "F8",
+      "dependsOn": [
+        "BR-043",
+        "BR-050",
+        "BR-060",
+        "BR-063",
+        "BR-067",
+        "BR-069",
+        "BR-074",
+        "BR-075",
+        "BR-077"
+      ],
+      "scope": [
+        "Demonstrate production-like real scheduled workers, priority selection, one-per-repo, PR chaining, Coffee, owner escalation, crash recovery, and reports."
+      ],
+      "acceptanceCriteria": "Evidence-linked acceptance matrix passes; no claim of production completion until verified on live integrations.",
+      "verification": [
+        "Evidence-linked acceptance matrix passes; no claim of production completion until verified on live integrations."
+      ],
+      "contributingPrs": [],
+      "externalDependencies": [],
+      "externalPrerequisites": []
     },
     {
       "id": "BR-079",
       "title": "Owner-approved agent display-name roster and canonical registry",
       "origin": "addition",
-      "prs": []
+      "prs": [],
+      "priority": "P0",
+      "phase": "F2",
+      "dependsOn": [
+        "BR-001"
+      ],
+      "scope": [
+        "Store all owner-supplied names exactly in a complete human-readable document and a machine-readable allowlist; test count, uniqueness and punctuation."
+      ],
+      "acceptanceCriteria": "Every owner-submitted name appears exactly once and remains stable; invalid or altered names are not silently accepted.",
+      "verification": [
+        "Repository tests confirm a one-to-one correspondence between document and canonical JSON names."
+      ],
+      "contributingPrs": [],
+      "externalDependencies": [],
+      "externalPrerequisites": []
     },
     {
       "id": "BR-080",
       "title": "Credential-bound recurring agent names, enforcement and API identity",
       "origin": "addition",
-      "prs": []
+      "prs": [],
+      "priority": "P0",
+      "phase": "F2",
+      "dependsOn": [
+        "BR-079",
+        "BR-003"
+      ],
+      "scope": [
+        "Bind each scheduled-task credential to one approved stable display name at registration; reject unknown names at admission; return server-verified name and runId; add validation tests and registration guidance."
+      ],
+      "acceptanceCriteria": "Claimed names never authenticate a session by themselves; valid named credential resolves consistently across activations; unauthorized names are denied and credential identity cannot be overridden.",
+      "verification": [
+        "Tests verify exact-case approved names, invalid names, repeated activations, impersonation attempts, and no secrets in public source."
+      ],
+      "contributingPrs": [],
+      "externalDependencies": [],
+      "externalPrerequisites": []
     }
   ],
   "pullRequests": []

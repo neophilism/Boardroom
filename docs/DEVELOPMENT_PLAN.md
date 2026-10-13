@@ -12,7 +12,7 @@
 
 **External scheduling feasibility:** A ChatGPT scheduled task can be a trigger only to the extent its configured Work/plugins/tools actually allow the required authenticated Boardroom action and code work. BR-004 is an explicit real-world gate; BR-005 implements a supported hosted-worker fallback rather than assuming undocumented capabilities. No perpetual worker process is assumed within a scheduled ChatGPT task.
 
-**Repository contract:** `registry/roadmap.json` is the authoritative approved plan; legacy `registry/prs.json` is a compatibility projection to be kept in sync until the Engine Room import contract is reconciled. GitHub's live API owns actual PR/merge state; an empty `pullRequests` array means the PR is planned but not yet linked. Historical approved work-unit IDs are immutable.
+**Repository contract:** `registry/prs.json` is the sole authoritative approved PR plan, using the shared contract in `registry/PR_FORMAT.md`. `registry/roadmap.json` is retired. GitHub's live API owns actual PR/merge state; an empty `pullRequests` array means the PR is planned but not yet linked. Historical approved work-unit IDs are immutable.
 
 **Owner Action Board:** One private place for all manual requests (account creation, scoped token or secret, API key provisioning, payment, approval, owner sign-in, etc.). Agents specify the action, precise permissions, target location, costs, affected repos, blockers, and verification method. Similar requests aggregate into one action. Secret values travel through scoped secret stores/entry flows, never Coffee Corner, public GitHub, or logs.
 
@@ -102,7 +102,7 @@
 
 ### BR-010 — Canonical roadmap/PR-registry adapter
 
-**Scope:** Read existing registry/roadmap.json and registry/prs.json contracts with explicit precedence, validation, and conflict diagnostics.
+**Scope:** Read the shared registry/prs.json contract with strict validation and conflict diagnostics; reject competing formats.
 
 **Acceptance:** Conflicting or invalid sources fail visibly; historical plan counts and work-unit IDs are preserved.
 

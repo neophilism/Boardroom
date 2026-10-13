@@ -4,22 +4,26 @@ import type {GitHubRepository} from "./github-app.ts";
 
 /** GitHub owns PR state. Local holds and in-progress work survive a refresh
  * which contains no newer PR evidence. An open follow-up revokes ACCEPTED. */
-export const UPSERT_ROADMAP_UNIT_SQL=`INSERT INTO roadmap_units(repository_id,unit_id,title,version,approved,state,depends_on,planned_prs,acceptance_criteria,source_observed_at)
-  VALUES($1,$2,$3,$4,TRUE,$5,$6::jsonb,$7::jsonb,$8,now())
+export const UPSERT_ROADMAP_UNIT_SQL=`INSERT INTO roadmap_units(repository_id,unit_id,title,version,approved,state,depends_on,planned_prs,acceptance_criteria,external_dependencies,external_prerequisites,source_metadata,source_observed_at)
+  VALUES($1,$2,$3,$4,TRUE,$5,$6::jsonb,$7::jsonb,$8,$9::jsonb,$10::jsonb,$11::jsonb,now())
   ON CONFLICT(repository_id,unit_id) DO UPDATE SET title=excluded.title,version=excluded.version,approved=TRUE,
     state=CASE
       WHEN roadmap_units.state='BLOCKED' AND excluded.state IN ('PENDING','OPEN_PR') THEN 'BLOCKED'
       WHEN roadmap_units.state='ACTIVE' AND excluded.state='PENDING' THEN 'ACTIVE'
       WHEN roadmap_units.state='ACCEPTED' AND excluded.state IN ('PENDING','MERGED')
         AND roadmap_units.acceptance_criteria IS NOT DISTINCT FROM excluded.acceptance_criteria
-        AND roadmap_units.depends_on=excluded.depends_on THEN 'ACCEPTED'
+        AND roadmap_units.depends_on=excluded.depends_on
+        AND roadmap_units.external_dependencies=excluded.external_dependencies
+        AND roadmap_units.external_prerequisites=excluded.external_prerequisites THEN 'ACCEPTED'
       ELSE excluded.state END,
     depends_on=excluded.depends_on,planned_prs=excluded.planned_prs,
-    acceptance_criteria=excluded.acceptance_criteria,source_observed_at=now()`;
+    acceptance_criteria=excluded.acceptance_criteria,external_dependencies=excluded.external_dependencies,
+    external_prerequisites=excluded.external_prerequisites,source_metadata=excluded.source_metadata,source_observed_at=now()`;
 
 export async function reconcileRoadmapUnits(client:Pick<PoolClient,"query">,repositoryId:number,plan:CanonicalPlan){
   for(const unit of plan.units)await client.query(UPSERT_ROADMAP_UNIT_SQL,
-    [repositoryId,unit.id,unit.title,plan.version,unit.status,JSON.stringify(unit.dependsOn),JSON.stringify(unit.pullRequests),unit.acceptanceCriteria]);
+    [repositoryId,unit.id,unit.title,plan.version,unit.status,JSON.stringify(unit.dependsOn),JSON.stringify(unit.pullRequests),unit.acceptanceCriteria,JSON.stringify(unit.externalDependencies??[]),
+      JSON.stringify(unit.externalPrerequisites??[]),JSON.stringify(unit.sourceMetadata??{})]);
   await client.query("UPDATE roadmap_units SET approved=FALSE WHERE repository_id=$1 AND ($2::boolean=FALSE OR NOT(unit_id=ANY($3::text[])))",
     [repositoryId,plan.verified,plan.units.map(unit=>unit.id)]);
 }

@@ -7,11 +7,11 @@ const prs:GitHubPull[]=[
   {number:8,title:"AB-002: Implement",state:"open",merged_at:null,updated_at:"2026-10-05T00:00:00Z"}
 ];
 const plan={
-  repository:"owner/example",version:1,planVerified:true,plannedPrCount:3,
-  milestones:[
-    {id:"AB-001",title:"Bootstrap",dependsOn:[],pullRequests:[7]},
-    {id:"AB-002",title:"Next",dependsOn:["AB-001"],pullRequests:[]},
-    {id:"AB-003",title:"Future",dependsOn:["AB-002"],pullRequests:[]}
+  repository:"owner/example",schemaVersion:1,roadmapVersion:1,observedAt:"2026-10-13T00:00:00Z",pullRequests:[],planVerified:true,plannedPrCount:3,
+  units:[
+    {id:"AB-001",title:"Bootstrap",dependsOn:[],prs:[7]},
+    {id:"AB-002",title:"Next",dependsOn:["AB-001"],prs:[]},
+    {id:"AB-003",title:"Future",dependsOn:["AB-002"],prs:[]}
   ]
 };
 test("canonical import preserves linked and exact-title PR evidence",()=>{
@@ -22,18 +22,18 @@ test("canonical import preserves linked and exact-title PR evidence",()=>{
 });
 test("malformed plan fails closed without inventing progress",()=>{
   assert.throws(()=>normalizeRoadmap({...plan,plannedPrCount:22},"owner/example",prs));
-  assert.throws(()=>normalizeRoadmap({...plan,milestones:[plan.milestones[0],plan.milestones[0]],plannedPrCount:2},"owner/example",prs));
+  assert.throws(()=>normalizeRoadmap({...plan,units:[plan.units[0],plan.units[0]],plannedPrCount:2},"owner/example",prs));
   assert.equal(normalizeRoadmap(null,"owner/example",prs).verified,false);
-  assert.equal(normalizeRoadmap(plan,"another/repo",prs).verified,false);
+  assert.throws(()=>normalizeRoadmap(plan,"another/repo",prs));
 });
 test("cross-repo PR links cannot count as approved work",()=>{
-  const bad={...plan,milestones:[{...plan.milestones[0],pullRequests:["https://github.com/evil/repo/pull/7"]}],plannedPrCount:1};
+  const bad={...plan,units:[{...plan.units[0],prs:["https://github.com/evil/repo/pull/7"]}],plannedPrCount:1};
   assert.throws(()=>normalizeRoadmap(bad,"owner/example",prs));
 });
 
 
-test("a single work unit may have multiple valid merged PRs",()=>{
-  const p={...plan,plannedPrCount:1,milestones:[{id:"AB-001",title:"Bootstrap",dependsOn:[],pullRequests:[]}]};
+test("explicit mappings can include multiple merged PRs",()=>{
+  const p={...plan,plannedPrCount:1,units:[{id:"AB-001",title:"Bootstrap",dependsOn:[],prs:[1,2]}]};
   const records:GitHubPull[]=[
     {...prs[0],number:1,title:"AB-001: Initial work"},
     {...prs[0],number:2,title:"AB-001 follow-up: Additional verified changes"}
@@ -43,7 +43,7 @@ test("a single work unit may have multiple valid merged PRs",()=>{
   assert.deepEqual(result.units[0].pullRequests,[1,2]);
 });
 test("open follow-up PR means work remains open even after a merged PR",()=>{
-  const p={...plan,plannedPrCount:1,milestones:[{id:"AB-001",title:"Bootstrap",dependsOn:[],pullRequests:[7]}]};
+  const p={...plan,plannedPrCount:1,units:[{id:"AB-001",title:"Bootstrap",dependsOn:[],prs:[7]}]};
   const result=normalizeRoadmap(p,"owner/example",[
     prs[0],{...prs[1],number:10,title:"AB-001: Follow-up"}
   ]);
@@ -51,9 +51,9 @@ test("open follow-up PR means work remains open even after a merged PR",()=>{
   assert.equal(result.units[0].status,"OPEN_PR");
 });
 test("compound PR prefixes map to every included stable ID without inventing units",()=>{
-  const p={...plan,plannedPrCount:2,milestones:[
-    {id:"AB-009",title:"First",dependsOn:[],pullRequests:[]},
-    {id:"AB-010",title:"Second",dependsOn:[],pullRequests:[]}
+  const p={...plan,plannedPrCount:2,units:[
+    {id:"AB-009",title:"First",dependsOn:[],prs:[]},
+    {id:"AB-010",title:"Second",dependsOn:[],prs:[]}
   ]};
   const result=normalizeRoadmap(p,"owner/example",[
     {...prs[0],number:33,title:"AB-009/010: Combined implementation"}
@@ -62,14 +62,14 @@ test("compound PR prefixes map to every included stable ID without inventing uni
   assert.deepEqual(result.units.map(u=>u.status),["MERGED","MERGED"]);
 });
 test("closed-unmerged changes remain UNKNOWN rather than falsely counted done",()=>{
-  const p={...plan,plannedPrCount:1,milestones:[{id:"AB-001",title:"Bootstrap",dependsOn:[],pullRequests:[5]}]};
+  const p={...plan,plannedPrCount:1,units:[{id:"AB-001",title:"Bootstrap",dependsOn:[],prs:[5]}]};
   const result=normalizeRoadmap(p,"owner/example",[
     {...prs[0],number:5,state:"closed",merged_at:null,title:"AB-001: Abandoned attempt"}
   ]);
   assert.equal(result.units[0].status,"UNKNOWN");
 });
 test("partial unit ID prefixes do not map unrelated PRs",()=>{
-  const p={...plan,plannedPrCount:1,milestones:[{id:"AB-01",title:"Bootstrap",dependsOn:[],pullRequests:[]}]};
+  const p={...plan,plannedPrCount:1,units:[{id:"AB-01",title:"Bootstrap",dependsOn:[],prs:[]}]};
   const result=normalizeRoadmap(p,"owner/example",[
     {...prs[0],number:99,title:"AB-010: Different unit"}
   ]);
@@ -84,9 +84,9 @@ test("approved dependency graphs reject unknown, duplicate, cyclic and unsafe un
     [{id:"AB-001",title:"Root",dependsOn:[]},{id:"AB-002",title:"Duplicate",dependsOn:["AB-001","AB-001"]}],
     [{id:"../unsafe",title:"Unsafe branch",dependsOn:[]}]
   ];
-  for(const milestones of variations)assert.throws(()=>normalizeRoadmap({...plan,plannedPrCount:milestones.length,milestones},"owner/example",[]));
+  for(const units of variations)assert.throws(()=>normalizeRoadmap({...plan,plannedPrCount:units.length,units},"owner/example",[]));
 });
 test("long acyclic approved plans validate without recursive stack use",()=>{
-  const milestones=Array.from({length:5000},(_,i)=>({id:"LOAD-"+i,title:"Unit "+i,dependsOn:i?["LOAD-"+(i-1)]:[]}));
-  assert.equal(normalizeRoadmap({...plan,plannedPrCount:milestones.length,milestones},"owner/example",[]).units.length,5000);
+  const units=Array.from({length:5000},(_,i)=>({id:"LOAD-"+i,title:"Unit "+i,prs:[],dependsOn:i?["LOAD-"+(i-1)]:[]}));
+  assert.equal(normalizeRoadmap({...plan,plannedPrCount:units.length,units},"owner/example",[]).units.length,5000);
 });

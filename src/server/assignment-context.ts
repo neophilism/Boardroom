@@ -6,7 +6,7 @@ type CurrentAssignment={
   assignment_id:string;repository_id:string;full_name:string;unit_id:string;
   generation:string; expires_at:Date;
   title:string; state:string; version:number; depends_on:unknown;
-  acceptance_criteria:string|null;planned_prs:unknown;
+  acceptance_criteria:string|null;planned_prs:unknown;source_metadata:unknown;external_dependencies:unknown;external_prerequisites:unknown;
   started_at:Date;max_session_seconds:number;max_tool_calls:number;max_tokens:number;
 };
 type Checkpoint={branch:string|null;head_sha:string|null;state:unknown;created_at:Date};
@@ -23,7 +23,7 @@ export async function getAssignmentContext(db:Pool,runId:string,credentialId:str
   const current=await db.query<CurrentAssignment>(
     `SELECT a.assignment_id::text, a.repository_id::text,r.full_name,a.unit_id,
        a.lease_generation::text AS generation,l.expires_at,
-       w.title,w.state,w.version,w.depends_on,w.acceptance_criteria,w.planned_prs,ar.started_at,
+       w.title,w.state,w.version,w.depends_on,w.acceptance_criteria,w.planned_prs,w.source_metadata,w.external_dependencies,w.external_prerequisites,ar.started_at,
        COALESCE(policy.max_session_seconds,1800) AS max_session_seconds,
        COALESCE(policy.max_tool_calls,100) AS max_tool_calls,COALESCE(policy.max_tokens,100000) AS max_tokens
      FROM work_assignments a
@@ -62,7 +62,8 @@ export async function getAssignmentContext(db:Pool,runId:string,credentialId:str
       expiresAt:item.expires_at.toISOString()},
     workUnit:{title:item.title,state:item.state,version:item.version,
       dependsOn:item.depends_on,acceptanceCriteria:item.acceptance_criteria,
-      pullRequests:item.planned_prs},
+      pullRequests:item.planned_prs,externalDependencies:item.external_dependencies,
+      externalPrerequisites:item.external_prerequisites,source:item.source_metadata},
     checkpoint:checkpoint.rows.length?{
       branch:checkpoint.rows[0].branch,headSha:checkpoint.rows[0].head_sha,
       state:checkpoint.rows[0].state,createdAt:checkpoint.rows[0].created_at.toISOString()
