@@ -1,0 +1,46 @@
+import test,{after} from "node:test";
+import assert from "node:assert/strict";
+import {Pool} from "pg";
+import {createHash} from "node:crypto";
+import {createOAuthCode,exchangeOAuthToken,authenticateOAuthAgent} from "../src/server/oauth.ts";
+import {parseOAuthAuthorization,OAuthFailure,OPENAI_CLIENT_ID,OPENAI_REDIRECT_URI} from "../src/server/oauth-contract.ts";
+import {InvalidAgentCredential} from "../src/server/agent-auth.ts";
+const url=process.env.DATABASE_URL;
+if(!url||!url.includes("boardroom_test"))throw new Error("OAuth fixtures require the explicit boardroom_test database");
+const db=new Pool({connectionString:url,max:3});after(async()=>db.end());
+const env:NodeJS.ProcessEnv={NODE_ENV:"test",BOARDROOM_PUBLIC_ORIGIN:"https://boardroom.example"};
+const pepper="private-ci-oauth-pepper".repeat(3),verifier="v".repeat(64),challenge=createHash("sha256").update(verifier).digest("base64url");
+const authorization=parseOAuthAuthorization(new URLSearchParams({client_id:OPENAI_CLIENT_ID,redirect_uri:OPENAI_REDIRECT_URI,resource:"https://boardroom.example/api/mcp",scope:"boardroom:agent",state:"test-state",code_challenge:challenge,code_challenge_method:"S256",response_type:"code"}),env);
+let credentialId:string;
+const codeForm=(code:string)=>new URLSearchParams({grant_type:"authorization_code",client_id:OPENAI_CLIENT_ID,code,redirect_uri:OPENAI_REDIRECT_URI,resource:authorization.resource,code_verifier:verifier});
+const refreshForm=(token:string)=>new URLSearchParams({grant_type:"refresh_token",client_id:OPENAI_CLIENT_ID,refresh_token:token,resource:authorization.resource});
+test("one-use PKCE grant binds to an approved agent and stores only hashes",async()=>{
+  const credential=await db.query<{credential_id:string}>("INSERT INTO agent_credentials(label,provider,token_digest) VALUES('Joi','chatgpt',$1) RETURNING credential_id",[createHash("sha256").update("oauth-fixture").digest("hex")]);
+  credentialId=credential.rows[0].credential_id;
+  const code=await createOAuthCode(db,credentialId,authorization,pepper,env);
+  const bad=codeForm(code);bad.set("code_verifier","wrong".repeat(15));
+  await assert.rejects(exchangeOAuthToken(db,bad,pepper,env),OAuthFailure);
+  const attempts=await Promise.allSettled([exchangeOAuthToken(db,codeForm(code),pepper,env),exchangeOAuthToken(db,codeForm(code),pepper,env)]);
+  assert.equal(attempts.filter(r=>r.status==="fulfilled").length,1);
+  const success=attempts.find(r=>r.status==="fulfilled");if(success?.status!=="fulfilled")throw new Error("Expected one valid grant");
+  const pair=success.value;
+  assert.equal((await authenticateOAuthAgent(new Headers({authorization:"Bearer "+pair.access_token}),db,pepper,env)).label,"Joi");
+  const stored=await db.query("SELECT token_digest FROM oauth_tokens");
+  assert.ok(!JSON.stringify(stored.rows).includes(pair.access_token));assert.ok(!JSON.stringify(stored.rows).includes(pair.refresh_token));
+  await assert.rejects(authenticateOAuthAgent(new Headers({authorization:"Bearer "+pair.access_token}),db,pepper,{...env,BOARDROOM_PUBLIC_ORIGIN:"https://other.invalid"}),InvalidAgentCredential);
+});
+test("refresh rotation detects replay and revokes the entire compromised grant",async()=>{
+  const code=await createOAuthCode(db,credentialId,authorization,pepper,env);
+  const first=await exchangeOAuthToken(db,codeForm(code),pepper,env);
+  const next=await exchangeOAuthToken(db,refreshForm(first.refresh_token),pepper,env);
+  assert.notEqual(first.refresh_token,next.refresh_token);
+  await assert.rejects(exchangeOAuthToken(db,refreshForm(first.refresh_token),pepper,env),OAuthFailure);
+  await assert.rejects(authenticateOAuthAgent(new Headers({authorization:"Bearer "+next.access_token}),db,pepper,env),InvalidAgentCredential);
+});
+test("revoking the named credential immediately invalidates connected access",async()=>{
+  const code=await createOAuthCode(db,credentialId,authorization,pepper,env);
+  const pair=await exchangeOAuthToken(db,codeForm(code),pepper,env);
+  await db.query("UPDATE agent_credentials SET enabled=FALSE,revoked_at=now() WHERE credential_id=$1",[credentialId]);
+  await assert.rejects(authenticateOAuthAgent(new Headers({authorization:"Bearer "+pair.access_token}),db,pepper,env),InvalidAgentCredential);
+  await assert.rejects(exchangeOAuthToken(db,refreshForm(pair.refresh_token),pepper,env),OAuthFailure);
+});

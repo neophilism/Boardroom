@@ -1,6 +1,7 @@
 "use client";
 import {useState,type FormEvent} from "react";
 import {useRouter} from "next/navigation";
+import {safeOwnerReturnTo} from "../../src/domain/owner-return";
 export default function LoginPage(){
   const [token,setToken]=useState("");
   const [error,setError]=useState("");
@@ -21,7 +22,7 @@ export default function LoginPage(){
           setError("The sign-in request was rejected (HTTP "+r.status+"). Please retry.");
         return;
       }
-      setToken("");router.replace("/owner-actions");router.refresh();
+      setToken("");router.replace(safeOwnerReturnTo(new URL(window.location.href).searchParams.get("next")));router.refresh();
     }catch{setError("Boardroom is unreachable.");}
     finally{setBusy(false);}
   }
