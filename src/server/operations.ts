@@ -12,7 +12,13 @@ export function parseExecutionPolicy(input:unknown){
   if(p.autoMerge&&!requiredChecks.length)throw new SessionConflict("Automatic merge requires explicit check names");
   const reviews=p.minimumReviews??0;
   if(!Number.isSafeInteger(reviews)||(reviews as number)<0||(reviews as number)>10)throw new SessionConflict("Invalid minimum reviews");
-  return {repositoryId:p.repositoryId,autoMerge:p.autoMerge,requiredChecks,minimumReviews:reviews as number};
+  const limits={} as Record<"maxSessionSeconds"|"maxToolCalls"|"maxTokens",number|null>;
+  for(const [name,min,max] of [["maxSessionSeconds",60,14400],["maxToolCalls",1,1000],["maxTokens",1,10000000]] as const){
+    const value=p[name];
+    if(value!==undefined&&(!Number.isSafeInteger(value)||(value as number)<min||(value as number)>max))throw new SessionConflict("Invalid repository execution limit");
+    limits[name]=value===undefined?null:value as number;
+  }
+  return {repositoryId:p.repositoryId,autoMerge:p.autoMerge,requiredChecks,minimumReviews:reviews as number,...limits};
 }
 export async function setExecutionPolicy(db:Pool,input:unknown){
   const p=parseExecutionPolicy(input);
@@ -21,10 +27,13 @@ export async function setExecutionPolicy(db:Pool,input:unknown){
     await client.query("BEGIN");
     const exists=await client.query("SELECT repository_id FROM repositories WHERE repository_id=$1 FOR UPDATE",[p.repositoryId]);
     if(exists.rowCount!==1)throw new SessionConflict("Repository has not been imported");
-    await client.query(`INSERT INTO repository_execution_policy(repository_id,auto_merge,required_checks,minimum_reviews)
-      VALUES($1,$2,$3::jsonb,$4) ON CONFLICT(repository_id) DO UPDATE SET auto_merge=excluded.auto_merge,
-      required_checks=excluded.required_checks,minimum_reviews=excluded.minimum_reviews,updated_at=now()`,
-      [p.repositoryId,p.autoMerge,JSON.stringify(p.requiredChecks),p.minimumReviews]);
+    await client.query(`INSERT INTO repository_execution_policy(repository_id,auto_merge,required_checks,minimum_reviews,max_session_seconds,max_tool_calls,max_tokens)
+      VALUES($1,$2,$3::jsonb,$4,COALESCE($5,1800),COALESCE($6,100),COALESCE($7,100000)) ON CONFLICT(repository_id) DO UPDATE SET auto_merge=excluded.auto_merge,
+      required_checks=excluded.required_checks,minimum_reviews=excluded.minimum_reviews,
+      max_session_seconds=COALESCE($5,repository_execution_policy.max_session_seconds),
+      max_tool_calls=COALESCE($6,repository_execution_policy.max_tool_calls),
+      max_tokens=COALESCE($7,repository_execution_policy.max_tokens),updated_at=now()`,
+      [p.repositoryId,p.autoMerge,JSON.stringify(p.requiredChecks),p.minimumReviews,p.maxSessionSeconds,p.maxToolCalls,p.maxTokens]);
     await client.query("INSERT INTO audit_events(repository_id,kind,details) VALUES($1,'owner.execution_policy.changed',$2::jsonb)",[p.repositoryId,JSON.stringify(p)]);
     await client.query("COMMIT");return p;
   }catch(error){await client.query("ROLLBACK");throw error;}finally{client.release();}
@@ -73,7 +82,8 @@ export async function operationsOverview(db:Pool){
   const [control,repositories,runs,audit,usage,outbox]=await Promise.all([
     db.query<{paused:boolean}>("SELECT paused FROM execution_controls WHERE singleton=TRUE"),
     db.query(`SELECT r.repository_id::text AS "repositoryId",r.full_name AS "fullName",COALESCE(p.auto_merge,FALSE) AS "autoMerge",
-      COALESCE(p.required_checks,'[]'::jsonb) AS "requiredChecks",COALESCE(p.minimum_reviews,0) AS "minimumReviews"
+      COALESCE(p.required_checks,'[]'::jsonb) AS "requiredChecks",COALESCE(p.minimum_reviews,0) AS "minimumReviews",
+      COALESCE(p.max_session_seconds,1800) AS "maxSessionSeconds",COALESCE(p.max_tool_calls,100) AS "maxToolCalls",COALESCE(p.max_tokens,100000) AS "maxTokens"
       FROM repositories r LEFT JOIN repository_execution_policy p ON p.repository_id=r.repository_id ORDER BY r.full_name`),
     db.query(`SELECT ar.run_id,ar.state,c.label,ar.provider,ar.started_at,ar.last_seen_at,ar.ended_at,
       r.full_name,a.unit_id FROM agent_runs ar JOIN agent_credentials c ON c.credential_id=ar.credential_id
