@@ -14,8 +14,6 @@ import {openCoffeeThread,answerCoffeeThread} from "./coffee.ts";
 import {createOwnerAction,parseOwnerAction} from "./owner-actions.ts";
 import {resolveCoffeeAnswer} from "./coffee-resolution.ts";
 import {searchCoffeeThreads} from "./coffee-search.ts";
-import {createHash} from "node:crypto";
-import {trustedOwnerOrigin} from "./owner-session.ts";
 
 const string={type:"string"};
 const session={runId:string,generation:string};
@@ -78,7 +76,7 @@ export async function executeAgentTool(db:Pool,agent:AuthenticatedAgent,name:str
   const args=validateAgentTool(name,input);
   const runId=String(args.runId??""),generation=String(args.generation??"");
   switch(name){
-    case "boardroom_profile":return {id:createHash("sha256").update(trustedOwnerOrigin()+"\0"+agent.label).digest("hex"),displayName:agent.label,provider:agent.provider,ownerAdministration:false};
+    case "boardroom_profile":return {id:agent.credentialId,displayName:agent.label,provider:agent.provider,ownerAdministration:false};
     case "boardroom_arrive":{
       const key=args.activationKey;
       const digest=typeof key==="string"?digestActivation(agent.credentialId,key,process.env.BOARDROOM_TOKEN_PEPPER??""):null;

@@ -32,6 +32,9 @@ test("owner sign-in return paths cannot redirect to an attacker",()=>{
 test("CIMD verifies the fixed public client document and compatible methods",async()=>{
   const data={client_id:OPENAI_CLIENT_ID,redirect_uris:[OPENAI_REDIRECT_URI],token_endpoint_auth_methods_supported:["none","private_key_jwt"]};
   assert.equal(validOpenAIClientDocument(data),true);assert.equal(validOpenAIClientDocument({...data,redirect_uris:["https://attacker.invalid"]}),false);
+  assert.equal(validOpenAIClientDocument({...data,redirect_uris:OPENAI_REDIRECT_URI}),false);
+  assert.equal(validOpenAIClientDocument({...data,redirect_uris:["https://attacker.invalid/"+OPENAI_REDIRECT_URI]}),false);
+  assert.equal(validOpenAIClientDocument({...data,redirect_uris:[OPENAI_REDIRECT_URI+".attacker.invalid"]}),false);
   let requested="";
   await verifyOpenAIClient(async(url)=>{requested=String(url);return new Response(JSON.stringify(data));});
   assert.equal(requested,OPENAI_CLIENT_ID);

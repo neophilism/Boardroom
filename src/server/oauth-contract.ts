@@ -50,8 +50,9 @@ export function validOpenAIClientDocument(input:unknown):boolean{
   if(!input||typeof input!=="object"||Array.isArray(input))return false;
   const d=input as Record<string,unknown>;
   const methods=Array.isArray(d.token_endpoint_auth_methods_supported)?d.token_endpoint_auth_methods_supported:[d.token_endpoint_auth_method];
-  return (d.client_id===undefined||d.client_id===OPENAI_CLIENT_ID)&&Array.isArray(d.redirect_uris)&&
-    d.redirect_uris.includes(OPENAI_REDIRECT_URI)&&methods.includes("none");
+  const redirects=Array.isArray(d.redirect_uris)?d.redirect_uris:[];
+  return (d.client_id===undefined||d.client_id===OPENAI_CLIENT_ID)&&
+    redirects.some(uri=>typeof uri==="string"&&uri===OPENAI_REDIRECT_URI)&&methods.includes("none");
 }
 let clientDocumentUntil=0;
 export async function verifyOpenAIClient(transport:typeof fetch=fetch){
