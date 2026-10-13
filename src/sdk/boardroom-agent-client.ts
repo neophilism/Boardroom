@@ -29,10 +29,12 @@ export type GithubWrite=
 
 export class BoardroomRequestError extends Error{
   readonly status:number;
-  constructor(status:number){
+  readonly code:"BUDGET_LIMIT"|"BUDGET_NOT_CONFIGURED"|null;
+  constructor(status:number,code:"BUDGET_LIMIT"|"BUDGET_NOT_CONFIGURED"|null=null){
     super("Boardroom request failed with HTTP "+status);
     this.name="BoardroomRequestError";
     this.status=status;
+    this.code=code;
   }
 }
 export class BoardroomContractError extends Error{
@@ -82,7 +84,13 @@ export class BoardroomAgentClient{
       body:method==="POST"?JSON.stringify(payload??{}):undefined,
       signal:AbortSignal.timeout(40000)
     });
-    if(!response.ok)throw new BoardroomRequestError(response.status);
+    if(!response.ok){
+      // Recognize only fixed server budget codes, never provider messages or
+      // arbitrary response text which might contain a credential.
+      const body=response.status===409?await response.json().catch(()=>null):null;
+      const code=body?.code==="BUDGET_LIMIT"||body?.code==="BUDGET_NOT_CONFIGURED"?body.code:null;
+      throw new BoardroomRequestError(response.status,code);
+    }
     try{return await response.json() as T;}
     catch{throw new BoardroomContractError("Boardroom did not return valid JSON");}
   }
