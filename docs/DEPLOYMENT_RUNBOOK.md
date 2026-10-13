@@ -1,48 +1,44 @@
-# Boardroom deployment and first-use runbook (BR-077 foundation)
+# Boardroom deployment and first-use runbook (BR-077)
 
-## Verified status, October 12 2026
-- GitHub source: `neophilism/Boardroom`, public repository; operational Boardroom UI remains owner-authenticated.
-- Neon: a dedicated **Boardroom** project has been created in `aws-us-east-2`. The five SQL migrations were applied transactionally and the migration ledger verified. Do not paste the connection string into source control.
-- Render: the existing `boardroom` web service is deployed at https://boardroom-iamn.onrender.com. Process/readiness checks do not establish autonomous execution.
-- ChatGPT hourly scheduled-task integration: no successful live end-to-end proof yet.
+## Evidence checkpoint: October 13, 2026
+
+- Source: `neophilism/Boardroom` is public. Runtime operational data and Owner Actions remain private.
+- PR #42 is merged at `bd7973207ef2f88d4438bbcc56d752b1cd78102e`. Its exact pre-merge head passed CI, PostgreSQL concurrency, isolated Docker execution and security analysis.
+- The dedicated Boardroom Neon database has the five historical migrations. Migration 0006 was successfully tested transactionally on an isolated child branch of that database, including ledger/hash and execution-table constraints. This supersedes the October 12 branch-authentication failure. A branch test alone is not evidence that production has migrated.
+- The existing Render application address is https://boardroom-iamn.onrender.com. Verify the actual live commit and readiness after each release; historical deployment success is insufficient.
+- No successful real scheduled-agent end-to-end acceptance is claimed. See [RELEASE_STATUS.md](RELEASE_STATUS.md).
 
 ## Required environment variables
 
-- `DATABASE_URL`: Boardroom-only pooled Neon database URL, held solely by the runtime secret manager.
-- `BOARDROOM_TOKEN_PEPPER`: randomly generated secret (>= 32 characters), separate from all other credentials.
-- `BOARDROOM_OWNER_API_TOKEN`: owner-only high-entropy credential (>= 32 characters); only the owner receives this credential through an approved secure channel.
-- `BOARDROOM_SESSION_SECRET`: independent high-entropy signing key (>= 32 characters).
-- `BOARDROOM_GITHUB_APP_ID`, `BOARDROOM_GITHUB_INSTALLATION_ID`, `BOARDROOM_GITHUB_APP_PRIVATE_KEY`, `BOARDROOM_GITHUB_OWNER`: GitHub App deployment and inventory integration. Use repo-specific least privilege.
+- `DATABASE_URL`: Boardroom-only pooled Neon URL in the runtime secret manager.
+- `DATABASE_URL_MIGRATIONS` or `DATABASE_URL_UNPOOLED`: optional direct migration URL; the migration runner converts a recognized Neon pooled hostname when only `DATABASE_URL` is present.
+- `BOARDROOM_TOKEN_PEPPER`: independently generated secret, at least 32 characters.
+- `BOARDROOM_OWNER_API_TOKEN`: owner-only high-entropy credential, at least 32 characters.
+- `BOARDROOM_SESSION_SECRET`: separate high-entropy signing secret, at least 32 characters.
+- `BOARDROOM_GITHUB_APP_ID`, `BOARDROOM_GITHUB_INSTALLATION_ID`, `BOARDROOM_GITHUB_APP_PRIVATE_KEY`, `BOARDROOM_GITHUB_OWNER`: scoped GitHub App integration.
 
-Do not expose values in docs, Coffee Corner, logs, user-facing check responses, PRs, or chats.
+Never put values in public GitHub, Coffee Corner, logs, PRs or chat. Use the existing provider secret-entry flows. Do not replace working credentials based only on a historical setup error.
 
-## Render configuration
+## Render release sequence
 
-- Use the approved Render workspace and a service on a supported plan.
-- Repository: `https://github.com/neophilism/Boardroom`
-- Runtime: Node 22
-- Build command: `npm ci --no-audit --no-fund && npm run build`
-- Start command: `npm run start -- -p ${PORT:-10000}`
-- Health endpoint: `/api/health` indicates process liveness, not operational readiness.
-- Readiness endpoint: `/api/ready` returns 503 when required secrets, DB access, or schema migrations are absent.
-- For real workloads, inspect `/api/ready`, then verify private owner login, repository sync, work claims, and Coffee Corner; HTTP 200 alone is not end-to-end validation.
-- Never put the owner API token in a public GitHub Actions secret or client-side JavaScript.
+1. Use the existing, owner-confirmed Boardroom workspace and service. Do not provision another service to bypass missing access.
+2. Runtime: Node 22. Build: `npm ci --no-audit --no-fund && npm run build`. Start: `npm run start -- -p ${PORT:-10000}`.
+3. Startup applies immutable migrations before exposing routes requiring the new tables. A mismatch in an applied migration hash stops startup.
+4. `/api/health` is liveness only. Compare its revision to the deployed GitHub commit.
+5. `/api/ready` must succeed with every required migration's exact source fingerprint. Required migration inventory is maintained in `db/migration-manifest.ts` and checked against the SQL files in CI.
+6. Sign in privately, open `/system`, and use **Verify setup and import repositories**. A working GitHub token with no authorized repositories or insufficient permissions is not a completed setup.
+7. Verify Work Board inventory and priority order; then register the approved agent identity under `/agents`. Supply the credential through the private connector/worker secret store, never its scheduled prompt.
 
-## Existing DB schema
+## Migration safety
 
-The migration runner checks hashes in `schema_migrations` and refuses modified historical SQL. Always review new migrations before running on any nonempty database. The initial five migrations were verified on the existing deployment. Migration 0006 must pass isolated PostgreSQL and Neon branch validation before deploying the execution batch. No named agent execution is claimed by code tests.
+Historical SQL files are immutable. New migrations must pass disposable PostgreSQL testing and isolated Neon branch validation before production. Re-running the migration runner must find unchanged hashes and skip applied files. The October 13 test used the Neon transactional SQL tool on an isolated existing-schema branch, not a local migration CLI; its result is recorded in PR #42.
 
-## Production acceptance still pending
+Migration 0006 SHA-256: `cbf5d2fbd4f77bbda847d10103f89fd59e5e28744ba5e8e5f15336ccdc4770b9`.
 
-1. Owner-only access and secure credentials are deployed and verified.
-2. GitHub App installation credentials are present; inventory sync imports genuine repos and approved plans.
-3. At least one real scheduled ChatGPT activation authenticates to Boardroom and is authorized to do useful repository work, or the documented alternative runtime is demonstrated.
-4. Repeated schedules do not duplicate active agent sessions.
-5. One actual fenced repository claim, code change, CI-verified PR, checkpoint, and release are demonstrated end to end.
-6. Watchdog and crash recovery tested; cost and security gates reviewed.
+Do not directly manipulate live lease/agent rows to manufacture a passing acceptance result. Do not copy private database contents to public CI artifacts.
 
-Never say Boardroom is autonomous or production ready until these tests pass.
+## Worker and production acceptance
 
-## October 12 execution batch
+Follow [HOSTED_WORKER_SETUP.md](HOSTED_WORKER_SETUP.md) and [EXECUTION_PROTOCOL.md](EXECUTION_PROTOCOL.md). Hosted execution and maintenance are disabled by default and need protected credentials plus explicit limits. Do not activate paid services or scheduled jobs merely to make a status light green.
 
-See `EXECUTION_PROTOCOL.md` and `HOSTED_WORKER_SETUP.md`. Local checks and CI validate code, including a 500-arrival PostgreSQL contention test; they do not satisfy live production gates. Neon branch creation returned an authentication error during this session, so branch migration validation remains blocked. Existing GitHub App setup previously reported an invalid signing key; PR #41 fixes valid PEM copy formats but cannot reconstruct a missing or truncated key. The hosted and maintenance workflows are disabled until protected credentials and limits are configured.
+The remaining acceptance requires a genuine authorized activation, an exclusive assignment, useful code, real PR/CI/review evidence, durable checkpoint/release, a second eligible unit, and safe recovery under interruption. Native ChatGPT scheduling and a hosted API worker are distinct routes; evidence for one must not be represented as proof of the other.

@@ -1,14 +1,17 @@
 # Boardroom
 
-Boardroom coordinates short-lived AI development sessions, GitHub repository assignments, exclusive leases, human-only Owner Actions, Coffee Corner, and source-verified PR/CI progress.
+Boardroom coordinates short-lived AI development sessions, exclusive GitHub repository assignments, private Owner Actions, Coffee Corner and source-verified PR/CI progress.
 
-## Current status
+## Current release status
 
-- **Code implemented:** authenticated named-agent arrival; exclusive priority-first assignment; lease-based session management; private Owner Action Board and Coffee Corner; GitHub App context and fenced draft-PR write gateway; live Work Board and owner-controlled priorities; PR/CI evidence; stalled-session safety scanner.
-- **Deployment:** free-plan Render service at https://boardroom-iamn.onrender.com (status verified via Render deployment control plane). This is **not** verified as a fully working, configured application.
-- **Database:** dedicated Boardroom Neon project, initial migrations applied and recorded.
-- **Still required:** configure the Render database and owner authentication secrets; install a scoped GitHub App; onboard named agent credentials; verify the real ChatGPT scheduled-task integration; complete safe recovery, reviews, and end-to-end unattended PR chain testing.
-- **Owner setup:** see [Deployment Runbook](docs/DEPLOYMENT_RUNBOOK.md). **Repository import** can then run from the private Work Board via its GitHub refresh button.
-- **Planning:** [80-unit canonical roadmap](registry/roadmap.json). Units are plans, not claims that all PRs have been built. Live GitHub is the authority for actual PR state.
+The execution batch in [PR #42](https://github.com/neophilism/Boardroom/pull/42) was merged on October 13, 2026 after its CI/security gates and isolated Neon migration validation passed. It adds a bounded hosted coding runner, provider-neutral MCP tools, current-head merge checks, same-repository PR chaining, usage limits, recovery controls and webhook reconciliation to the existing owner dashboard and named-agent APIs.
 
-No secrets, operational Owner Action contents or personal data should be committed here. The public source repository is separate from Boardroom's private authenticated operating screens. Agents must not receive unrestricted GitHub App installation tokens; use only fenced gateway operations for writes.
+**Merged code is not a verified unattended production system.** See the [release checklist](docs/RELEASE_STATUS.md) for the remaining live integration gates and evidence. The previous Neon authentication failure is no longer the migration-validation blocker; actual deployment and configured-worker acceptance must be checked separately.
+
+- Application: https://boardroom-iamn.onrender.com. Private operating screens require owner authentication. A historical successful deployment does not prove the latest revision is live.
+- Setup and verification: [Deployment Runbook](docs/DEPLOYMENT_RUNBOOK.md).
+- Worker activation and cost controls: [Hosted Worker Setup](docs/HOSTED_WORKER_SETUP.md).
+- Integration contract: [Execution Protocol](docs/EXECUTION_PROTOCOL.md).
+- Approved scope: [80-unit canonical roadmap](registry/roadmap.json). Planned units are not completed PRs; GitHub's live metadata is authoritative for merges.
+
+Never commit credentials, private operational requests or personal data. Agents receive scoped, fenced capabilities, not unrestricted GitHub installation tokens. Hosted jobs remain opt-in; no CI result authorizes spending or establishes native ChatGPT scheduled-task compatibility.
