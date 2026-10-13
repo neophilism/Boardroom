@@ -1,61 +1,56 @@
-/**
- * Public, credential-free Render smoke checks. These verify reachability and
- * private-route denial, NOT the full agent work cycle or exact deployed SHA.
- */
+/** Public checks; an expected SHA enables strict release verification, not agent acceptance. */
 import assert from "node:assert/strict";
+import {checkDeploymentEvidence,expectedReleaseRevision} from "../src/domain/deployment-evidence.ts";
 
-const base = "https://boardroom-iamn.onrender.com";
-const pause = ms => new Promise(resolve=>setTimeout(resolve,ms));
-async function request(path) {
+const base="https://boardroom-iamn.onrender.com";
+const expectedRevision=expectedReleaseRevision(process.env.BOARDROOM_EXPECTED_REVISION);
+const deadline=Date.now()+12*60*1000;
+const pause=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+async function request(path){
+  const remaining=deadline-Date.now();
+  if(remaining<=0)throw new Error("Deployment verification deadline exceeded");
   return fetch(base+path,{
     method:"GET",redirect:"manual",
     headers:{"Accept":"application/json, text/html"},
-    signal:AbortSignal.timeout(55000)
+    signal:AbortSignal.timeout(Math.min(55000,remaining))
   });
 }
 async function verify(){
   const health=await request("/api/health");
-  assert.equal(health.status,200,"Liveness must return HTTP 200");
   const data=await health.json();
-  assert.equal(data.service,"boardroom");
-  assert.equal(data.liveness,"alive");
-  assert.ok(data.revision===null||/^[0-9a-f]{40}$/i.test(data.revision),
-    "Revision must be a valid Git SHA or null");
-
   const ready=await request("/api/ready");
-  assert.ok([200,503].includes(ready.status),
-    "Readiness must indicate ready or not ready");
   const state=await ready.json();
-  assert.equal(state.service,"boardroom");
-  assert.equal(state.readiness,ready.status===200?"ready":"not_ready");
+  const evidence=checkDeploymentEvidence({
+    healthStatus:health.status,health:data,
+    readinessStatus:ready.status,readiness:state,expectedRevision
+  });
 
   const setup=await request("/setup");
   assert.equal(setup.status,200,"Safe public setup screen should be available");
-  const page=await setup.text();
-  assert.ok(page.includes("Boardroom"),"Setup page should identify Boardroom");
-
+  assert.ok((await setup.text()).includes("Boardroom"),"Setup page should identify Boardroom");
   for(const path of ["/owner-actions","/agents","/system"]){
     const protectedResponse=await request(path);
-    assert.ok([302,303,307,308].includes(protectedResponse.status),
-      path+" must redirect unauthorized visitors to login");
-    const target=protectedResponse.headers.get("location")??"";
-    assert.ok(target.includes("/login"),path+" must target login");
+    assert.ok([302,303,307,308].includes(protectedResponse.status),path+" must redirect unauthorized visitors to login");
+    const target=new URL(protectedResponse.headers.get("location")??"",base);
+    assert.ok(target.origin===base&&target.pathname==="/login",path+" must target the same-origin login page");
   }
   const privateApi=await request("/api/v1/owner/agents");
   assert.equal(privateApi.status,401,"Unauthenticated agent registry API must reject");
   console.log("Live Boardroom smoke checks passed.");
-  console.log("Observed Render revision:",data.revision??"unknown");
-  console.log("Observed readiness:",state.readiness,
-    "(not a claim of scheduled-agent readiness)");
+  console.log("Observed Render revision:",evidence.revision??"unknown");
+  console.log("Observed readiness:",evidence.readiness);
+  console.log("Exact release verified:",evidence.exactReleaseVerified,
+    "(not a claim of scheduled-agent or unattended-operation acceptance)");
 }
 let last;
-for(let attempt=1;attempt<=7;attempt++){
+for(let attempt=1;Date.now()<deadline;attempt++){
   try{await verify();process.exit(0);}
   catch(error){
     last=error;
-    console.error("Deployment smoke attempt "+attempt+"/7:",error instanceof Error?error.message:"unknown failure");
-    if(attempt<7)await pause(12000);
+    console.error("Deployment smoke attempt "+attempt+":",error instanceof Error?error.message.slice(0,300):"unknown failure");
+    const remaining=deadline-Date.now();
+    if(remaining>0)await pause(Math.min(12000,remaining));
   }
 }
-console.error("Boardroom public deployment smoke failed after retries:",last instanceof Error?last.message:"unknown");
+console.error("Boardroom deployment verification failed before its deadline:",last instanceof Error?last.message.slice(0,300):"unknown");
 process.exitCode=1;
