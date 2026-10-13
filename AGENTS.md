@@ -30,3 +30,7 @@ The owner explicitly directs all projects to continue implementation, testing, m
 ## Shared PR registry
 
 Use `registry/prs.json` as the sole active PR plan for Boardroom and Engine Room. Follow `registry/PR_FORMAT.md` and run `node scripts/validate-pr-registry.mjs`. Preserve stable IDs, scope, counts, dependencies, acceptance and contribution-only evidence. `registry/roadmap.json` is retired; never recreate a duplicate milestone plan. This contract supersedes older file-path guidance.
+
+## Direct GitHub PR merges
+
+When an agent merges a PR outside Boardroom's authenticated guarded endpoint, it must first use the fail-closed, current-head CI procedure in `docs/GITHUB_MERGE_PREFLIGHT.md` (implemented by `scripts/verify-pr-merge.mjs`). Failed, pending, skipped, unstarted, capacity-blocked, missing or incomplete test checks are blockers, even for documentation-only policy changes; leave such PRs open and move on. This requirement does not impose independent-human-audit certification.
