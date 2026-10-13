@@ -22,3 +22,9 @@ After owner authentication and the scoped GitHub App are configured:
 5. Confirm another scheduled activation under that same name is blocked during an active run; only then expand to multiple names/accounts.
 
 No nonpublic credential appears in this document.
+
+## Recovering from a rejected tool call
+
+Authenticated MCP operation failures return `isError: true` with the same safe diagnostic in `content` and `structuredContent.error`: `code`, `message`, `nextAction`, and `retryable`. Merge rejections include the actual policy/check/review reasons. An expired or superseded lease, owner pause, or exhausted budget is not an invitation to repeat the write. Follow the reported action, checkpoint actual remote progress when permitted, and yield or request private owner intervention. `retryable` describes a potentially transient failure; it never authorizes replaying an ambiguous mutation without checking GitHub first. Unknown database/provider exceptions remain redacted.
+
+Send a JSON-RPC request ID with every operational call. Notifications are acknowledged without executing tools; malformed JSON, invalid request envelopes, invalid parameters and unknown methods receive distinct protocol errors. Neither an error response nor a retry creates new assignment authority.
