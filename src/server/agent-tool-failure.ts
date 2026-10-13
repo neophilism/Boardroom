@@ -31,6 +31,8 @@ export function agentToolFailure(error:unknown){
       nextAction:"Stop writes, checkpoint remote progress and finish. Only the owner can resume execution.",retryable:false};
     else if(message==="Session time budget exhausted; checkpoint and finish")failure={code:"SESSION_LIMIT",message,
       nextAction:"Checkpoint remote progress and finish. Do not start another unit or extend the session limit.",retryable:false};
+    else if(["Approved work-unit prerequisite unresolved","Cross-repository compatibility prerequisite unresolved","Owner action prerequisite unresolved"].includes(message))failure={code:"PREREQUISITE_BLOCKED",message,
+      nextAction:"Checkpoint and yield the blocked work. A prerequisite must be independently verified or the private Owner Action resolved before writes can resume. Do not override the dependency or approval.",retryable:false};
     else failure={code:"SESSION_CONFLICT",message,
       nextAction:"Reconcile the request and current assignment. Heartbeat only a still-live lease; if renewal is rejected, stop writes and report recovery needed. Never reclaim or assume release of another run's assignment.",retryable:false};
   }

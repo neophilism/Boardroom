@@ -22,10 +22,23 @@ type Existing = { assignment_id: string; repository_id: string; full_name: strin
  * Expired but still assigned leases are excluded until explicit fenced recovery.
  */
 export const REPOSITORY_CLAIM_QUERY = String.raw`
+  WITH RECURSIVE inherited_priority(repository_id,position) AS (
+    SELECT repository_id,position FROM repository_priority
+    UNION
+    SELECT d.prerequisite_repository_id,p.position
+    FROM inherited_priority p JOIN compatibility_dependencies d ON d.repository_id=p.repository_id
+    JOIN roadmap_units consumer ON consumer.repository_id=d.repository_id AND consumer.unit_id=d.unit_id
+    LEFT JOIN roadmap_units prerequisite ON prerequisite.repository_id=d.prerequisite_repository_id
+      AND prerequisite.unit_id=d.prerequisite_unit_id
+    WHERE consumer.approved=TRUE AND consumer.state NOT IN ('MERGED','ACCEPTED')
+      AND (prerequisite.unit_id IS NULL OR prerequisite.approved IS NOT TRUE OR prerequisite.state NOT IN ('MERGED','ACCEPTED'))
+  ), effective_priority AS (
+    SELECT repository_id,MIN(position) AS position FROM inherited_priority GROUP BY repository_id
+  )
   SELECT r.repository_id, r.full_name, chosen.unit_id
   FROM repositories r
   JOIN repository_leases l ON l.repository_id = r.repository_id
-  LEFT JOIN repository_priority p ON p.repository_id = r.repository_id
+  LEFT JOIN effective_priority p ON p.repository_id = r.repository_id
   JOIN LATERAL (
     SELECT w.unit_id
     FROM roadmap_units w
@@ -38,7 +51,7 @@ export const REPOSITORY_CLAIM_QUERY = String.raw`
         FROM jsonb_array_elements_text(w.depends_on) AS dependency(id)
         LEFT JOIN roadmap_units prerequisite
           ON prerequisite.repository_id = w.repository_id AND prerequisite.unit_id = dependency.id
-        WHERE prerequisite.unit_id IS NULL OR prerequisite.state NOT IN ('MERGED','ACCEPTED')
+        WHERE prerequisite.unit_id IS NULL OR prerequisite.approved IS NOT TRUE OR prerequisite.state NOT IN ('MERGED','ACCEPTED')
       )
       AND NOT EXISTS (
         SELECT 1 FROM owner_action_dependents dep
@@ -49,10 +62,10 @@ export const REPOSITORY_CLAIM_QUERY = String.raw`
       )
       AND NOT EXISTS (
         SELECT 1 FROM compatibility_dependencies d
-        JOIN roadmap_units prerequisite ON prerequisite.repository_id=d.prerequisite_repository_id
+        LEFT JOIN roadmap_units prerequisite ON prerequisite.repository_id=d.prerequisite_repository_id
           AND prerequisite.unit_id=d.prerequisite_unit_id
         WHERE d.repository_id=w.repository_id AND d.unit_id=w.unit_id
-          AND prerequisite.state NOT IN ('MERGED','ACCEPTED')
+          AND (prerequisite.unit_id IS NULL OR prerequisite.approved IS NOT TRUE OR prerequisite.state NOT IN ('MERGED','ACCEPTED'))
       )
     ORDER BY CASE WHEN w.state IN ('ACTIVE','OPEN_PR','BLOCKED') THEN 0 ELSE 1 END, w.unit_id
     LIMIT 1
