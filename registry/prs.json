@@ -921,7 +921,10 @@
       "id": "BR-039",
       "title": "Continuous eligible PR-chain workflow",
       "origin": "original",
-      "prs": [],
+      "prs": [
+        42,
+        90
+      ],
       "priority": "P0",
       "phase": "F4",
       "dependsOn": [
