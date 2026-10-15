@@ -35,10 +35,11 @@ export function normalizeRepositoryBranches(value:unknown){
 }
 
 export function normalizeRepositoryDecision(repository:string,value:{unitId:string|null;adr:string|null;occurredAt:Date}){
-  if(!value.adr||!value.unitId||!Number.isFinite(value.occurredAt.getTime()))return null;
+  if(!value.adr||!value.unitId||!/^[A-Za-z0-9][A-Za-z0-9._/-]{1,127}$/.test(value.unitId)||
+      value.unitId.split("/").some(part=>!part||part==="."||part==="..")||!Number.isFinite(value.occurredAt.getTime()))return null;
   try{
     const url=new URL(value.adr),parts=url.pathname.split("/").filter(Boolean);
-    if(url.origin!=="https://github.com"||url.search||url.hash||parts.slice(0,2).join("/").toLowerCase()!==repository.toLowerCase()||
+    if(url.origin!=="https://github.com"||url.username||url.password||url.search||url.hash||parts.slice(0,2).join("/").toLowerCase()!==repository.toLowerCase()||
         parts[2]!=="blob"||!/^[a-f0-9]{40}$/i.test(parts[3]??"")||
         !/^docs\/(?:decisions|adr)\/[A-Za-z0-9._/-]+\.md$/.test(parts.slice(4).map(decodeURIComponent).join("/")))return null;
     return {unitId:value.unitId,adr:value.adr,acceptedAt:value.occurredAt.toISOString()};
@@ -106,6 +107,7 @@ export async function getAssignmentContext(db:Pool,runId:string,credentialId:str
     dependencyStatus:{localUnmet:unit.local_unmet,externalUnmet:unit.external_unmet,ownerBlockers:unit.owner_blockers,
       eligible:Array.isArray(unit.local_unmet)&&unit.local_unmet.length===0&&Array.isArray(unit.external_unmet)&&unit.external_unmet.length===0&&unit.owner_blockers===0}
   }));
+  const approvedIds=new Set(approvedUnits.map(unit=>unit.unitId));
   return {
     assignment:{assignmentId:item.assignment_id,repositoryId:item.repository_id,
       repository:item.full_name,unitId:item.unit_id,generation:item.generation,
@@ -116,7 +118,7 @@ export async function getAssignmentContext(db:Pool,runId:string,credentialId:str
       externalPrerequisites:item.external_prerequisites,source:item.source_metadata},
     approvedUnits,
     repositoryState:{defaultBranch:repo.default_branch,...branches},
-    historicalDecisions:decisions.rows.map(row=>normalizeRepositoryDecision(item.full_name,row)).filter(x=>x!==null),
+    historicalDecisions:decisions.rows.map(row=>normalizeRepositoryDecision(item.full_name,row)).filter(x=>x!==null&&approvedIds.has(x.unitId)),
     checkpoint:checkpoint.rows.length?{
       branch:checkpoint.rows[0].branch,headSha:checkpoint.rows[0].head_sha,
       state:checkpoint.rows[0].state,createdAt:checkpoint.rows[0].created_at.toISOString()
