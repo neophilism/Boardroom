@@ -1,4 +1,4 @@
-import type {Pool} from "pg";
+import type {Pool,PoolClient} from "pg";
 
 export class OwnerActionResolutionRejected extends Error {}
 
@@ -73,11 +73,11 @@ export async function respondToOwnerAction(db:Pool,actionId:string,rawResponse:u
     await client.query("COMMIT");committed=true;
     return {actionId,status:response.status};
   }catch(error){if(!committed)await client.query("ROLLBACK");throw error;}
-  finally{client.release();}
+  finally{owned?.release();}
 }
 
 export async function resolveVerifiedOwnerAction(
-  db:Pool,actionId:string,verification:OwnerActionVerification
+  db:Pool|PoolClient,actionId:string,verification:OwnerActionVerification
 ):Promise<{actionId:string;status:"VERIFIED";requeued:{repositoryId:string;unitId:string|null}[]}>{
   parseActionId(actionId);
   if(!verification||verification.verified!==true||typeof verification.kind!=="string"||
@@ -85,7 +85,8 @@ export async function resolveVerifiedOwnerAction(
       typeof verification.evidenceId!=="string"||!evidenceId.test(verification.evidenceId)||
       apparentSecret.test(verification.evidenceId))
     throw new OwnerActionResolutionRejected("Verified bounded fulfillment evidence required");
-  const client=await db.connect();
+  const owned="connect" in db?await db.connect():null;
+  const client=owned??db;
   let committed=false;
   try{
     await client.query("BEGIN");
