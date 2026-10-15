@@ -11,7 +11,7 @@
   "priority": "highest",
   "schemaVersion": 1,
   "roadmapVersion": 2,
-  "observedAt": "2026-10-15T08:57:13Z",
+  "observedAt": "2026-10-15T09:07:24Z",
   "units": [
     {
       "id": "BR-001",
@@ -728,7 +728,8 @@
       "title": "Repository context assembler",
       "origin": "original",
       "prs": [
-        20
+        20,
+        78
       ],
       "priority": "P0",
       "phase": "F4",
@@ -2932,6 +2933,21 @@
       "headSha": "42ccaa67526d797e2e04666d84f9cce2c7c94264",
       "baseRef": "main",
       "mergeCommitSha": "ad1f6b7071d7c5d004a80ba8fd32b23b11d85075"
+    },
+    {
+      "id": 4870919338,
+      "number": 78,
+      "title": "BR-031: Assemble complete resumable repository context",
+      "url": "https://github.com/neophilism/Boardroom/pull/78",
+      "state": "open",
+      "draft": true,
+      "createdAt": "2026-10-15T09:07:24Z",
+      "updatedAt": "2026-10-15T09:07:24Z",
+      "closedAt": null,
+      "mergedAt": null,
+      "headSha": "f0def39853a1583c41f6a02bd907debdee24f6c7",
+      "baseRef": "main",
+      "mergeCommitSha": null
     }
   ]
 }
