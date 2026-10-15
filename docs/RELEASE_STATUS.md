@@ -6,7 +6,6 @@ BR-019 is covered by a focused deterministic selection matrix plus the existing 
 
 This closes the repository-selection conformance code boundary only after PR #66 passes exact-head CI and PostgreSQL checks. It does not establish BR-004 live ChatGPT-to-Boardroom invocation, BR-042 useful scheduled development, or production acceptance.
 
-
 ## October 13, 2026 follow-on implementation pass
 
 The following PRs are merged after passing their current GitHub build, PostgreSQL, isolated sandbox, dependency-audit and CodeQL checks:
