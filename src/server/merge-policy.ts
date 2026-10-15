@@ -46,11 +46,16 @@ export function mergeBlockers(policy:MergePolicy,facts:MergeFacts):string[]{
   return blocked;
 }
 
+export function mergeDenialAuditDetails(unitId:string,number:number,headSha:string,reasons:readonly string[]){
+  return {unitId,number,headSha,reasons:[...new Set(reasons)]};
+}
+
 export async function mergeAssignedPullRequest(db:Pool,runId:string,credentialId:string,generation:string,number:number,expectedSha:string){
   if(!Number.isSafeInteger(number)||number<=0||!/^[a-f0-9]{40}$/i.test(expectedSha))throw new SessionConflict("Valid PR and expected commit required");
   const client=await db.connect();
+  let transactionOpen=false;
   try{
-    await client.query("BEGIN");
+    await client.query("BEGIN");transactionOpen=true;
     await client.query("SET LOCAL statement_timeout='25s'");
     const scope=await assignedScope(client,runId,credentialId,generation,true);
     const policyResult=await client.query<MergePolicy>("SELECT auto_merge,required_checks,minimum_reviews FROM repository_execution_policy WHERE repository_id=$1",[scope.repository_id]);
@@ -95,13 +100,19 @@ export async function mergeAssignedPullRequest(db:Pool,runId:string,credentialId
       suites:suiteResult.check_suites,suiteTotal:suiteResult.total_count,
       requiredReviewerLogin:controlsItsOwnAuthority?owner:undefined,
       statuses:statuses.statuses,reviews:reviews.map(r=>({login:r.user.login,state:r.state,commitId:r.commit_id}))});
-    if(reasons.length)throw new SessionConflict("Merge blocked: "+reasons.join(", "));
+    if(reasons.length){
+      const details=mergeDenialAuditDetails(scope.unit_id,number,pr.head.sha,reasons);
+      await client.query("ROLLBACK");transactionOpen=false;
+      await db.query("INSERT INTO audit_events(run_id,repository_id,kind,details) VALUES($1,$2,'github.pr.merge_denied',$3::jsonb)",
+        [runId,scope.repository_id,JSON.stringify(details)]);
+      throw new SessionConflict("Merge blocked: "+reasons.join(", "));
+    }
     const merged=await githubAppRequest("PUT",api+"/pulls/"+number+"/merge",{sha:expectedSha,merge_method:"squash"}) as {merged:boolean;sha:string};
     if(!merged.merged||!/^[a-f0-9]{40}$/i.test(merged.sha))throw new GitHubAppError(409);
     const unitState=await reconcileMergedUnit();
     await client.query("INSERT INTO audit_events(run_id,repository_id,kind,details) VALUES($1,$2,'github.pr.merged',$3::jsonb)",
       [runId,scope.repository_id,JSON.stringify({unitId:scope.unit_id,number,headSha:expectedSha,mergeSha:merged.sha})]);
-    await client.query("COMMIT");
+    await client.query("COMMIT");transactionOpen=false;
     return {merged:true,replay:false,sha:merged.sha,url:pr.html_url,unitState};
-  }catch(error){await client.query("ROLLBACK");throw error;}finally{client.release();}
+  }catch(error){if(transactionOpen)await client.query("ROLLBACK");throw error;}finally{client.release();}
 }
