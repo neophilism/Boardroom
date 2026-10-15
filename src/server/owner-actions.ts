@@ -15,6 +15,9 @@ export const ESCALATION_CONDITIONS = [
   "RETRYABLE_EXTERNAL_FAILURE"
 ] as const;
 export type EscalationCondition = typeof ESCALATION_CONDITIONS[number];
+export const OWNER_ACTION_STATUSES=["OPEN","ACKNOWLEDGED","AWAITING_VERIFICATION","VERIFIED","DECLINED","CANCELLED"] as const;
+export type OwnerActionStatus=typeof OWNER_ACTION_STATUSES[number];
+export function isOwnerActionStatus(value:string):value is OwnerActionStatus{return OWNER_ACTION_STATUSES.includes(value as OwnerActionStatus)}
 export type OwnerActionInput = {
   runId:string; generation:string; actionKey:string; title:string; type:OwnerActionType;
   condition:EscalationCondition; instructions:string; requestedPermissions:string[]; secureEntryLocation:string|null;
@@ -67,6 +70,25 @@ export function parseOwnerAction(payload: unknown): OwnerActionInput {
     instructions:obj.instructions.trim(),requestedPermissions:permissions,
     secureEntryLocation:target as string|null,priceEstimateCents:cost as number|null
   };
+}
+
+export async function listOwnerActions(db:Pool,status:OwnerActionStatus|null){
+  const records=await db.query(
+    `SELECT a.action_id,a.title,a.action_type,a.instructions,a.requested_permissions,a.secure_entry_location,
+      a.price_estimate_cents,a.status,a.created_at,a.updated_at,
+      COALESCE(json_agg(json_build_object(
+        'repositoryId',d.repository_id::text,'fullName',r.full_name,'unitId',d.unit_id
+      ) ORDER BY r.full_name,d.repository_id,d.unit_id) FILTER (WHERE d.repository_id IS NOT NULL),'[]'::json) AS affected
+    FROM owner_actions a
+    LEFT JOIN owner_action_dependents d ON d.action_id=a.action_id
+    LEFT JOIN repositories r ON r.repository_id=d.repository_id
+    WHERE ($1::text IS NULL OR a.status=$1)
+    GROUP BY a.action_id
+    ORDER BY CASE WHEN a.status IN ('OPEN','ACKNOWLEDGED','AWAITING_VERIFICATION') THEN 0 ELSE 1 END,a.created_at ASC
+    LIMIT 100`,
+    [status]
+  );
+  return records.rows;
 }
 
 export async function createOwnerAction(db:Pool,credentialId:string,input:OwnerActionInput):Promise<{actionId:string;status:string}>{

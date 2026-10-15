@@ -4,7 +4,7 @@ import {getDatabase} from "../../../../src/server/db";
 import {authenticateAgent,InvalidAgentCredential} from "../../../../src/server/agent-auth";
 import {UnauthorizedOwner} from "../../../../src/server/owner-auth";
 import {authorizeOwnerRequest,OWNER_COOKIE,OwnerOriginRejected} from "../../../../src/server/owner-session";
-import {createOwnerAction,parseOwnerAction} from "../../../../src/server/owner-actions";
+import {createOwnerAction,isOwnerActionStatus,listOwnerActions,parseOwnerAction} from "../../../../src/server/owner-actions";
 import {SessionConflict} from "../../../../src/server/sessions";
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
@@ -32,13 +32,10 @@ export async function GET(request:Request){
     authorizeOwnerRequest(request,false,(await cookies()).get(OWNER_COOKIE)?.value);
     const db=getDatabase();
     const status=new URL(request.url).searchParams.get("status");
-    if(status && !["OPEN","ACKNOWLEDGED","AWAITING_VERIFICATION","VERIFIED","DECLINED","CANCELLED"].includes(status))
+    if(status!==null&&!isOwnerActionStatus(status))
       return NextResponse.json({error:"Invalid status"},{status:400});
-    const records=await db.query(
-      "SELECT a.action_id,a.title,a.action_type,a.instructions,a.requested_permissions,a.secure_entry_location,a.price_estimate_cents,a.status,a.created_at,a.updated_at,COALESCE(json_agg(json_build_object('repositoryId',d.repository_id,'unitId',d.unit_id)) FILTER (WHERE d.repository_id IS NOT NULL),'[]'::json) AS affected FROM owner_actions a LEFT JOIN owner_action_dependents d ON d.action_id=a.action_id WHERE ($1::text IS NULL OR a.status=$1) GROUP BY a.action_id ORDER BY CASE WHEN a.status IN ('OPEN','ACKNOWLEDGED','AWAITING_VERIFICATION') THEN 0 ELSE 1 END,a.created_at ASC LIMIT 100",
-      [status]
-    );
-    return NextResponse.json({actions:records.rows},{headers:noStore});
+    const actions=await listOwnerActions(db,status);
+    return NextResponse.json({actions},{headers:noStore});
   }catch(error){
     if(error instanceof OwnerOriginRejected)return NextResponse.json({error:"Origin rejected"},{status:403});
     if(error instanceof UnauthorizedOwner)return NextResponse.json({error:"Unauthorized"},{status:401});
