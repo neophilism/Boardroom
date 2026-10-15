@@ -11,7 +11,7 @@
   "priority": "highest",
   "schemaVersion": 1,
   "roadmapVersion": 2,
-  "observedAt": "2026-10-15T10:55:00Z",
+  "observedAt": "2026-10-15T11:04:00Z",
   "units": [
     {
       "id": "BR-001",
@@ -1188,7 +1188,10 @@
       "id": "BR-050",
       "title": "End-of-session Coffee Corner service step",
       "origin": "original",
-      "prs": [],
+      "prs": [
+        42,
+        96
+      ],
       "priority": "P0",
       "phase": "F5",
       "dependsOn": [
