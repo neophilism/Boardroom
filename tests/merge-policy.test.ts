@@ -1,17 +1,18 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {mergeBlockers,aggregateLinkedPrState,type MergeFacts} from "../src/server/merge-policy.ts";
+import {mergeBlockers,aggregateLinkedPrState,mergeDenialAuditDetails,type MergeFacts} from "../src/server/merge-policy.ts";
 const facts:MergeFacts={draft:false,state:"open",headSha:"a".repeat(40),expectedSha:"a".repeat(40),
   branch:"boardroom/BR-038",expectedBranch:"boardroom/BR-038",repositoryId:"1",expectedRepositoryId:"1",
   mergeStateStatus:"CLEAN",reviewDecision:null,checks:[{id:1,name:"verify",status:"completed",conclusion:"success"}],
-  checkTotal:1,statuses:[],reviews:[]};
+  checkTotal:1,suites:[],suiteTotal:0,statuses:[],reviews:[]};
 const policy={auto_merge:true,required_checks:["verify"],minimum_reviews:0};
 test("only owner-enabled, current-head, correctly scoped green PRs are eligible",()=>{
   assert.deepEqual(mergeBlockers(policy,facts),[]);
   for(const patch of [{auto_merge:false},{required_checks:[]},{required_checks:["security"]},{minimum_reviews:1}])
     assert.ok(mergeBlockers({...policy,...patch},facts).length);
   for(const patch of [{draft:true},{expectedSha:"b".repeat(40)},{repositoryId:"2"},{mergeStateStatus:"BLOCKED"},
-    {reviewDecision:"REVIEW_REQUIRED"},{checkTotal:2},{checks:[]},
+    {reviewDecision:"REVIEW_REQUIRED"},{checkTotal:2},{checks:[]},{suiteTotal:1},
+    {suites:[{id:2,status:"completed",conclusion:"failure"}],suiteTotal:1},
     {reviews:[{login:"owner",state:"CHANGES_REQUESTED",commitId:facts.headSha}]}])
     assert.ok(mergeBlockers(policy,{...facts,...patch}).length);
 });
@@ -30,4 +31,11 @@ test("one merged PR cannot complete a unit with another open or missing linked P
   assert.equal(aggregateLinkedPrState("BR-038",[1,2],[open],1),"OPEN_PR");
   assert.equal(aggregateLinkedPrState("BR-038",[1,2],[],1),"UNKNOWN");
   assert.equal(aggregateLinkedPrState("BR-038",[1,2],[{...open,state:"closed",merged_at:"2026-10-12T00:00:00Z"}],1),"MERGED");
+});
+
+test("merge policy denials produce bounded durable audit details",()=>{
+  const details=mergeDenialAuditDetails("BR-038",42,facts.headSha,
+    ["HEAD_CHANGED","REQUIRED_CHECK_MISSING","HEAD_CHANGED"]);
+  assert.deepEqual(details,{unitId:"BR-038",number:42,headSha:facts.headSha,
+    reasons:["HEAD_CHANGED","REQUIRED_CHECK_MISSING"]});
 });
