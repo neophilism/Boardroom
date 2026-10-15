@@ -17,6 +17,7 @@ const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]
 const locator=/^[A-Za-z0-9][A-Za-z0-9._:/-]{2,240}$/;
 const secretName=/^[A-Z][A-Z0-9_]{2,120}$/;
 const evidenceId=/^[A-Za-z0-9][A-Za-z0-9._:/-]{2,180}$/;
+const apparentCredentialValue=/(?:github_pat_|gh[pousr]_|sk-[A-Za-z0-9_-]{12,}|private.?key)/i;
 
 export function credentialReferenceLocation(reference:CredentialReference):string{
   return `${reference.provider}://${reference.locator}/${reference.secretName}`;
@@ -27,7 +28,7 @@ export function parseCredentialReference(value:unknown):CredentialReference{
   const item=value as Record<string,unknown>;
   if(typeof item.provider!=="string"||!CREDENTIAL_REFERENCE_PROVIDERS.includes(item.provider as CredentialReferenceProvider))
     throw new CredentialHandoffRejected("Unsupported secret-store provider");
-  if(typeof item.locator!=="string"||!locator.test(item.locator)||item.locator.includes("//"))
+  if(typeof item.locator!=="string"||!locator.test(item.locator)||item.locator.includes("//")||apparentCredentialValue.test(item.locator))
     throw new CredentialHandoffRejected("Invalid secret-store locator");
   if(typeof item.secretName!=="string"||!secretName.test(item.secretName))
     throw new CredentialHandoffRejected("Invalid secret reference name");
@@ -59,11 +60,12 @@ export async function verifyCredentialHandoff(
     throw new CredentialHandoffRejected("Credential reference does not match the approved secure-entry destination");
   const requiredCapabilities=capabilityList(record.requested_permissions);
   const result=await probe({reference,requiredCapabilities:[...requiredCapabilities]});
-  const capabilities=capabilityList(result.capabilities,false).filter(item=>requiredCapabilities.includes(item));
+  const reportedCapabilities=capabilityList(result.capabilities,false).filter(item=>requiredCapabilities.includes(item));
   const safeEvidenceId=result.evidenceId===null?null:
-    typeof result.evidenceId==="string"&&evidenceId.test(result.evidenceId)?result.evidenceId:
+    typeof result.evidenceId==="string"&&evidenceId.test(result.evidenceId)&&!apparentCredentialValue.test(result.evidenceId)?result.evidenceId:
       (()=>{throw new CredentialHandoffRejected("Invalid provider evidence identifier")})();
   const present=result.present===true;
+  const capabilities=present?reportedCapabilities:[];
   const verified=present&&requiredCapabilities.every(item=>capabilities.includes(item));
   const outcome={actionId,present,verified,capabilities,evidenceId:safeEvidenceId};
   await db.query(
