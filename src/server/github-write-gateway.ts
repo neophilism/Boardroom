@@ -121,6 +121,23 @@ async function defaultBranch(path:string):Promise<{base:string;sha:string}>{
   if(!validSha(ref.object?.sha))throw new GitHubAppError(503);
   return {base,sha:ref.object.sha};
 }
+type ExistingPullRequest={number:number;html_url:string;draft:boolean;title:string;body:string|null;base:{ref:string}};
+export function canonicalPullRequest(unitId:string,title:string,description:string){
+  return {
+    title:(unitId+": "+title).slice(0,220),
+    body:description||"Boardroom work unit "+unitId+". Requires verified checks and review before merging.",
+    updateBody:description.length>0
+  };
+}
+export function pullRequestChanges(existing:ExistingPullRequest,
+  intended:ReturnType<typeof canonicalPullRequest>,defaultBase:string){
+  const changes:{title?:string;body?:string;base?:string}={};
+  if(existing.title!==intended.title)changes.title=intended.title;
+  if(intended.updateBody&&existing.body!==intended.body)changes.body=intended.body;
+  if(existing.base.ref!==defaultBase)changes.base=defaultBase;
+  return changes;
+}
+
 async function doWrite(scope:RepoScope,op:GithubWrite){
   const {owner,name}=repoParts(scope.full_name);
   const repoPath="/repos/"+encodeURIComponent(owner)+"/"+encodeURIComponent(name);
@@ -182,17 +199,23 @@ async function doWrite(scope:RepoScope,op:GithubWrite){
       blobSha:result.content?.sha??null,commitSha:result.commit?.sha??null};
   }
   const {base}=await defaultBranch(repoPath);
+  const intended=canonicalPullRequest(scope.unit_id,scope.title,op.description);
   const open=await githubAppRequest("GET",
     repoPath+"/pulls?state=open&head="+encodeURIComponent(owner+":"+branch)+"&per_page=5") as
-    Array<{number:number;html_url:string;draft:boolean}>;
+    ExistingPullRequest[];
   if(open.length){
-    return {kind:"open_draft_pr",number:open[0].number,url:open[0].html_url,replay:true};
+    const onDefaultBase=open.filter(pr=>pr.base.ref===base);
+    const existing=onDefaultBase.length===1?onDefaultBase[0]:open.length===1?open[0]:null;
+    if(!existing)throw new SessionConflict("Multiple open PRs exist for the assigned work branch");
+    const changes=pullRequestChanges(existing,intended,base);
+    const updated=Object.keys(changes).length>0
+      ?await githubAppRequest("PATCH",repoPath+"/pulls/"+existing.number,changes) as ExistingPullRequest
+      :existing;
+    return {kind:"open_draft_pr",number:updated.number,url:updated.html_url,replay:true,
+      updated:Object.keys(changes).length>0};
   }
   const created=await githubAppRequest("POST",repoPath+"/pulls",{
-    head:branch,base,
-    title:(scope.unit_id+": "+scope.title).slice(0,220),
-    body:op.description||"Boardroom work unit "+scope.unit_id+". Requires verified checks and review before merging.",
-    draft:true
+    head:branch,base,title:intended.title,body:intended.body,draft:true
   }) as {number:number;html_url:string};
   return {kind:"open_draft_pr",number:created.number,url:created.html_url,replay:false};
 }
