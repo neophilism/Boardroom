@@ -41,6 +41,11 @@ export function riskApprovalActionKey(intent:RiskIntent):string{
   return `approval:${intent.category.toLowerCase()}:${riskIntentDigest(intent)}`;
 }
 
+export function isRiskApprovalKey(value:string):boolean{
+  const categories=RISK_CATEGORIES.map(category=>category.toLowerCase()).join("|");
+  return new RegExp(`^approval:(?:${categories}):[a-f0-9]{64}$`).test(value);
+}
+
 export function renderRiskApprovalRequest(session:RiskApprovalSession,value:unknown){
   if(!uuid.test(session.runId)||!generation.test(session.generation))throw new RiskApprovalRejected("Valid authorized session required");
   const intent=parseRiskIntent(value);
@@ -64,8 +69,7 @@ export async function verifyRiskApproval(db:Pool,actionId:string):Promise<{actio
       [actionId]
     );
     const action=result.rows[0];
-    const category=RISK_CATEGORIES.map(value=>value.toLowerCase()).join("|");
-    if(!action||action.action_type!=="APPROVAL"||!new RegExp(`^approval:(?:${category}):[a-f0-9]{64}$`).test(action.action_key)||
+    if(!action||action.action_type!=="APPROVAL"||!isRiskApprovalKey(action.action_key)||
        !["OPEN","ACKNOWLEDGED","AWAITING_VERIFICATION"].includes(action.status))
       throw new RiskApprovalRejected("Risk approval is unavailable or already final");
     await client.query("UPDATE owner_actions SET status='VERIFIED',updated_at=now(),resolved_at=now() WHERE action_id=$1",[actionId]);
