@@ -1,4 +1,4 @@
-import type {Pool,PoolClient} from "pg";
+import type {Pool} from "pg";
 
 export class OwnerActionResolutionRejected extends Error {}
 
@@ -77,7 +77,7 @@ export async function respondToOwnerAction(db:Pool,actionId:string,rawResponse:u
 }
 
 export async function resolveVerifiedOwnerAction(
-  db:Pool|PoolClient,actionId:string,verification:OwnerActionVerification
+  db:Pool,actionId:string,verification:OwnerActionVerification
 ):Promise<{actionId:string;status:"VERIFIED";requeued:{repositoryId:string;unitId:string|null}[]}>{
   parseActionId(actionId);
   if(!verification||verification.verified!==true||typeof verification.kind!=="string"||
@@ -85,8 +85,7 @@ export async function resolveVerifiedOwnerAction(
       typeof verification.evidenceId!=="string"||!evidenceId.test(verification.evidenceId)||
       apparentSecret.test(verification.evidenceId))
     throw new OwnerActionResolutionRejected("Verified bounded fulfillment evidence required");
-  const owned="connect" in db?await db.connect():null;
-  const client=owned??db;
+  const client=await db.connect();
   let committed=false;
   try{
     await client.query("BEGIN");
@@ -99,10 +98,16 @@ export async function resolveVerifiedOwnerAction(
       throw new OwnerActionResolutionRejected("Risk approvals use the exact approval verifier");
     if(action.status!=="AWAITING_VERIFICATION")
       throw new OwnerActionResolutionRejected("Owner action is not awaiting verification");
-    const dependents=await client.query<{repository_id:string;unit_id:string|null}>(
-      "SELECT repository_id::text,unit_id FROM owner_action_dependents WHERE action_id=$1 ORDER BY repository_id,unit_id NULLS FIRST",
-      [actionId]
-    );
+    const dependents=await client.query<{repository_id:string;unit_id:string|null}>(`
+      SELECT d.repository_id::text,d.unit_id FROM owner_action_dependents d
+      WHERE d.action_id=$1 AND NOT EXISTS(
+        SELECT 1 FROM owner_action_dependents other
+        JOIN owner_actions a ON a.action_id=other.action_id
+        WHERE other.action_id<>$1 AND other.repository_id=d.repository_id
+          AND (other.unit_id IS NULL OR d.unit_id IS NULL OR other.unit_id=d.unit_id)
+          AND a.status NOT IN ('VERIFIED','CANCELLED')
+      )
+      ORDER BY d.repository_id,d.unit_id NULLS FIRST`,[actionId]);
     await client.query(
       "UPDATE owner_actions SET status='VERIFIED',updated_at=now(),resolved_at=now() WHERE action_id=$1",[actionId]
     );
@@ -113,5 +118,5 @@ export async function resolveVerifiedOwnerAction(
     await client.query("COMMIT");committed=true;
     return {actionId,status:"VERIFIED",requeued};
   }catch(error){if(!committed)await client.query("ROLLBACK");throw error;}
-  finally{owned?.release();}
+  finally{client.release();}
 }
