@@ -1,10 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {mergeBlockers,aggregateLinkedPrState,type MergeFacts} from "../src/server/merge-policy.ts";
+const suite={id:2,status:"completed",conclusion:"success",app:{name:"Actions"}} as const;
 const facts:MergeFacts={draft:false,state:"open",headSha:"a".repeat(40),expectedSha:"a".repeat(40),
   branch:"boardroom/BR-038",expectedBranch:"boardroom/BR-038",repositoryId:"1",expectedRepositoryId:"1",
   mergeStateStatus:"CLEAN",reviewDecision:null,checks:[{id:1,name:"verify",status:"completed",conclusion:"success"}],
-  checkTotal:1,suites:[{id:2,status:"completed",conclusion:"success",app:{name:"Actions"}}],
+  checkTotal:1,suites:[suite],
   suiteTotal:1,statuses:[],reviews:[]};
 const policy={auto_merge:true,required_checks:["verify"],minimum_reviews:0};
 test("only owner-enabled, current-head, correctly scoped green PRs are eligible",()=>{
@@ -13,15 +14,15 @@ test("only owner-enabled, current-head, correctly scoped green PRs are eligible"
     assert.ok(mergeBlockers({...policy,...patch},facts).length);
   for(const patch of [{draft:true},{expectedSha:"b".repeat(40)},{repositoryId:"2"},{mergeStateStatus:"BLOCKED"},
     {reviewDecision:"REVIEW_REQUIRED"},{checkTotal:2},{checks:[]},{suiteTotal:2},
-    {suites:[{...facts.suites[0],conclusion:"failure"}]},
+    {suites:[{...suite,conclusion:"failure"}]},
     {reviews:[{login:"owner",state:"CHANGES_REQUESTED",commitId:facts.headSha}]}])
     assert.ok(mergeBlockers(policy,{...facts,...patch}).length);
 });
 test("suite failures, pending suites and truncated suite pages block merge",()=>{
   assert.ok(mergeBlockers(policy,{...facts,
-    suites:[{...facts.suites[0],conclusion:"failure"}]}).includes("CHECKS_NOT_PASSING"));
+    suites:[{...suite,conclusion:"failure"}]}).includes("CHECKS_NOT_PASSING"));
   assert.ok(mergeBlockers(policy,{...facts,
-    suites:[{...facts.suites[0],status:"in_progress",conclusion:null}]}).includes("CHECKS_NOT_PASSING"));
+    suites:[{...suite,status:"in_progress",conclusion:null}]}).includes("CHECKS_NOT_PASSING"));
   assert.ok(mergeBlockers(policy,{...facts,suiteTotal:2}).includes("CHECKS_NOT_PASSING"));
 });
 test("reviews must approve the current head and later change requests defeat an earlier approval",()=>{
