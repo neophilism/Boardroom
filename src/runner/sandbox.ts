@@ -70,3 +70,38 @@ export class CodingSandbox{
   }
   async dispose(){for(const name of this.#containers)await this.#remove(name);this.#containers.clear();await rm(this.directory,{recursive:true,force:true});}
 }
+
+
+export type AssignedRepositorySnapshot={
+  repository:string;headSha:string;entries:{path:string;sha:string;size?:number}[];
+};
+type LoadedBlob={path:string;sha:string;contentBase64:string;snapshotSha:string};
+
+/** Materialize only the server-fenced immutable snapshot for the assigned repository. */
+export async function loadAssignedRepositorySandbox(
+  snapshot:AssignedRepositorySnapshot,assignedRepository:string,
+  loadBlob:(entry:AssignedRepositorySnapshot["entries"][number])=>Promise<LoadedBlob>,
+  signal:AbortSignal
+){
+  if(snapshot.repository!==assignedRepository||!/^[0-9a-f]{40}$/i.test(snapshot.headSha))
+    throw new SandboxFailure("Assigned repository snapshot mismatch");
+  if(snapshot.entries.length>1000||snapshot.entries.reduce((n,e)=>n+(e.size??0),0)>30000000)
+    throw new SandboxFailure("Repository snapshot exceeds hosted sandbox limits");
+  const sandbox=await CodingSandbox.create();
+  try{
+    for(const entry of snapshot.entries){
+      signal.throwIfAborted();
+      const blob=await loadBlob(entry);
+      if(blob.path!==entry.path||blob.sha!==entry.sha||blob.snapshotSha!==snapshot.headSha)
+        throw new SandboxFailure("Repository blob does not match the assigned snapshot");
+      const bytes=Buffer.from(blob.contentBase64,"base64");
+      if(entry.size!==undefined&&bytes.length!==entry.size)
+        throw new SandboxFailure("Repository blob size does not match the assigned snapshot");
+      await sandbox.put(entry.path,bytes);
+    }
+    return sandbox;
+  }catch(error){
+    await sandbox.dispose();
+    throw error;
+  }
+}
