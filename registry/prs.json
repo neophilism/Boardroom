@@ -11,7 +11,7 @@
   "priority": "highest",
   "schemaVersion": 1,
   "roadmapVersion": 2,
-  "observedAt": "2026-10-15T07:32:00Z",
+  "observedAt": "2026-10-15T07:53:00Z",
   "units": [
     {
       "id": "BR-001",
@@ -605,7 +605,9 @@
       "id": "BR-026",
       "title": "Owner action detail and evidence view",
       "origin": "original",
-      "prs": [],
+      "prs": [
+        72
+      ],
       "priority": "P0",
       "phase": "F3",
       "dependsOn": [
