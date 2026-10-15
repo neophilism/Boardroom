@@ -2844,19 +2844,19 @@
       "mergeCommitSha": "6362c500b774c39fe2025562306505aa91f2c2de"
     },
     {
-      "id": 4869438892,
+      "id": 4869463471,
       "number": 66,
       "title": "BR-019: Complete repository selection conformance",
       "url": "https://github.com/neophilism/Boardroom/pull/66",
       "state": "open",
       "draft": true,
       "createdAt": "2026-10-15T06:57:07Z",
-      "updatedAt": "2026-10-15T06:57:07Z",
+      "updatedAt": "2026-10-15T06:57:30Z",
       "closedAt": null,
       "mergedAt": null,
-      "headSha": "f801c56d3952f12e8f4c6c13d2e5fceebd2b6f27",
+      "headSha": "c3bfdd51f6de0d65a600fec9b570f0392de918a6",
       "baseRef": "main",
-      "mergeCommitSha": null
+      "mergeCommitSha": "302c85b113fea957c81c481fa42eeafaad0a771a"
     }
   ]
 }
