@@ -20,7 +20,8 @@ export async function POST(request:Request){
     const data=await openCoffeeThread(db,agent.credentialId,{
       runId,generation:typeof item.generation==="string"?item.generation:undefined,
       repositoryId:typeof item.repositoryId==="number"?item.repositoryId:undefined,
-      subject:item.subject,question:item.question,evidence:item.evidence
+      subject:item.subject,question:item.question,evidence:item.evidence,
+      classification:item.classification,deadlineAt:item.deadlineAt
     });
     return NextResponse.json(data,{status:data.reused?200:201,headers:{"Cache-Control":"no-store"}});
   }catch(e){

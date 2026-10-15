@@ -6,6 +6,20 @@ const secretPattern=/(?:github_pat_[A-Za-z0-9_]{12,}|gh[pousr]_[A-Za-z0-9]{20,}|
 const sensitivePattern=/(?:\b\d{3}-\d{2}-\d{4}\b|\b(?:\d[ -]*?){13,19}\b)/;
 const workPattern=/\b(repo|repository|code|bug|pull request|PR\b|test|architecture|API|integration|migration|deployment|schema|dependency|build|CI|typescript|github|render|neon|database|service|implementation|config|security|contract)\b/i;
 export class CoffeeError extends Error {constructor(message:string){super(message);this.name="CoffeeError";}}
+export const COFFEE_BLOCKER_CLASSIFICATIONS=["TECHNICAL","DEPENDENCY","TEST_FAILURE","ARCHITECTURE"] as const;
+export type CoffeeBlockerClassification=typeof COFFEE_BLOCKER_CLASSIFICATIONS[number];
+
+export function normalizeCoffeeQuestionMetadata(classification:unknown,deadlineAt:unknown,now=new Date()){
+  const value=classification??"TECHNICAL";
+  if(typeof value!=="string"||!COFFEE_BLOCKER_CLASSIFICATIONS.includes(value as CoffeeBlockerClassification))
+    throw new CoffeeError("Valid engineering blocker classification required");
+  if(deadlineAt===undefined||deadlineAt===null)return {classification:value as CoffeeBlockerClassification,deadlineAt:null};
+  if(typeof deadlineAt!=="string"||deadlineAt.length>64)throw new CoffeeError("Invalid question deadline");
+  const timestamp=Date.parse(deadlineAt),limit=now.getTime()+366*24*60*60*1000;
+  if(!Number.isFinite(timestamp)||timestamp<=now.getTime()||timestamp>limit)
+    throw new CoffeeError("Question deadline must be within the next year");
+  return {classification:value as CoffeeBlockerClassification,deadlineAt:new Date(timestamp).toISOString()};
+}
 
 export function validateCoffeeText(value:unknown,maxLength=3500):string{
   if(typeof value!=="string"||value.trim().length<15||value.length>maxLength)
@@ -32,11 +46,13 @@ async function ensureAgent(client:PoolClient,runId:string,credentialId:string):P
   );
   if(q.rowCount!==1)throw new CoffeeError("No authorized active agent session");
 }
-type ThreadInput={runId:string;generation?:string;repositoryId?:number;unitId?:string;subject:unknown;question:unknown;evidence?:unknown};
+type ThreadInput={runId:string;generation?:string;repositoryId?:number;unitId?:string;subject:unknown;question:unknown;evidence?:unknown;
+  classification?:unknown;deadlineAt?:unknown};
 export async function openCoffeeThread(db:Pool,credentialId:string,input:ThreadInput){
   const subject=validateCoffeeText(input.subject,180);
   const question=validateCoffeeText(input.question);
   const evidence=validateEvidence(input.evidence);
+  const metadata=normalizeCoffeeQuestionMetadata(input.classification,input.deadlineAt);
   const client=await db.connect();
   try{
     await client.query("BEGIN");
@@ -70,8 +86,8 @@ export async function openCoffeeThread(db:Pool,credentialId:string,input:ThreadI
       return {threadId:duplicate.rows[0].thread_id,status:duplicate.rows[0].status,reused:true};
     }
     const row=await client.query<{thread_id:string}>(
-      "INSERT INTO coffee_threads(repository_id,unit_id,subject,opened_by_run_id) VALUES($1,$2,$3,$4) RETURNING thread_id",
-      [repoId,unitId,subject,input.runId]
+      "INSERT INTO coffee_threads(repository_id,unit_id,subject,opened_by_run_id,blocker_classification,deadline_at) VALUES($1,$2,$3,$4,$5,$6) RETURNING thread_id",
+      [repoId,unitId,subject,input.runId,metadata.classification,metadata.deadlineAt]
     );
     await client.query(
       "INSERT INTO coffee_messages(thread_id,author_run_id,content,evidence,message_kind) VALUES($1,$2,$3,$4::jsonb,'QUESTION')",
@@ -80,7 +96,7 @@ export async function openCoffeeThread(db:Pool,credentialId:string,input:ThreadI
     await client.query("INSERT INTO audit_events(run_id,repository_id,kind,details) VALUES($1,$2,'coffee.question.created',$3::jsonb)",
       [input.runId,repoId,JSON.stringify({threadId:row.rows[0].thread_id})]);
     await client.query("COMMIT");
-    return {threadId:row.rows[0].thread_id,status:"OPEN",reused:false};
+    return {threadId:row.rows[0].thread_id,status:"OPEN",reused:false,...metadata};
   }catch(e){await client.query("ROLLBACK");throw e}finally{client.release()}
 }
 export async function answerCoffeeThread(
