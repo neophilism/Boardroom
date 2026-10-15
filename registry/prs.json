@@ -11,7 +11,7 @@
   "priority": "highest",
   "schemaVersion": 1,
   "roadmapVersion": 2,
-  "observedAt": "2026-10-15T06:53:00Z",
+  "observedAt": "2026-10-15T06:58:00Z",
   "units": [
     {
       "id": "BR-001",
@@ -441,7 +441,9 @@
       "id": "BR-019",
       "title": "Repository selection conformance suite",
       "origin": "original",
-      "prs": [],
+      "prs": [
+        66
+      ],
       "priority": "P0",
       "phase": "F2",
       "dependsOn": [
@@ -2840,6 +2842,21 @@
       "headSha": "c75437080832e05fba27f0f0d257fefc4f2a104a",
       "baseRef": "main",
       "mergeCommitSha": "6362c500b774c39fe2025562306505aa91f2c2de"
+    },
+    {
+      "id": 4869438892,
+      "number": 66,
+      "title": "BR-019: Complete repository selection conformance",
+      "url": "https://github.com/neophilism/Boardroom/pull/66",
+      "state": "open",
+      "draft": true,
+      "createdAt": "2026-10-15T06:57:07Z",
+      "updatedAt": "2026-10-15T06:57:07Z",
+      "closedAt": null,
+      "mergedAt": null,
+      "headSha": "f801c56d3952f12e8f4c6c13d2e5fceebd2b6f27",
+      "baseRef": "main",
+      "mergeCommitSha": null
     }
   ]
 }
