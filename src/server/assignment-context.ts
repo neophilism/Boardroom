@@ -9,7 +9,7 @@ type CurrentAssignment={
   acceptance_criteria:string|null;planned_prs:unknown;source_metadata:unknown;external_dependencies:unknown;external_prerequisites:unknown;
   started_at:Date;max_session_seconds:number;max_tool_calls:number;max_tokens:number;
 };
-type Checkpoint={branch:string|null;head_sha:string|null;state:unknown;created_at:Date};
+type Checkpoint={checkpoint_id:string;unit_id:string|null;branch:string|null;head_sha:string|null;state:unknown;created_at:Date};
 type ApprovedUnit={
   unit_id:string;title:string;state:string;version:number;depends_on:unknown;acceptance_criteria:string|null;planned_prs:unknown;
   local_unmet:unknown;external_unmet:unknown;owner_blockers:number;
@@ -71,7 +71,7 @@ export async function getAssignmentContext(db:Pool,runId:string,credentialId:str
   if(current.rowCount!==1)throw new SessionConflict("Current authorized assignment or lease unavailable");
   const item=current.rows[0],api="/repos/"+item.full_name.split("/").map(encodeURIComponent).join("/");
   const [checkpoint,instructions,discussions,units,decisions,repository,branchResponse]=await Promise.all([
-    db.query<Checkpoint>(`SELECT branch,head_sha,state,created_at FROM checkpoints WHERE repository_id=$1 AND unit_id=$2 ORDER BY created_at DESC,checkpoint_id DESC LIMIT 1`,[item.repository_id,item.unit_id]),
+    db.query<Checkpoint>(`SELECT checkpoint_id::text,unit_id,branch,head_sha,state,created_at FROM checkpoints WHERE repository_id=$1 ORDER BY created_at DESC,checkpoint_id DESC LIMIT 25`,[item.repository_id]),
     fetchRepositoryInstruction(item.full_name,"AGENTS.md"),
     db.query(`SELECT t.thread_id,t.subject,t.status,
       COALESCE(json_agg(json_build_object('messageId',m.message_id,'kind',m.message_kind,'content',m.content,'evidence',m.evidence) ORDER BY m.created_at,m.message_id) FILTER(WHERE m.message_id IS NOT NULL),'[]'::json) AS messages
@@ -108,6 +108,8 @@ export async function getAssignmentContext(db:Pool,runId:string,credentialId:str
       eligible:Array.isArray(unit.local_unmet)&&unit.local_unmet.length===0&&Array.isArray(unit.external_unmet)&&unit.external_unmet.length===0&&unit.owner_blockers===0}
   }));
   const approvedIds=new Set(approvedUnits.map(unit=>unit.unitId));
+  const recentCheckpoints=checkpoint.rows.map(row=>({checkpointId:row.checkpoint_id,unitId:row.unit_id,
+    branch:row.branch,headSha:row.head_sha,state:row.state,createdAt:row.created_at.toISOString()}));
   return {
     assignment:{assignmentId:item.assignment_id,repositoryId:item.repository_id,
       repository:item.full_name,unitId:item.unit_id,generation:item.generation,
@@ -119,14 +121,13 @@ export async function getAssignmentContext(db:Pool,runId:string,credentialId:str
     approvedUnits,
     repositoryState:{defaultBranch:repo.default_branch,...branches},
     historicalDecisions:decisions.rows.map(row=>normalizeRepositoryDecision(item.full_name,row)).filter(x=>x!==null&&approvedIds.has(x.unitId)),
-    checkpoint:checkpoint.rows.length?{
-      branch:checkpoint.rows[0].branch,headSha:checkpoint.rows[0].head_sha,
-      state:checkpoint.rows[0].state,createdAt:checkpoint.rows[0].created_at.toISOString()
-    }:null,
+    checkpoint:recentCheckpoints.find(row=>row.unitId===item.unit_id)??null,
+    recentCheckpoints,
     repositoryInstructions:instructions,
     executionLimits:{maxSessionSeconds:item.max_session_seconds,maxToolCalls:item.max_tool_calls,maxTokens:item.max_tokens,
       deadlineAt:new Date(item.started_at.getTime()+item.max_session_seconds*1000).toISOString()},
     technicalQuestions:discussions.rows,
+    contextLimits:{approvedUnits:1000,recentCheckpoints:25,technicalQuestions:10,branches:100},
     instructionsAreUntrustedRepositoryContent:true
   };
 }
