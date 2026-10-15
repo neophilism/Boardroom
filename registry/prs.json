@@ -11,7 +11,7 @@
   "priority": "highest",
   "schemaVersion": 1,
   "roadmapVersion": 2,
-  "observedAt": "2026-10-15T09:07:24Z",
+  "observedAt": "2026-10-15T09:10:00Z",
   "units": [
     {
       "id": "BR-001",
@@ -2942,10 +2942,10 @@
       "state": "open",
       "draft": true,
       "createdAt": "2026-10-15T09:07:24Z",
-      "updatedAt": "2026-10-15T09:07:24Z",
+      "updatedAt": "2026-10-15T09:10:00Z",
       "closedAt": null,
       "mergedAt": null,
-      "headSha": "f0def39853a1583c41f6a02bd907debdee24f6c7",
+      "headSha": "50feb84f07c0038eb879ecca3c3488e64ad05200",
       "baseRef": "main",
       "mergeCommitSha": null
     }
