@@ -11,7 +11,7 @@
   "priority": "highest",
   "schemaVersion": 1,
   "roadmapVersion": 2,
-  "observedAt": "2026-10-15T09:29:07Z",
+  "observedAt": "2026-10-15T09:28:50Z",
   "units": [
     {
       "id": "BR-001",
@@ -849,7 +849,9 @@
       "id": "BR-036",
       "title": "Work-unit-linked PR creation and updates",
       "origin": "original",
-      "prs": [],
+      "prs": [
+        85
+      ],
       "priority": "P0",
       "phase": "F4",
       "dependsOn": [
@@ -2968,19 +2970,19 @@
       "mergeCommitSha": null
     },
     {
-      "id": 4871090684,
-      "number": 82,
-      "title": "BR-034: Prove fenced gateway denial",
-      "url": "https://github.com/neophilism/Boardroom/pull/82",
+      "number": 85,
+      "title": "BR-036: Link and update work-unit pull requests",
+      "url": "https://github.com/neophilism/Boardroom/pull/85",
       "state": "open",
       "draft": true,
-      "createdAt": "2026-10-15T09:27:07Z",
-      "updatedAt": "2026-10-15T09:29:07Z",
+      "createdAt": "2026-10-15T09:28:50Z",
+      "updatedAt": "2026-10-15T09:29:23Z",
       "closedAt": null,
       "mergedAt": null,
-      "headSha": "ccadeb76134ca66cd05cb0029892761e1ac4be04",
+      "headSha": "9d64cf1b34d41fe176162370f3e68c2f0c13007d",
       "baseRef": "main",
-      "mergeCommitSha": "35f4b5cb7b64477585deee2a0eebc7a90d165dcf"
+      "mergeCommitSha": null,
+      "id": 4871110439
     }
   ]
 }
