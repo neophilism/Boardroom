@@ -5,6 +5,7 @@ import {commitAssignedFiles} from "./github-atomic-commit.ts";
 import {assertWorkPrerequisites} from "./work-prerequisites.ts";
 
 type RepoScope={repository_id:string;full_name:string;unit_id:string;title:string};
+type GithubWriteExecutor=(scope:RepoScope,op:GithubWrite)=>Promise<unknown>;
 export type GithubWrite=
   |{kind:"ensure_branch"}
   |{kind:"commit_files";expectedHeadSha:string;message:string;files:{path:string;contentBase64:string|null}[]}
@@ -202,7 +203,7 @@ async function doWrite(scope:RepoScope,op:GithubWrite){
  * implement a lease-timeout-only takeover or issue raw installation tokens to agents.
  */
 export async function performFencedGithubWrite(db:Pool,runId:string,credentialId:string,
-  generation:string,op:GithubWrite){
+  generation:string,op:GithubWrite,write:GithubWriteExecutor=doWrite){
   if(!isValidRunId(runId)||!isValidGeneration(generation))
     throw new GithubWriteValidation("Invalid run identity");
   const client=await db.connect();
@@ -233,7 +234,7 @@ export async function performFencedGithubWrite(db:Pool,runId:string,credentialId
     if(pause.rows[0]?.paused)throw new SessionConflict("Owner paused execution");
     const scope=grant.rows[0];
     await assertWorkPrerequisites(client,scope.repository_id,scope.unit_id);
-    const result=await doWrite(scope,op);
+    const result=await write(scope,op);
     await client.query(
       "INSERT INTO audit_events(run_id,repository_id,kind,details) VALUES($1,$2,$3,$4::jsonb)",
       [runId,scope.repository_id,"github.write."+op.kind,
