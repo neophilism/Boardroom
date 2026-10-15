@@ -1,20 +1,28 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {CodingSandbox} from "../src/runner/sandbox.ts";
+import {CodingSandbox,materializeRepositorySnapshot} from "../src/runner/sandbox.ts";
 
 if(process.env.BOARDROOM_DOCKER_TESTS!=="true")throw new Error("Sandbox acceptance must be explicitly invoked on a disposable Docker-capable CI runner");
-test("real containers run checks without parent secrets, network or privileged mounts",async()=>{
+test("live worker materializes its assigned repository and runs checks without parent secrets, network or privileged mounts",async()=>{
   process.env.BOARDROOM_SECRET_SENTINEL="must-never-reach-repository-tests";
   const sandbox=await CodingSandbox.create();
   try{
-    await sandbox.put("package.json",JSON.stringify({name:"sandbox-fixture",version:"1.0.0",scripts:{test:"node check.mjs",postinstall:"node -e \"require('fs').writeFileSync('lifecycle-ran','yes')\""}}));
-    await sandbox.put("package-lock.json",JSON.stringify({name:"sandbox-fixture",version:"1.0.0",lockfileVersion:3,packages:{"":{name:"sandbox-fixture",version:"1.0.0"}}}));
-    await sandbox.put("check.mjs",`import assert from 'node:assert/strict';import {existsSync,writeFileSync} from 'node:fs';
+    const assignedRepository=new Map([
+      ["package.json",JSON.stringify({name:"assigned-repository",version:"1.0.0",scripts:{test:"node check.mjs",postinstall:"node -e \\"require('fs').writeFileSync('lifecycle-ran','yes')\\""}})],
+      ["package-lock.json",JSON.stringify({name:"assigned-repository",version:"1.0.0",lockfileVersion:3,packages:{"":{name:"assigned-repository",version:"1.0.0"}}})],
+      ["check.mjs",`import assert from 'node:assert/strict';import {existsSync,writeFileSync} from 'node:fs';
 assert.equal(process.env.BOARDROOM_SECRET_SENTINEL,undefined);assert.equal(process.env.OPENAI_API_KEY,undefined);assert.equal(process.env.BOARDROOM_AGENT_TOKEN,undefined);
 assert.equal(existsSync('/var/run/docker.sock'),false);assert.equal(existsSync('lifecycle-ran'),false);
-assert.throws(()=>writeFileSync('/root/outside.txt','no'));await assert.rejects(fetch('https://example.com',{signal:AbortSignal.timeout(3000)}));console.log('ISOLATION_VERIFIED');`);
+assert.throws(()=>writeFileSync('/root/outside.txt','no'));await assert.rejects(fetch('https://example.com',{signal:AbortSignal.timeout(3000)}));console.log('ASSIGNED_REPOSITORY_TESTS_PASSED');`)
+    ]);
+    const requested:string[]=[];
+    await materializeRepositorySnapshot(sandbox,[...assignedRepository.keys()].map(path=>({path})),async path=>{
+      requested.push(path);
+      return Buffer.from(assignedRepository.get(path)!).toString("base64");
+    },AbortSignal.timeout(60000));
+    assert.deepEqual(requested,[...assignedRepository.keys()]);
     const install=await sandbox.run("install",AbortSignal.timeout(60000));assert.equal(install.exitCode,0);
-    const checked=await sandbox.run("test",AbortSignal.timeout(60000));assert.equal(checked.exitCode,0,checked.output);assert.match(checked.output,/ISOLATION_VERIFIED/);
+    const checked=await sandbox.run("test",AbortSignal.timeout(60000));assert.equal(checked.exitCode,0,checked.output);assert.match(checked.output,/ASSIGNED_REPOSITORY_TESTS_PASSED/);
   }finally{delete process.env.BOARDROOM_SECRET_SENTINEL;await sandbox.dispose();}
 });
 test("cancellation terminates the actual container before cleanup returns",async()=>{
