@@ -90,13 +90,14 @@ export async function getAssignmentContext(db:Pool,runId:string,credentialId:str
       (SELECT COUNT(*)::integer FROM owner_action_dependents d JOIN owner_actions a ON a.action_id=d.action_id
         WHERE d.repository_id=w.repository_id AND (d.unit_id IS NULL OR d.unit_id=w.unit_id)
           AND a.status NOT IN ('VERIFIED','CANCELLED')) AS owner_blockers
-      FROM roadmap_units w WHERE w.repository_id=$1 AND w.approved=TRUE ORDER BY w.unit_id LIMIT 1000`,[item.repository_id]),
+      FROM roadmap_units w WHERE w.repository_id=$1 AND w.approved=TRUE ORDER BY w.unit_id LIMIT 1001`,[item.repository_id]),
     db.query<{unitId:string|null;adr:string|null;occurredAt:Date}>(`SELECT details->>'unitId' AS "unitId",details->>'adr' AS adr,occurred_at AS "occurredAt"
       FROM audit_events WHERE repository_id=$1 AND kind='coffee.answer.accepted_in_adr'
       ORDER BY occurred_at DESC,event_id DESC LIMIT 100`,[item.repository_id]),
     githubAppRequest("GET",api),
     githubAppRequest("GET",api+"/branches?per_page=101")
   ]);
+  if(units.rows.length>1000)throw new Error("Approved work-unit inventory exceeds supported context limit");
   const repo=repository as {default_branch?:unknown};
   if(typeof repo.default_branch!=="string"||repo.default_branch.length<1||repo.default_branch.length>255)
     throw new Error("Invalid GitHub repository context");
