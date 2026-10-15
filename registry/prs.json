@@ -11,7 +11,7 @@
   "priority": "highest",
   "schemaVersion": 1,
   "roadmapVersion": 2,
-  "observedAt": "2026-10-15T08:45:51Z",
+  "observedAt": "2026-10-15T08:57:13Z",
   "units": [
     {
       "id": "BR-001",
@@ -703,7 +703,9 @@
       "id": "BR-030",
       "title": "Action notifications, batching, and safe audit trail",
       "origin": "original",
-      "prs": [],
+      "prs": [
+        76
+      ],
       "priority": "P0",
       "phase": "F3",
       "dependsOn": [
@@ -2906,15 +2908,30 @@
       "number": 75,
       "title": "BR-029: Verify owner fulfillment and requeue dependent work",
       "url": "https://github.com/neophilism/Boardroom/pull/75",
-      "state": "open",
-      "draft": true,
+      "state": "closed",
+      "draft": false,
       "createdAt": "2026-10-15T08:45:51Z",
       "updatedAt": "2026-10-15T08:45:51Z",
+      "closedAt": "2026-10-15T08:51:49Z",
+      "mergedAt": "2026-10-15T08:51:49Z",
+      "headSha": "40e3a113a5617e72a4b21f5b6032c2dd5c40caa1",
+      "baseRef": "main",
+      "mergeCommitSha": "eac3c679bb0758c27ea0ce6ef85080bb92018671"
+    },
+    {
+      "id": 4870745080,
+      "number": 76,
+      "title": "BR-030: Batch redacted owner action reminders",
+      "url": "https://github.com/neophilism/Boardroom/pull/76",
+      "state": "open",
+      "draft": true,
+      "createdAt": "2026-10-15T08:57:13Z",
+      "updatedAt": "2026-10-15T08:57:13Z",
       "closedAt": null,
       "mergedAt": null,
-      "headSha": "ac452e007d42408cf4999cc0f70fa44e3b16d249",
+      "headSha": "42ccaa67526d797e2e04666d84f9cce2c7c94264",
       "baseRef": "main",
-      "mergeCommitSha": "873518acfab396e81a51eb55c09b908a8dd5b1da"
+      "mergeCommitSha": "ad1f6b7071d7c5d004a80ba8fd32b23b11d85075"
     }
   ]
 }
