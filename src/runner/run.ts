@@ -1,6 +1,6 @@
 import {BoardroomAgentClient,BoardroomRequestError,type Claimed,type SessionOutcome} from "../sdk/boardroom-agent-client.ts";
 import {ProviderSession,type ProviderName,type ToolDefinition} from "./provider.ts";
-import {CodingSandbox} from "./sandbox.ts";
+import {CodingSandbox,materializeRepositorySnapshot} from "./sandbox.ts";
 import {safeRepositoryPath,parseGithubWrite} from "../server/github-write-gateway.ts";
 import {checkpointProgress,resumablePrNumber,type ResumeProgress} from "./resume.ts";
 import {boundedWorkerLimits} from "../domain/execution-limits.ts";
@@ -108,11 +108,10 @@ export async function runHostedAgent(config:RunnerConfig,activationKey:string,si
     if(snapshot.entries.length>1000||snapshot.entries.reduce((n,e)=>n+(e.size??0),0)>30000000)
       throw new Error("Repository snapshot exceeds hosted sandbox limits");
     const next=await CodingSandbox.create();workspace.sandbox=next;
-    for(const entry of snapshot.entries){
-      controller.signal.throwIfAborted();
-      const data=await client.sourceBlob(runId,generation,entry.path,snapshot.headSha);
-      await next.put(entry.path,Buffer.from(data.contentBase64,"base64"));
-    }
+    await materializeRepositorySnapshot(next,snapshot.entries,async file=>{
+      const data=await client.sourceBlob(runId,generation,file,snapshot.headSha);
+      return data.contentBase64;
+    },controller.signal);
     return next;
   }
   try{
