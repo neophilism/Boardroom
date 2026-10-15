@@ -3,7 +3,7 @@ import {assignedScope,repositoryApiPath} from "./assignment-scope.ts";
 import {githubAppRequest,GitHubAppError,fetchPullRequests,type GitHubPull} from "./github-app.ts";
 import {titleWorkUnitIds} from "./roadmap-import.ts";
 import {safeWorkBranch} from "./github-write-gateway.ts";
-import {assessObservedChecks,type CheckRun,type LegacyStatus} from "./pr-evidence.ts";
+import {assessObservedChecks,type CheckRun,type CheckSuite,type LegacyStatus} from "./pr-evidence.ts";
 import {SessionConflict} from "./sessions.ts";
 import {assertWorkPrerequisites} from "./work-prerequisites.ts";
 
@@ -18,7 +18,8 @@ export function aggregateLinkedPrState(unitId:string,linked:number[],pulls:reado
 export type MergeFacts={
   draft:boolean;state:string;headSha:string;expectedSha:string;branch:string;expectedBranch:string;
   repositoryId:string;expectedRepositoryId:string;mergeStateStatus:string;reviewDecision:string|null;
-  checks:CheckRun[];checkTotal:number;statuses:LegacyStatus[];reviews:{login:string;state:string;commitId:string}[];
+  checks:CheckRun[];checkTotal:number;suites:CheckSuite[];suiteTotal:number;statuses:LegacyStatus[];
+  reviews:{login:string;state:string;commitId:string}[];
   requiredReviewerLogin?:string;
 };
 export function mergeBlockers(policy:MergePolicy,facts:MergeFacts):string[]{
@@ -30,7 +31,8 @@ export function mergeBlockers(policy:MergePolicy,facts:MergeFacts):string[]{
   if(facts.branch!==facts.expectedBranch||facts.repositoryId!==facts.expectedRepositoryId)blocked.push("PR_SCOPE_MISMATCH");
   if(facts.mergeStateStatus!=="CLEAN")blocked.push("GITHUB_MERGE_REQUIREMENTS_UNSATISFIED");
   if(facts.reviewDecision!==null&&facts.reviewDecision!=="APPROVED")blocked.push("GITHUB_REVIEW_REQUIRED");
-  if(assessObservedChecks(facts.checks,facts.checkTotal,facts.statuses)!=="OBSERVED_PASS")blocked.push("CHECKS_NOT_PASSING");
+  if(assessObservedChecks(facts.checks,facts.checkTotal,facts.statuses,
+    facts.suites,facts.suiteTotal)!=="OBSERVED_PASS")blocked.push("CHECKS_NOT_PASSING");
   const observed=new Set([...facts.checks.filter(c=>c.status==="completed"&&c.conclusion==="success").map(c=>c.name),
     ...facts.statuses.filter(s=>s.state==="success").map(s=>s.context)]);
   if(policy.required_checks.some(name=>!observed.has(name)))blocked.push("REQUIRED_CHECK_MISSING");
@@ -80,13 +82,17 @@ export async function mergeAssignedPullRequest(db:Pool,runId:string,credentialId
     const graph=observed.data?.repository?.pullRequest;
     if(!graph||observed.errors?.length||graph.headRefOid!==pr.head.sha)throw new SessionConflict("Authoritative merge requirements unavailable or head changed");
     const checked=await githubAppRequest("GET",api+"/commits/"+pr.head.sha+"/check-runs?per_page=100") as {total_count:number;check_runs:CheckRun[]};
+    const suiteResult=await githubAppRequest("GET",api+"/commits/"+pr.head.sha+"/check-suites?per_page=100") as {total_count:number;check_suites:CheckSuite[]};
     const statuses=await githubAppRequest("GET",api+"/commits/"+pr.head.sha+"/status?per_page=100") as {total_count:number;statuses:LegacyStatus[]};
+    if(!Array.isArray(checked.check_runs)||!Array.isArray(suiteResult.check_suites)||!Array.isArray(statuses.statuses))
+      throw new SessionConflict("Authoritative check evidence unavailable");
     if(statuses.total_count>100)throw new SessionConflict("Check status pagination incomplete");
     const reviews=await githubAppRequest("GET",api+"/pulls/"+number+"/reviews?per_page=100") as {user:{login:string};state:string;commit_id:string}[];
     if(!Array.isArray(reviews)||reviews.length===100)throw new SessionConflict("Review evidence requires pagination");
     const reasons=mergeBlockers(policy,{draft:pr.draft,state:pr.state,headSha:pr.head.sha,expectedSha,
       branch:pr.head.ref,expectedBranch:safeWorkBranch(scope.unit_id),repositoryId:String(pr.head.repo.id),
       expectedRepositoryId:scope.repository_id,...graph,checks:checked.check_runs,checkTotal:checked.total_count,
+      suites:suiteResult.check_suites,suiteTotal:suiteResult.total_count,
       requiredReviewerLogin:controlsItsOwnAuthority?owner:undefined,
       statuses:statuses.statuses,reviews:reviews.map(r=>({login:r.user.login,state:r.state,commitId:r.commit_id}))});
     if(reasons.length)throw new SessionConflict("Merge blocked: "+reasons.join(", "));
