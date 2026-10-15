@@ -185,7 +185,7 @@ export async function runHostedAgent(config:RunnerConfig,activationKey:string,si
               if(a.name!=="install"){
                 meaningfulChecksPassed=check.exitCode===0;
                 const record:HandoffTest={name:String(a.name),status:check.exitCode===0?"PASSED":"FAILED",
-                  exitCode:check.exitCode,headSha:snapshot.headSha};
+                  exitCode:check.exitCode??-1,headSha:snapshot.headSha};
                 tests=[...tests.filter(test=>test.name!==record.name),record];
               }
               result=check;break;
