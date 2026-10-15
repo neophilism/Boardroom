@@ -11,7 +11,7 @@
   "priority": "highest",
   "schemaVersion": 1,
   "roadmapVersion": 2,
-  "observedAt": "2026-10-15T09:19:33Z",
+  "observedAt": "2026-10-15T09:28:50Z",
   "units": [
     {
       "id": "BR-001",
@@ -848,7 +848,9 @@
       "id": "BR-036",
       "title": "Work-unit-linked PR creation and updates",
       "origin": "original",
-      "prs": [],
+      "prs": [
+        85
+      ],
       "priority": "P0",
       "phase": "F4",
       "dependsOn": [
@@ -2965,6 +2967,21 @@
       "headSha": "b5f78379b4b52bc66b34f8e7f2eecb4757077b74",
       "baseRef": "main",
       "mergeCommitSha": null
+    },
+    {
+      "number": 85,
+      "title": "BR-036: Link and update work-unit pull requests",
+      "url": "https://github.com/neophilism/Boardroom/pull/85",
+      "state": "open",
+      "draft": true,
+      "createdAt": "2026-10-15T09:28:50Z",
+      "updatedAt": "2026-10-15T09:29:23Z",
+      "closedAt": null,
+      "mergedAt": null,
+      "headSha": "9d64cf1b34d41fe176162370f3e68c2f0c13007d",
+      "baseRef": "main",
+      "mergeCommitSha": null,
+      "id": 4871110439
     }
   ]
 }

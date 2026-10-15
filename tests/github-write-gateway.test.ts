@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   safeRepositoryPath,safeWorkBranch,parseGithubWrite,parseGithubWriteRequest,
-  GithubWriteValidation
+  canonicalPullRequest,pullRequestChanges,GithubWriteValidation
 } from "../src/server/github-write-gateway.ts";
 
 const runId="26741e83-9694-4fb3-8174-783b2f9bf61c";
@@ -45,4 +45,17 @@ test("run and lease generation must be explicitly provided",()=>{
   assert.equal(out.generation,"4");
   assert.throws(()=>parseGithubWriteRequest({runId,generation:0,kind:"ensure_branch"}),
     GithubWriteValidation);
+});
+
+test("work-unit PR metadata is canonical and existing PRs are updated in place",()=>{
+  const intended=canonicalPullRequest("BR-036","Work-unit-linked PR creation and updates","New evidence.");
+  assert.equal(intended.title,"BR-036: Work-unit-linked PR creation and updates");
+  assert.deepEqual(pullRequestChanges({number:7,html_url:"https://example.test/7",draft:true,
+    title:"manual title",body:"old",base:{ref:"staging"}},intended,"main"),{
+    title:intended.title,body:"New evidence.",base:"main"
+  });
+  const preserve=canonicalPullRequest("BR-036","Work-unit-linked PR creation and updates","");
+  assert.deepEqual(pullRequestChanges({number:7,html_url:"https://example.test/7",draft:false,
+    title:preserve.title,body:"maintainer notes",base:{ref:"main"}},preserve,"main"),{});
+  assert.equal(canonicalPullRequest("BR-036","x".repeat(300),"").title.length,220);
 });
