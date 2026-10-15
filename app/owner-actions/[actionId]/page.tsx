@@ -5,6 +5,7 @@ import {OWNER_COOKIE,validOwnerSession} from "../../../src/server/owner-session"
 import {getDatabase} from "../../../src/server/db";
 import {describeOwnerActionUrgency,getOwnerActionDetail,ownerActionLinks} from "../../../src/server/owner-action-detail";
 import OwnerActionControls from "../controls";
+import {isRiskApprovalKey} from "../../../src/server/risk-approval";
 
 export const dynamic="force-dynamic";
 
@@ -47,6 +48,6 @@ export default async function OwnerActionDetailPage({params}:{params:Promise<{ac
     </section>
     {action.price_estimate_cents!==null&&<p><strong>Expected expense:</strong> {"$"+(Number(action.price_estimate_cents)/100).toFixed(2)}</p>}
     <p><strong>Requested:</strong> {new Date(action.created_at).toLocaleString("en-US",{timeZone:"UTC",dateStyle:"medium",timeStyle:"short"})} UTC</p>
-    <OwnerActionControls actionId={action.action_id} status={action.status}/>
+    <OwnerActionControls actionId={action.action_id} status={action.status} canApprove={isRiskApprovalKey(action.action_key)}/>
   </main>;
 }

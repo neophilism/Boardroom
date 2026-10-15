@@ -13,6 +13,7 @@ import {advanceAssignedWork} from "./chain.ts";
 import {openCoffeeThread,answerCoffeeThread} from "./coffee.ts";
 import {createOwnerAction,parseOwnerAction} from "./owner-actions.ts";
 import {renderOwnerActionTemplate,type OwnerActionTemplateInput} from "./owner-action-templates.ts";
+import {renderRiskApprovalRequest,RISK_CATEGORIES} from "./risk-approval.ts";
 import {resolveCoffeeAnswer} from "./coffee-resolution.ts";
 import {searchCoffeeThreads} from "./coffee-search.ts";
 
@@ -55,6 +56,9 @@ export const AGENT_TOOLS=[
     requestedPermissions:{type:"array",items:string},prerequisites:{type:"array",items:string},secureEntryLocation:{type:["string","null"]},
     priceEstimateCents:{type:["integer","null"],minimum:0},verificationMethod:string},
     ["runId","generation","actionKey","template","targetSystem","requestedAction","requestedPermissions","prerequisites","secureEntryLocation","priceEstimateCents","verificationMethod"]),
+  tool("boardroom_risk_approval_request","Request an exact, single-use owner approval before spending, destructive work, privilege changes, legal or political risk, or production release.",{
+    ...session,category:{enum:RISK_CATEGORIES},target:string,summary:string,maxCostCents:{type:["integer","null"],minimum:0}},
+    ["runId","generation","category","target","summary","maxCostCents"]),
   tool("boardroom_finish","Checkpoint, make a bounded Coffee pass, then release your current assignment. COMPLETED does not assert code acceptance.",{
     ...session,outcome:{enum:["COMPLETED","YIELDED","BLOCKED","FAILED","CANCELLED"]}},["runId","generation","outcome"]),
   tool("boardroom_finish_idle","End an admitted session that received no repository. Never frees an assigned lease.",{runId:string},["runId"])
@@ -113,6 +117,9 @@ export async function executeAgentTool(db:Pool,agent:AuthenticatedAgent,name:str
     case "boardroom_coffee_resolve":return resolveCoffeeAnswer(db,runId,agent.credentialId,generation,String(args.threadId),String(args.messageId),String(args.adr));
     case "boardroom_owner_action":return createOwnerAction(db,agent.credentialId,parseOwnerAction(args));
     case "boardroom_owner_action_from_template":return createOwnerAction(db,agent.credentialId,renderOwnerActionTemplate(args as OwnerActionTemplateInput));
+    case "boardroom_risk_approval_request":return createOwnerAction(db,agent.credentialId,parseOwnerAction(renderRiskApprovalRequest(
+      {runId,generation},{category:args.category,target:args.target,summary:args.summary,maxCostCents:args.maxCostCents}
+    )));
     case "boardroom_finish":return finishRun(db,runId,agent.credentialId,generation,parseSessionOutcome(args.outcome));
     case "boardroom_finish_idle":return finishIdleSession(db,runId,agent.credentialId);
     default:throw new AgentToolError();

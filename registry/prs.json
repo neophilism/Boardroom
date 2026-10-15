@@ -11,7 +11,7 @@
   "priority": "highest",
   "schemaVersion": 1,
   "roadmapVersion": 2,
-  "observedAt": "2026-10-15T08:14:36Z",
+  "observedAt": "2026-10-15T08:27:15Z",
   "units": [
     {
       "id": "BR-001",
@@ -654,7 +654,8 @@
       "origin": "original",
       "prs": [
         33,
-        36
+        36,
+        74
       ],
       "priority": "P0",
       "phase": "F3",
@@ -2883,6 +2884,21 @@
       "headSha": "7e8e05e2c8c5c5e8119ead33417b3f0f4b4324a8",
       "baseRef": "main",
       "mergeCommitSha": null
+    },
+    {
+      "id": 4870408652,
+      "number": 74,
+      "title": "BR-028: Enforce exact single-use owner risk approvals",
+      "url": "https://github.com/neophilism/Boardroom/pull/74",
+      "state": "open",
+      "draft": true,
+      "createdAt": "2026-10-15T08:27:15Z",
+      "updatedAt": "2026-10-15T08:27:15Z",
+      "closedAt": null,
+      "mergedAt": null,
+      "headSha": "b25cba32ff8325b73ebb04545f30ba27e278ce31",
+      "baseRef": "main",
+      "mergeCommitSha": "6e9e860b93a6b8caf72dad00ae26cd49630454d2"
     }
   ]
 }
