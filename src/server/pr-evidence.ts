@@ -7,23 +7,40 @@ export type CheckRun={
   id:number;name:string;status:string;conclusion:string|null;html_url?:string;
   started_at?:string|null;completed_at?:string|null;
 };
+export type CheckSuite={
+  id:number;status:string;conclusion:string|null;url?:string;
+  created_at?:string|null;updated_at?:string|null;app?:{name?:string|null}|null;
+};
 export type LegacyStatus={
   context:string;state:string;target_url?:string;
   created_at?:string|null;updated_at?:string|null;
 };
 export type CheckAssessment="OBSERVED_PASS"|"FAILED"|"PENDING"|"REVIEW"|"NO_CHECKS"|"INCOMPLETE";
+const failedConclusions=["failure","cancelled","timed_out","startup_failure","action_required"];
 
 export function assessObservedChecks(checks:readonly CheckRun[],total:number,
-  legacy:readonly LegacyStatus[]):CheckAssessment{
-  if(!Number.isSafeInteger(total)||total<0||total!==checks.length)return "INCOMPLETE";
-  if(checks.length===0&&legacy.length===0)return "NO_CHECKS";
-  if(checks.some(c=>["failure","cancelled","timed_out","startup_failure","action_required"].includes(c.conclusion??""))||
+  legacy:readonly LegacyStatus[],suites:readonly CheckSuite[]=[],
+  suiteTotal=suites.length):CheckAssessment{
+  if(!Number.isSafeInteger(total)||total<0||total!==checks.length||
+     !Number.isSafeInteger(suiteTotal)||suiteTotal<0||suiteTotal!==suites.length)
+    return "INCOMPLETE";
+  if(checks.length===0&&suites.length===0&&legacy.length===0)return "NO_CHECKS";
+  if(checks.some(c=>failedConclusions.includes(c.conclusion??""))||
+     suites.some(s=>failedConclusions.includes(s.conclusion??""))||
      legacy.some(s=>["failure","error"].includes(s.state)))return "FAILED";
   if(checks.some(c=>c.status!=="completed"||c.conclusion===null)||
+     suites.some(s=>s.status!=="completed"||s.conclusion===null)||
      legacy.some(s=>s.state==="pending"))return "PENDING";
-  if(checks.some(c=>c.conclusion!=="success")||legacy.some(s=>s.state!=="success"))
-    return "REVIEW";
+  if(checks.some(c=>c.conclusion!=="success")||
+     suites.some(s=>s.conclusion!=="success")||
+     legacy.some(s=>s.state!=="success"))return "REVIEW";
   return "OBSERVED_PASS";
+}
+
+export function completionEvidenceSufficient(assessment:CheckAssessment,unitState:string,
+  acceptanceCriteria:string|null):boolean{
+  return assessment==="OBSERVED_PASS"&&unitState==="ACCEPTED"&&
+    typeof acceptanceCriteria==="string"&&acceptanceCriteria.trim().length>0;
 }
 
 export function evidenceTimestamp(value:unknown):string|null{
@@ -42,8 +59,8 @@ export function acceptanceVerification(value:unknown):string[]{
 }
 
 type Scope={
-  repository_id:string;full_name:string;unit_id:string;acceptance_criteria:string|null;
-  source_observed_at:Date|string|null;source_metadata:unknown;
+  repository_id:string;full_name:string;unit_id:string;title:string;state:string;
+  acceptance_criteria:string|null;source_observed_at:Date|string|null;source_metadata:unknown;
 };
 export async function readAssignedPrEvidence(db:Pool,runId:string,credentialId:string,
   generation:string,prNumber:number){
@@ -51,7 +68,7 @@ export async function readAssignedPrEvidence(db:Pool,runId:string,credentialId:s
      !Number.isSafeInteger(prNumber)||prNumber<=0)
     throw new SessionConflict("Invalid run, lease generation, or PR number");
   const q=await db.query<Scope>(
-    "SELECT r.repository_id::text,r.full_name,a.unit_id,w.acceptance_criteria," +
+    "SELECT r.repository_id::text,r.full_name,a.unit_id,w.title,w.state,w.acceptance_criteria," +
     "w.source_observed_at,w.source_metadata FROM agent_runs ar " +
     "JOIN work_assignments a ON a.run_id=ar.run_id AND a.released_at IS NULL " +
     "JOIN repository_leases l ON l.repository_id=a.repository_id AND l.run_id=a.run_id " +
@@ -70,7 +87,8 @@ export async function readAssignedPrEvidence(db:Pool,runId:string,credentialId:s
   const url="/repos/"+parts.map(encodeURIComponent).join("/");
   const pullPath=url+"/pulls/"+prNumber;
   const pr=await githubAppRequest("GET",pullPath) as {
-    number:number;html_url:string;state:string;draft:boolean;merged_at:string|null;updated_at?:string|null;
+    number:number;html_url:string;state:string;draft:boolean;merged_at:string|null;
+    created_at?:string|null;updated_at?:string|null;
     head?:{sha?:string;ref?:string;repo?:{id?:number}};
   };
   if(!pr.head||pr.head.ref!==safeWorkBranch(scope.unit_id)||
@@ -82,29 +100,41 @@ export async function readAssignedPrEvidence(db:Pool,runId:string,credentialId:s
   const checked=await githubAppRequest("GET",checkPath) as
     {total_count:number;check_runs:CheckRun[]};
   if(!Array.isArray(checked.check_runs))throw new GitHubAppError(503);
+  const suitePath=url+"/commits/"+sha+"/check-suites?per_page=100";
+  const suiteResult=await githubAppRequest("GET",suitePath) as
+    {total_count:number;check_suites:CheckSuite[]};
+  if(!Array.isArray(suiteResult.check_suites))throw new GitHubAppError(503);
   const statusPath=url+"/commits/"+sha+"/status";
   const legacy=await githubAppRequest("GET",statusPath) as {statuses?:LegacyStatus[]};
   const contexts=Array.isArray(legacy.statuses)?legacy.statuses:[];
-  const assessment=assessObservedChecks(checked.check_runs,checked.total_count,contexts);
+  const assessment=assessObservedChecks(checked.check_runs,checked.total_count,contexts,
+    suiteResult.check_suites,suiteResult.total_count);
   const collectedAt=new Date().toISOString();
+  const evidenceSufficient=completionEvidenceSufficient(
+    assessment,scope.state,scope.acceptance_criteria);
   return {
     repository:scope.full_name,unitId:scope.unit_id,
     pullRequest:{number:pr.number,url:pr.html_url,draft:pr.draft,state:pr.state,
-      mergedAt:evidenceTimestamp(pr.merged_at),updatedAt:evidenceTimestamp(pr.updated_at),headSha:sha},
-    unitAcceptance:{criteria:scope.acceptance_criteria,
+      createdAt:evidenceTimestamp(pr.created_at),updatedAt:evidenceTimestamp(pr.updated_at),
+      mergedAt:evidenceTimestamp(pr.merged_at),headSha:sha},
+    unitAcceptance:{title:scope.title,state:scope.state,criteria:scope.acceptance_criteria,
       verification:acceptanceVerification(scope.source_metadata),
-      planObservedAt:evidenceTimestamp(scope.source_observed_at),satisfied:false},
-    checks:{assessment,total:checked.total_count,observedAt:collectedAt,
-      runs:checked.check_runs.map(c=>({name:c.name,status:c.status,conclusion:c.conclusion,
+      planObservedAt:evidenceTimestamp(scope.source_observed_at),satisfied:evidenceSufficient},
+    checks:{assessment,total:checked.total_count,suiteTotal:suiteResult.total_count,observedAt:collectedAt,
+      suites:suiteResult.check_suites.map(s=>({id:s.id,app:s.app?.name??null,
+        status:s.status,conclusion:s.conclusion,createdAt:evidenceTimestamp(s.created_at),
+        updatedAt:evidenceTimestamp(s.updated_at),url:s.url??null})),
+      runs:checked.check_runs.map(c=>({id:c.id,name:c.name,status:c.status,conclusion:c.conclusion,
         startedAt:evidenceTimestamp(c.started_at),completedAt:evidenceTimestamp(c.completed_at),
         url:c.html_url??null})),
       legacyStatuses:contexts.map(c=>({context:c.context,state:c.state,
         createdAt:evidenceTimestamp(c.created_at),updatedAt:evidenceTimestamp(c.updated_at),
         url:c.target_url??null}))},
     provenance:{provider:"GitHub App REST API",collectedAt,repositoryId:scope.repository_id,
-      pullRequestPath:pullPath,checkRunsPath:checkPath,legacyStatusPath:statusPath,headSha:sha},
+      pullRequestPath:pullPath,checkSuitesPath:suitePath,checkRunsPath:checkPath,
+      legacyStatusPath:statusPath,headSha:sha},
     requiredBranchProtectionVerified:false,reviewApprovalVerified:false,
-    safeToAutoMerge:false,
+    safeToAutoMerge:false,safeToMarkComplete:evidenceSufficient,
     observedFrom:"GitHub App API"
   };
 }
