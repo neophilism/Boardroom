@@ -19,7 +19,7 @@ export default async function OwnerActionsPage({searchParams}:{searchParams:Prom
   const filters=parseOwnerInboxFilters(await searchParams);
   const records=await listOwnerActions(getDatabase(),filters.status) as ActionRow[];
   const actions=arrangeOwnerInbox(records,filters);
-  const open=records.filter(a=>["OPEN","ACKNOWLEDGED","AWAITING_VERIFICATION"].includes(a.status));
+  const open=actions.filter(a=>["OPEN","ACKNOWLEDGED","AWAITING_VERIFICATION"].includes(a.status));
   return <main className="owner-shell">
     <header className="owner-header">
       <div><p className="eyebrow">BOARDROOM / OWNER ACTION BOARD</p><h1>Needs your attention</h1></div>
@@ -31,7 +31,7 @@ export default async function OwnerActionsPage({searchParams}:{searchParams:Prom
       <form action="/api/v1/owner/logout" method="post"><button type="submit" className="outline">Sign out</button></form>
     </header>
     <p>Agent-submitted requests requiring an account, permission, purchase, or decision. Enter credentials only in the designated external service's secure configuration.</p>
-    <div className="summary-strip"><strong>{open.length}</strong> open or awaiting verification <span>·</span> <strong>{records.length}</strong> matching status</div>
+    <div className="summary-strip"><strong>{open.length}</strong> open or awaiting verification <span>·</span> <strong>{actions.length}</strong> matching filters</div>
     <form className="owner-action-filters" method="get">
       <label>Status<select name="status" defaultValue={filters.status??""}>
         <option value="">All statuses</option>
