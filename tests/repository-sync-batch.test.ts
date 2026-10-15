@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {activityDate,selectRepositorySyncBatch} from "../src/server/repository-sync.ts";
+import {latestDevelopmentAt,selectRepositorySyncBatch} from "../src/server/repository-sync.ts";
+import {selectRepository} from "../src/domain/selection.ts";
 import type {GitHubPull,GitHubRepository} from "../src/server/github-app.ts";
 
 const data=[5,2,9,12,4].map(id=>({
@@ -26,16 +27,32 @@ test("rejects invalid limits or cursor values before syncing",()=>{
   assert.throws(()=>selectRepositorySyncBatch(data,"neophilism",{limit:11}));
   assert.throws(()=>selectRepositorySyncBatch(data,"neophilism",{afterId:"1;drop"}));
 });
-test("authoritative GitHub activity excludes local observation and repository metadata refreshes",()=>{
-  const repository:GitHubRepository={
-    id:1,full_name:"neophilism/repo",created_at:"2026-01-01T00:00:00Z",
-    pushed_at:"2026-04-01T00:00:00Z",updated_at:"2099-12-31T23:59:59Z",
-    description:null,archived:false
-  };
-  const pulls:GitHubPull[]=[
-    {number:1,title:"work",state:"closed",updated_at:"2026-03-01T00:00:00Z",merged_at:"2026-03-01T00:00:00Z"},
-    {number:2,title:"newer work",state:"open",updated_at:"2026-05-01T00:00:00Z",merged_at:null}
-  ];
-  assert.equal(activityDate(repository,pulls),"2026-05-01T00:00:00Z");
-  assert.equal(activityDate({...repository,pushed_at:null},[]),null);
+
+
+const pull=(number:number,createdAt:string,updatedAt:string,mergedAt:string|null=null):GitHubPull=>({
+  number,title:"BR-013: fixture",state:mergedAt?"closed":"open",
+  created_at:createdAt,updated_at:updatedAt,merged_at:mergedAt
+});
+test("development time ignores comment, label, and review metadata churn",()=>{
+  const repository={...data[0],pushed_at:"2026-10-02T00:00:00Z"};
+  const observed=latestDevelopmentAt(repository,[
+    pull(1,"2026-10-03T00:00:00Z","2026-10-20T00:00:00Z"),
+  ]);
+  assert.equal(observed,"2026-10-03T00:00:00Z");
+});
+test("development time uses the latest real push, PR creation, or merge",()=>{
+  const repository={...data[0],pushed_at:"2026-10-04T00:00:00Z"};
+  assert.equal(latestDevelopmentAt(repository,[
+    pull(1,"2026-10-03T00:00:00Z","2026-10-30T00:00:00Z"),
+    pull(2,"2026-10-02T00:00:00Z","2026-10-30T00:00:00Z","2026-10-05T00:00:00Z"),
+  ]),"2026-10-05T00:00:00Z");
+});
+test("missing or malformed activity falls back through the repository comparator",()=>{
+  const repository={...data[0],pushed_at:null};
+  assert.equal(latestDevelopmentAt(repository,[]),null);
+  assert.equal(latestDevelopmentAt(repository,[pull(1,"invalid","2026-10-30T00:00:00Z")]),null);
+  assert.equal(selectRepository([
+    {id:9,fullName:"owner/newer",createdAt:"2026-10-09T00:00:00Z",lastDevelopmentAt:null,eligible:true,leaseHeld:false},
+    {id:3,fullName:"owner/older",createdAt:"2026-10-03T00:00:00Z",lastDevelopmentAt:null,eligible:true,leaseHeld:false},
+  ],[])?.id,3);
 });
