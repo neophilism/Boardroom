@@ -15,15 +15,22 @@ test("credential references identify a store location without accepting values",
 
 test("capability verification returns and audits only a bounded outcome",async()=>{
   const calls:{sql:string;params:unknown[]}[]=[];
-  const db={query:async(sql:string,params:unknown[])=>{
+  const query=async(sql:string,params:unknown[]=[] )=>{
     calls.push({sql,params});
-    if(sql.startsWith("SELECT"))return {rowCount:1,rows:[{
+    if(sql.startsWith("SELECT action_type,status,requested_permissions"))return {rowCount:1,rows:[{
       action_type:"CREDENTIAL",status:"AWAITING_VERIFICATION",
       requested_permissions:["Contents: read","Pull requests: write"],
       secure_entry_location:credentialReferenceLocation(reference)
     }]};
+    if(sql.startsWith("SELECT action_type,status"))return {rowCount:1,rows:[{
+      action_type:"CREDENTIAL",status:"AWAITING_VERIFICATION"
+    }]};
+    if(sql.includes("FROM owner_action_dependents d"))return {rowCount:1,rows:[{
+      repository_id:"41",unit_id:"BR-029"
+    }]};
     return {rowCount:1,rows:[]};
-  }};
+  };
+  const db={query,connect:async()=>({query,release:()=>{}})};
   const outcome=await verifyCredentialHandoff(db as never,actionId,reference,async input=>{
     assert.deepEqual(input.requiredCapabilities,["Contents: read","Pull requests: write"]);
     assert.deepEqual(input.reference,reference);
@@ -74,4 +81,21 @@ test("wrong action state or destination is rejected before a provider probe",asy
     probed=true;return {present:true,capabilities:["Contents: read"],evidenceId:null};
   }),/awaiting verification/);
   assert.equal(probed,false);
+});
+
+
+test("successful capabilities without provider evidence remain awaiting verification",async()=>{
+  let connected=false;
+  const db={
+    query:async(sql:string)=>sql.startsWith("SELECT")?{rowCount:1,rows:[{
+      action_type:"CREDENTIAL",status:"AWAITING_VERIFICATION",requested_permissions:["Contents: read"],
+      secure_entry_location:credentialReferenceLocation(reference)
+    }]}:{rowCount:1,rows:[]},
+    connect:async()=>{connected=true;throw new Error("resolution must not start")}
+  };
+  const outcome=await verifyCredentialHandoff(db as never,actionId,reference,async()=>({
+    present:true,capabilities:["Contents: read"],evidenceId:null
+  }));
+  assert.equal(outcome.verified,true);
+  assert.equal(connected,false);
 });

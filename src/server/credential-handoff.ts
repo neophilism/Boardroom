@@ -1,4 +1,5 @@
 import type {Pool} from "pg";
+import {resolveVerifiedOwnerAction} from "./owner-action-resolution.ts";
 
 export const CREDENTIAL_REFERENCE_PROVIDERS=["render","github-actions","boardroom-runtime"] as const;
 export type CredentialReferenceProvider=typeof CREDENTIAL_REFERENCE_PROVIDERS[number];
@@ -72,5 +73,10 @@ export async function verifyCredentialHandoff(
     "INSERT INTO audit_events(kind,details) VALUES('owner_action.credential_capability_checked',$1::jsonb)",
     [JSON.stringify({provider:reference.provider,...outcome})]
   );
+  if(verified&&safeEvidenceId)await resolveVerifiedOwnerAction(db,actionId,{
+    kind:"credential_capability",
+    evidenceId:safeEvidenceId,
+    verified:true
+  });
   return outcome;
 }
