@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {validateAssignedContextRequest} from "../src/server/assignment-context.ts";
+import {normalizeRepositoryBranches,normalizeRepositoryDecision,validateAssignedContextRequest} from "../src/server/assignment-context.ts";
 import {SessionConflict} from "../src/server/sessions.ts";
 import {decodeRepositoryInstruction} from "../src/server/github-app.ts";
 
@@ -22,4 +22,18 @@ test("GitHub instructions must be verified base64 and bounded",()=>{
 });
 test("nonexistent optional instructions return null, not invented text",()=>{
   assert.equal(decodeRepositoryInstruction(null,"AGENTS.md"),null);
+});
+test("branch snapshots are bounded and reject malformed GitHub data",()=>{
+  const branches=normalizeRepositoryBranches([{name:"main",protected:true,commit:{sha:"a".repeat(40)}}]);
+  assert.deepEqual(branches,{branches:[{name:"main",headSha:"a".repeat(40),protected:true}],truncated:false});
+  assert.throws(()=>normalizeRepositoryBranches([{name:"main",commit:{sha:"not-a-sha"}}]),/branch record/);
+});
+test("historical decisions expose only immutable ADR references for the assigned repository",()=>{
+  const acceptedAt=new Date("2026-10-15T00:00:00Z");
+  assert.deepEqual(normalizeRepositoryDecision("neophilism/Boardroom",{
+    unitId:"BR-031",adr:"https://github.com/neophilism/Boardroom/blob/"+"a".repeat(40)+"/docs/adr/context.md",occurredAt:acceptedAt
+  }),{unitId:"BR-031",adr:"https://github.com/neophilism/Boardroom/blob/"+"a".repeat(40)+"/docs/adr/context.md",acceptedAt:acceptedAt.toISOString()});
+  assert.equal(normalizeRepositoryDecision("neophilism/Boardroom",{
+    unitId:"BR-031",adr:"https://attacker.invalid/private",occurredAt:acceptedAt
+  }),null);
 });
