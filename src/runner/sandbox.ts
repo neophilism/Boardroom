@@ -14,6 +14,19 @@ export function checkCommand(name:unknown):string[]{
 /** Source executes only in an unprivileged, credential-free disposable container.
  * Neither the Docker socket, parent filesystem nor parent environment is mounted.
  */
+export type RepositorySnapshotEntry={path:string};
+export async function materializeRepositorySnapshot(
+  sandbox:CodingSandbox,
+  entries:readonly RepositorySnapshotEntry[],
+  readBlob:(path:string)=>Promise<string>,
+  signal:AbortSignal
+){
+  for(const entry of entries){
+    signal.throwIfAborted();
+    await sandbox.put(entry.path,Buffer.from(await readBlob(entry.path),"base64"));
+  }
+}
+
 export class CodingSandbox{
   readonly directory:string;readonly #containers=new Set<string>();
   private constructor(directory:string){this.directory=directory;}
