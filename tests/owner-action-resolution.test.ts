@@ -52,12 +52,13 @@ test("clarification reopens a request while rejection stays final and auditable"
   assert.deepEqual(await respondToOwnerAction(clarify.db as never,actionId,{
     status:"OPEN",note:"Please identify the exact organization account to provision."
   }),{actionId,status:"OPEN"});
-  assert.ok(clarify.calls.some(call=>call.sql.includes("clarification_requested")));
+  assert.ok(clarify.calls.some(call=>call.params?.[0]==="owner_action.clarification_requested"));
   const decline=database("OPEN");
   assert.deepEqual(await respondToOwnerAction(decline.db as never,actionId,{
     status:"DECLINED",note:"This provider account is not approved for this project."
   }),{actionId,status:"DECLINED"});
   assert.ok(decline.calls.some(call=>call.sql.includes("resolved_at")));
+  assert.ok(decline.calls.some(call=>call.params?.[0]==="owner_action.declined"));
 });
 
 test("clarification and rejection require bounded secret-free reasons",()=>{
