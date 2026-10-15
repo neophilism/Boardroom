@@ -11,6 +11,6 @@ test('technical decisions require an immutable ADR in the assigned repository',(
 
 test('ADR acceptance rechecks every compatibility boundary before unblocking',()=>{
  for(const gate of ['registry_prerequisites_satisfied','jsonb_array_elements_text(w.depends_on)','owner_action_dependents','compatibility_dependencies'])
-  assert.match(COFFEE_RESOLUTION_COMPATIBILITY_QUERY,new RegExp(gate.replace(/[().]/g,'\\$&')));
+  assert.equal(COFFEE_RESOLUTION_COMPATIBILITY_QUERY.includes(gate),true);
  assert.match(COFFEE_RESOLUTION_COMPATIBILITY_QUERY,/state NOT IN \('MERGED','ACCEPTED'\)/);
 });
