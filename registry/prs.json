@@ -896,7 +896,10 @@
       "id": "BR-038",
       "title": "Review and safe merge policy engine",
       "origin": "original",
-      "prs": [],
+      "prs": [
+        42,
+        88
+      ],
       "priority": "P0",
       "phase": "F4",
       "dependsOn": [
