@@ -3,7 +3,7 @@ import {redirect} from "next/navigation";
 import Link from "next/link";
 import {OWNER_COOKIE,validOwnerSession} from "../../src/server/owner-session";
 import {getDatabase} from "../../src/server/db";
-import {listOwnerActions} from "../../src/server/owner-actions";
+import {listOwnerActions,OWNER_ACTION_STATUSES} from "../../src/server/owner-actions";
 import {arrangeOwnerInbox,OWNER_ACTION_TYPES,OWNER_INBOX_SORTS,parseOwnerInboxFilters} from "../../src/server/owner-inbox";
 import OwnerActionControls from "./controls";
 export const dynamic="force-dynamic";
@@ -18,7 +18,7 @@ export default async function OwnerActionsPage({searchParams}:{searchParams:Prom
   if(!validOwnerSession(jar.get(OWNER_COOKIE)?.value))redirect("/login");
   const filters=parseOwnerInboxFilters(await searchParams);
   const records=await listOwnerActions(getDatabase(),filters.status) as ActionRow[];
-  const actions=arrangeOwnerInbox(records,filters.type?filters:filters);
+  const actions=arrangeOwnerInbox(records,filters);
   const open=records.filter(a=>["OPEN","ACKNOWLEDGED","AWAITING_VERIFICATION"].includes(a.status));
   return <main className="owner-shell">
     <header className="owner-header">
@@ -35,7 +35,7 @@ export default async function OwnerActionsPage({searchParams}:{searchParams:Prom
     <form className="owner-action-filters" method="get">
       <label>Status<select name="status" defaultValue={filters.status??""}>
         <option value="">All statuses</option>
-        {["OPEN","ACKNOWLEDGED","AWAITING_VERIFICATION","VERIFIED","DECLINED","CANCELLED"].map(status=><option key={status} value={status}>{status.replaceAll("_"," ")}</option>)}
+        {OWNER_ACTION_STATUSES.map(status=><option key={status} value={status}>{status.replaceAll("_"," ")}</option>)}
       </select></label>
       <label>Type<select name="type" defaultValue={filters.type??""}>
         <option value="">All types</option>
