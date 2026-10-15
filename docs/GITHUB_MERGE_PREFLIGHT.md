@@ -4,6 +4,8 @@ For repositories whose branch rules cannot enforce CI (notably private repositor
 
 Preferred path: use Boardroom's authenticated `/api/v1/github/merge` endpoint, which already requires current-head green checks and configured required contexts.
 
+The endpoint evaluates authoritative check suites, check runs, and legacy statuses. It also requires server-derived repository and deterministic work-branch scope, the caller's exact expected head, clean GitHub merge state, configured required contexts, current-head reviews, live prerequisites, and owner-enabled repository policy. A denied authorized preflight writes a `github.pr.merge_denied` audit event with only the unit, PR, head SHA, and deduplicated blocker codes; no credential or request body is recorded. Boardroom fails closed if that audit cannot be persisted.
+
 For an authorized manual/CLI merge outside that endpoint, use the reviewed script in this repository:
 
 ```sh
