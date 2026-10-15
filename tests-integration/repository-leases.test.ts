@@ -7,6 +7,7 @@ import {finishIdleSession} from "../src/server/idle-session.ts";
 import {admitAgentRun} from "../src/server/admission.ts";
 import {reserveRunnerBudget,recordRunnerUsage} from "../src/server/usage.ts";
 import {RunnerBudgetBlocked} from "../src/server/budget-errors.ts";
+import {performFencedGithubWrite} from "../src/server/github-write-gateway.ts";
 
 const url=process.env.DATABASE_URL;
 if(!url||!url.includes("boardroom_test"))
@@ -117,6 +118,22 @@ test("current owner may heartbeat/checkpoint, but stale lease generations fail c
     "SELECT COUNT(*)::text AS number FROM checkpoints WHERE run_id=$1",[runs[0]]
   );
   assert.equal(results.rows[0].number,"1");
+});
+
+test("privileged writes reject wrong credentials and stale generations before GitHub access",async()=>{
+  const grant=assigned[0];
+  await assert.rejects(
+    performFencedGithubWrite(db,runs[0],credentials[1],grant.generation,{kind:"ensure_branch"}),
+    SessionConflict
+  );
+  await assert.rejects(
+    performFencedGithubWrite(db,runs[0],credentials[0],(BigInt(grant.generation)+1n).toString(),{kind:"ensure_branch"}),
+    SessionConflict
+  );
+  const audits=await db.query<{n:string}>(
+    "SELECT COUNT(*)::text AS n FROM audit_events WHERE run_id=$1 AND kind LIKE 'github.write.%'",[runs[0]]
+  );
+  assert.equal(audits.rows[0].n,"0");
 });
 
 test("expired but still assigned repo stays unavailable to other scheduled agents",async()=>{

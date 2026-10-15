@@ -45,6 +45,10 @@ test("run and lease generation must be explicitly provided",()=>{
   assert.equal(out.generation,"4");
   assert.throws(()=>parseGithubWriteRequest({runId,generation:0,kind:"ensure_branch"}),
     GithubWriteValidation);
+  for(const target of [
+    {repository:"neophilism/other"},{repositoryId:"999"},{fullName:"neophilism/other"},{owner:"neophilism"},{repo:"other"}
+  ])assert.throws(()=>parseGithubWriteRequest({runId,generation:"4",kind:"ensure_branch",...target}),
+    /derived only from the current assignment/);
 });
 
 test("work-unit PR metadata is canonical and existing PRs are updated in place",()=>{
