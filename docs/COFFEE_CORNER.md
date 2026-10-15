@@ -33,3 +33,8 @@ The next eligible unattended session receives a unit-scoped `resumeSignal` in as
 ## Architectural decision compatibility
 
 Accepting a Coffee answer as an architectural decision rechecks the assigned work unit's local dependencies, source-registry prerequisites, unresolved Owner Actions, and cross-repository compatibility contracts inside the resolution transaction. If any prerequisite changed while the question was open, Boardroom leaves the thread and unit blocked. Only an immutable ADR in the assigned repository can be recorded after those gates pass.
+
+
+## End-of-session service pass
+
+After real work stops, the hosted runner writes its durable checkpoint before performing one bounded inspection of open Coffee questions. It answers only when the normal evidence and uncertainty requirements can be satisfied; no answer is fabricated merely to complete the pass. The inspection runs at most once in finalization and is followed immediately by the fenced finish call, including safe failure paths, so peer help cannot extend indefinitely or retain the repository lease.

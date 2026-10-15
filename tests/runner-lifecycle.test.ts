@@ -21,7 +21,12 @@ test("one bounded hosted activation checkpoints and releases after a tool-driven
     return new Response(JSON.stringify(body),{status:200});
   });
   const result=await runHostedAgent(config,"hosted-test-activation-0001");
-  assert.equal(result.status,"YIELDED");assert.ok(paths.some(p=>p.endsWith("/checkpoint")));assert.ok(paths.at(-1)?.endsWith("/finish"));
+  assert.equal(result.status,"YIELDED");
+  const checkpoint=paths.findLastIndex(path=>path.endsWith("/checkpoint"));
+  const coffee=paths.findLastIndex(path=>path.endsWith("/threads"));
+  const finish=paths.findLastIndex(path=>path.endsWith("/finish"));
+  assert.ok(checkpoint>=0&&checkpoint<coffee&&coffee<finish);
+  assert.equal(paths.filter(path=>path.endsWith("/threads")).length,1);
   assert.ok(!providerBodies.join("").includes(config.token));assert.ok(!providerBodies.join("").includes(config.providerKey));
 });
 test("a source failure still closes a safe assigned session without calling a model",async(t)=>{
@@ -35,7 +40,12 @@ test("a source failure still closes a safe assigned session without calling a mo
     return new Response(JSON.stringify(body));
   });
   assert.equal((await runHostedAgent(config,"hosted-test-activation-0002")).status,"FAILED");
-  assert.ok(paths.at(-1)?.endsWith("/finish"));assert.ok(!paths.includes("/v1/responses"));
+  const checkpoint=paths.findLastIndex(path=>path.endsWith("/checkpoint"));
+  const coffee=paths.findLastIndex(path=>path.endsWith("/threads"));
+  const finish=paths.findLastIndex(path=>path.endsWith("/finish"));
+  assert.ok(checkpoint>=0&&checkpoint<coffee&&coffee<finish);
+  assert.equal(paths.filter(path=>path.endsWith("/threads")).length,1);
+  assert.ok(!paths.includes("/v1/responses"));
 });
 test("hosted coordinated edits use one fenced batch and checkpoint its observed commit",async(t)=>{
   const writes:Record<string,unknown>[]=[],checkpoints:Record<string,unknown>[]=[];
