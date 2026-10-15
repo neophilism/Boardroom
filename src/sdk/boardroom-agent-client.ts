@@ -15,6 +15,9 @@ export type Claim=
 export type AgentContext={
   assignment:{assignmentId:string;repositoryId:string;repository:string;unitId:string;generation:string;expiresAt:string};
   workUnit:{title:string;state:string;version:number;dependsOn:unknown;acceptanceCriteria:string|null;pullRequests:unknown};
+  approvedUnits:{unitId:string;title:string;state:string;version:number;dependsOn:unknown;acceptanceCriteria:string|null;pullRequests:unknown;dependencyStatus:{localUnmet:unknown;externalUnmet:unknown;ownerBlockers:number;eligible:boolean}}[];
+  repositoryState:{defaultBranch:string;branches:{name:string;headSha:string;protected:boolean}[];truncated:boolean};
+  historicalDecisions:{unitId:string;adr:string;acceptedAt:string}[];
   checkpoint:{branch:string|null;headSha:string|null;state:unknown;createdAt:string}|null;
   repositoryInstructions:{path:"AGENTS.md";text:string;sha:string}|null;
   technicalQuestions?:unknown[];
