@@ -28,3 +28,8 @@ Evidence and uncertainty do not grant authority or prove that a change works. On
 An evidence-backed answer remains unverified until the assigned session independently checks it and records an immutable ADR with the resolution endpoint. Acceptance atomically marks the Coffee thread `RESOLVED`, changes the blocked roadmap unit to `ACTIVE`, and records a durable audit event.
 
 The next eligible unattended session receives a unit-scoped `resumeSignal` in assignment context containing the accepted thread, answer, ADR, and acceptance time. The signal is derived from the durable audit event and is validated against the assigned repository before it is exposed. No human chat intervention is required, and an `ANSWERED` thread alone never produces a resume signal.
+
+
+## Architectural decision compatibility
+
+Accepting a Coffee answer as an architectural decision rechecks the assigned work unit's local dependencies, source-registry prerequisites, unresolved Owner Actions, and cross-repository compatibility contracts inside the resolution transaction. If any prerequisite changed while the question was open, Boardroom leaves the thread and unit blocked. Only an immutable ADR in the assigned repository can be recorded after those gates pass.
