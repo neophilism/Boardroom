@@ -37,7 +37,7 @@ export default async function OwnerActionsPage({searchParams}:{searchParams:Prom
       <Link className="priority-nav" href="/system">System status</Link>
       <form action="/api/v1/owner/logout" method="post"><button type="submit" className="outline">Sign out</button></form>
     </header>
-    <p>Agent-submitted requests requiring an account, permission, purchase, or decision. Enter credentials only in the designated external service's secure configuration.</p>
+    <p>Agent-submitted requests requiring an account, permission, purchase, or decision. Enter credentials only in the designated external service&apos;s secure configuration.</p>
     <div className="summary-strip"><strong>{open.length}</strong> blocking or awaiting verification <span>·</span> <strong>{allActions.length}</strong> total recorded</div>
     <form className="action-inbox-filters" method="get">
       <label htmlFor="action-status">Show</label>
