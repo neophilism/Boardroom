@@ -11,7 +11,7 @@
   "priority": "highest",
   "schemaVersion": 1,
   "roadmapVersion": 2,
-  "observedAt": "2026-10-15T07:53:00Z",
+  "observedAt": "2026-10-15T08:14:36Z",
   "units": [
     {
       "id": "BR-001",
@@ -628,7 +628,9 @@
       "id": "BR-027",
       "title": "Secure credentials and external-account handoff",
       "origin": "original",
-      "prs": [],
+      "prs": [
+        73
+      ],
       "priority": "P0",
       "phase": "F3",
       "dependsOn": [
@@ -2866,6 +2868,21 @@
       "headSha": "c3bfdd51f6de0d65a600fec9b570f0392de918a6",
       "baseRef": "main",
       "mergeCommitSha": "302c85b113fea957c81c481fa42eeafaad0a771a"
+    },
+    {
+      "id": 4870261124,
+      "number": 73,
+      "title": "BR-027: Verify scoped credential handoffs without exposing values",
+      "url": "https://github.com/neophilism/Boardroom/pull/73",
+      "state": "open",
+      "draft": true,
+      "createdAt": "2026-10-15T08:13:58Z",
+      "updatedAt": "2026-10-15T08:14:36Z",
+      "closedAt": null,
+      "mergedAt": null,
+      "headSha": "7e8e05e2c8c5c5e8119ead33417b3f0f4b4324a8",
+      "baseRef": "main",
+      "mergeCommitSha": null
     }
   ]
 }
