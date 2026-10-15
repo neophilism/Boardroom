@@ -2975,12 +2975,13 @@
       "state": "open",
       "draft": true,
       "createdAt": "2026-10-15T09:28:50Z",
-      "updatedAt": "2026-10-15T09:28:50Z",
+      "updatedAt": "2026-10-15T09:29:23Z",
       "closedAt": null,
       "mergedAt": null,
       "headSha": "9d64cf1b34d41fe176162370f3e68c2f0c13007d",
       "baseRef": "main",
-      "mergeCommitSha": null
+      "mergeCommitSha": null,
+      "id": 4871110439
     }
   ]
 }
