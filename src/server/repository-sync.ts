@@ -4,7 +4,7 @@ import {normalizeRoadmap} from "./roadmap-import.ts";
 import {reconcileRoadmapUnits,recordReconciliationFailure} from "./roadmap-reconciliation.ts";
 import {ensureDefaultRepositoryPriority} from "./repository-priority-bootstrap.ts";
 
-function activityDate(repo:GitHubRepository,pulls:readonly GitHubPull[]):string|null{
+export function activityDate(repo:GitHubRepository,pulls:readonly GitHubPull[]):string|null{
   const values=[repo.pushed_at,...pulls.map(p=>p.updated_at)].filter((v):v is string=>!!v&&Number.isFinite(Date.parse(v)));
   return values.sort((a,b)=>Date.parse(b)-Date.parse(a))[0]??null;
 }
