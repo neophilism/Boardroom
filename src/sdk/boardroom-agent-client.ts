@@ -171,9 +171,9 @@ export class BoardroomAgentClient{
   coffeeMessages(threadId:string):Promise<{messages:unknown[]}>{
     return this.#request("GET","/api/v1/coffee/threads/"+encodeURIComponent(threadId)+"/messages");
   }
-  answerCoffee(runId:string,threadId:string,answer:string,evidence:string[]=[]):Promise<unknown>{
+  answerCoffee(runId:string,threadId:string,answer:string,evidence:string[],uncertainty:string):Promise<unknown>{
     return this.#request("POST","/api/v1/coffee/threads/"+encodeURIComponent(threadId)+"/messages",
-      {runId,answer,evidence});
+      {runId,answer,evidence,uncertainty});
   }
   resolveCoffee(runId:string,generation:string,threadId:string,messageId:string,adr:string):Promise<unknown>{
     return this.#request("POST","/api/v1/coffee/threads/"+encodeURIComponent(threadId)+"/resolve",{runId,generation,messageId,adr});

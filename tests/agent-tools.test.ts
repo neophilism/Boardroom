@@ -24,3 +24,11 @@ test("Coffee questions require a bounded technical blocker classification",()=>{
   assert.deepEqual(validateAgentTool("boardroom_coffee_ask",{...base,classification:"TEST_FAILURE"}),{...base,classification:"TEST_FAILURE"});
   assert.throws(()=>validateAgentTool("boardroom_coffee_ask",{...base,classification:"OWNER_APPROVAL"}),AgentToolError);
 });
+
+test("Coffee answers require evidence and uncertainty at the MCP boundary",()=>{
+  const base={runId:"run",threadId:"thread",answer:"The repository API test passes."};
+  assert.throws(()=>validateAgentTool("boardroom_coffee_answer",base),AgentToolError);
+  assert.deepEqual(validateAgentTool("boardroom_coffee_answer",{...base,
+    evidence:["https://github.com/neophilism/Boardroom/pull/92"],uncertainty:"Production was not inspected."}),{...base,
+    evidence:["https://github.com/neophilism/Boardroom/pull/92"],uncertainty:"Production was not inspected."});
+});
