@@ -11,13 +11,15 @@
   "priority": "highest",
   "schemaVersion": 1,
   "roadmapVersion": 2,
-  "observedAt": "2026-10-12T13:44:21.256Z",
+  "observedAt": "2026-10-15T06:38:00Z",
   "units": [
     {
       "id": "BR-001",
       "title": "Canonical project roadmap and agent instructions",
       "origin": "original",
-      "prs": [],
+      "prs": [
+        1
+      ],
       "priority": "P0",
       "phase": "F1",
       "dependsOn": [],
@@ -36,7 +38,9 @@
       "id": "BR-002",
       "title": "TypeScript application skeleton and CI",
       "origin": "original",
-      "prs": [],
+      "prs": [
+        2
+      ],
       "priority": "P0",
       "phase": "F1",
       "dependsOn": [
@@ -57,7 +61,9 @@
       "id": "BR-003",
       "title": "Minimal authenticated arrival endpoint",
       "origin": "original",
-      "prs": [],
+      "prs": [
+        4
+      ],
       "priority": "P0",
       "phase": "F1",
       "dependsOn": [
@@ -99,7 +105,10 @@
       "id": "BR-005",
       "title": "Supported provider connector or external-runner fallback",
       "origin": "original",
-      "prs": [],
+      "prs": [
+        52,
+        53
+      ],
       "priority": "P0",
       "phase": "F1",
       "dependsOn": [
@@ -120,7 +129,9 @@
       "id": "BR-006",
       "title": "Neon schema, migrations, and transaction outbox",
       "origin": "original",
-      "prs": [],
+      "prs": [
+        3
+      ],
       "priority": "P0",
       "phase": "F1",
       "dependsOn": [
@@ -141,7 +152,9 @@
       "id": "BR-007",
       "title": "Owner authentication and restricted administration",
       "origin": "original",
-      "prs": [],
+      "prs": [
+        43
+      ],
       "priority": "P0",
       "phase": "F1",
       "dependsOn": [
@@ -162,7 +175,9 @@
       "id": "BR-008",
       "title": "Scoped GitHub App onboarding",
       "origin": "original",
-      "prs": [],
+      "prs": [
+        41
+      ],
       "priority": "P0",
       "phase": "F1",
       "dependsOn": [
@@ -183,7 +198,10 @@
       "id": "BR-009",
       "title": "Repository inventory and rename-safe identity",
       "origin": "original",
-      "prs": [],
+      "prs": [
+        9,
+        26
+      ],
       "priority": "P0",
       "phase": "F2",
       "dependsOn": [
@@ -204,7 +222,11 @@
       "id": "BR-010",
       "title": "Canonical roadmap/PR-registry adapter",
       "origin": "original",
-      "prs": [],
+      "prs": [
+        9,
+        22,
+        60
+      ],
       "priority": "P0",
       "phase": "F2",
       "dependsOn": [
@@ -225,7 +247,10 @@
       "id": "BR-011",
       "title": "Verified work-unit and dependency eligibility",
       "origin": "original",
-      "prs": [],
+      "prs": [
+        49,
+        60
+      ],
       "priority": "P0",
       "phase": "F2",
       "dependsOn": [
@@ -246,7 +271,10 @@
       "id": "BR-012",
       "title": "Ordered owner priority repositories list",
       "origin": "original",
-      "prs": [],
+      "prs": [
+        14,
+        58
+      ],
       "priority": "P0",
       "phase": "F2",
       "dependsOn": [
@@ -311,7 +339,9 @@
       "id": "BR-015",
       "title": "Optional activation-source metadata and replay protection",
       "origin": "original",
-      "prs": [],
+      "prs": [
+        13
+      ],
       "priority": "P0",
       "phase": "F2",
       "dependsOn": [
@@ -332,7 +362,9 @@
       "id": "BR-016",
       "title": "Atomic exclusive repository assignment",
       "origin": "original",
-      "prs": [],
+      "prs": [
+        5
+      ],
       "priority": "P0",
       "phase": "F2",
       "dependsOn": [
@@ -356,7 +388,9 @@
       "id": "BR-017",
       "title": "Leases, heartbeats, and session renewal",
       "origin": "original",
-      "prs": [],
+      "prs": [
+        6
+      ],
       "priority": "P0",
       "phase": "F2",
       "dependsOn": [
@@ -377,7 +411,10 @@
       "id": "BR-018",
       "title": "Session states, outcomes, and idempotent release",
       "origin": "original",
-      "prs": [],
+      "prs": [
+        6,
+        19
+      ],
       "priority": "P0",
       "phase": "F2",
       "dependsOn": [
@@ -442,7 +479,9 @@
       "id": "BR-021",
       "title": "Owner action relational model and states",
       "origin": "original",
-      "prs": [],
+      "prs": [
+        7
+      ],
       "priority": "P0",
       "phase": "F3",
       "dependsOn": [
@@ -528,7 +567,9 @@
       "id": "BR-025",
       "title": "Private Owner Action Board inbox",
       "origin": "original",
-      "prs": [],
+      "prs": [
+        8
+      ],
       "priority": "P0",
       "phase": "F3",
       "dependsOn": [
@@ -592,7 +633,10 @@
       "id": "BR-028",
       "title": "Owner approval boundaries and purchase controls",
       "origin": "original",
-      "prs": [],
+      "prs": [
+        33,
+        36
+      ],
       "priority": "P0",
       "phase": "F3",
       "dependsOn": [
@@ -614,7 +658,9 @@
       "id": "BR-029",
       "title": "Resolution, verify-and-requeue, and decline handling",
       "origin": "original",
-      "prs": [],
+      "prs": [
+        35
+      ],
       "priority": "P0",
       "phase": "F3",
       "dependsOn": [
@@ -658,7 +704,9 @@
       "id": "BR-031",
       "title": "Repository context assembler",
       "origin": "original",
-      "prs": [],
+      "prs": [
+        20
+      ],
       "priority": "P0",
       "phase": "F4",
       "dependsOn": [
@@ -680,7 +728,10 @@
       "id": "BR-032",
       "title": "Provider-neutral tool protocol and typed SDK",
       "origin": "original",
-      "prs": [],
+      "prs": [
+        31,
+        42
+      ],
       "priority": "P0",
       "phase": "F4",
       "dependsOn": [
@@ -723,7 +774,9 @@
       "id": "BR-034",
       "title": "Fenced GitHub write gateway",
       "origin": "original",
-      "prs": [],
+      "prs": [
+        21
+      ],
       "priority": "P0",
       "phase": "F4",
       "dependsOn": [
@@ -746,7 +799,9 @@
       "id": "BR-035",
       "title": "Safe branch management and write idempotency",
       "origin": "original",
-      "prs": [],
+      "prs": [
+        54
+      ],
       "priority": "P0",
       "phase": "F4",
       "dependsOn": [
@@ -788,7 +843,9 @@
       "id": "BR-037",
       "title": "CI, test, and acceptance-evidence collector",
       "origin": "original",
-      "prs": [],
+      "prs": [
+        24
+      ],
       "priority": "P0",
       "phase": "F4",
       "dependsOn": [
@@ -875,7 +932,10 @@
       "id": "BR-041",
       "title": "Cross-session resume and interruption handling",
       "origin": "original",
-      "prs": [],
+      "prs": [
+        46,
+        55
+      ],
       "priority": "P0",
       "phase": "F4",
       "dependsOn": [
@@ -921,7 +981,9 @@
       "id": "BR-043",
       "title": "Cross-repository compatibility dependency planner",
       "origin": "original",
-      "prs": [],
+      "prs": [
+        56
+      ],
       "priority": "P0",
       "phase": "F4",
       "dependsOn": [
@@ -943,7 +1005,9 @@
       "id": "BR-044",
       "title": "Threaded engineering collaboration schema",
       "origin": "original",
-      "prs": [],
+      "prs": [
+        10
+      ],
       "priority": "P0",
       "phase": "F5",
       "dependsOn": [
@@ -965,7 +1029,9 @@
       "id": "BR-045",
       "title": "Search-before-asking knowledge retrieval",
       "origin": "original",
-      "prs": [],
+      "prs": [
+        48
+      ],
       "priority": "P0",
       "phase": "F5",
       "dependsOn": [
@@ -1009,7 +1075,9 @@
       "id": "BR-047",
       "title": "Evidence-based peer-answer workflow",
       "origin": "original",
-      "prs": [],
+      "prs": [
+        10
+      ],
       "priority": "P0",
       "phase": "F5",
       "dependsOn": [
@@ -1119,7 +1187,9 @@
       "id": "BR-052",
       "title": "Deterministic watchdog and stalled-session detection",
       "origin": "original",
-      "prs": [],
+      "prs": [
+        23
+      ],
       "priority": "P0",
       "phase": "F6",
       "dependsOn": [
@@ -1141,7 +1211,9 @@
       "id": "BR-053",
       "title": "Verified process cancellation and recovery hold",
       "origin": "original",
-      "prs": [],
+      "prs": [
+        34
+      ],
       "priority": "P0",
       "phase": "F6",
       "dependsOn": [
@@ -1163,7 +1235,9 @@
       "id": "BR-054",
       "title": "Stale-session fencing and takeover race tests",
       "origin": "original",
-      "prs": [],
+      "prs": [
+        32
+      ],
       "priority": "P0",
       "phase": "F6",
       "dependsOn": [
@@ -1340,7 +1414,10 @@
       "id": "BR-062",
       "title": "Live repository Work Board and priority editor",
       "origin": "original",
-      "prs": [],
+      "prs": [
+        15,
+        16
+      ],
       "priority": "P1",
       "phase": "F7",
       "dependsOn": [
@@ -1389,7 +1466,9 @@
       "id": "BR-064",
       "title": "Coffee Corner UX and discussion search",
       "origin": "original",
-      "prs": [],
+      "prs": [
+        17
+      ],
       "priority": "P1",
       "phase": "F7",
       "dependsOn": [
@@ -1435,7 +1514,9 @@
       "id": "BR-066",
       "title": "Owner operational controls and priority overrides",
       "origin": "original",
-      "prs": [],
+      "prs": [
+        51
+      ],
       "priority": "P1",
       "phase": "F7",
       "dependsOn": [
@@ -1480,7 +1561,9 @@
       "id": "BR-068",
       "title": "Overnight summary and consolidated digests",
       "origin": "original",
-      "prs": [],
+      "prs": [
+        47
+      ],
       "priority": "P1",
       "phase": "F7",
       "dependsOn": [
@@ -1615,7 +1698,9 @@
       "id": "BR-074",
       "title": "Per-session and aggregate usage/budget guardrails",
       "origin": "original",
-      "prs": [],
+      "prs": [
+        50
+      ],
       "priority": "P1",
       "phase": "F8",
       "dependsOn": [
@@ -1637,7 +1722,9 @@
       "id": "BR-075",
       "title": "Security hardening, privacy review, and threat tests",
       "origin": "original",
-      "prs": [],
+      "prs": [
+        25
+      ],
       "priority": "P1",
       "phase": "F8",
       "dependsOn": [
@@ -1683,7 +1770,15 @@
       "id": "BR-077",
       "title": "Production deployments and service-capacity runbook",
       "origin": "original",
-      "prs": [],
+      "prs": [
+        18,
+        27,
+        29,
+        30,
+        44,
+        45,
+        57
+      ],
       "priority": "P1",
       "phase": "F8",
       "dependsOn": [
@@ -1734,7 +1829,9 @@
       "id": "BR-079",
       "title": "Owner-approved agent display-name roster and canonical registry",
       "origin": "addition",
-      "prs": [],
+      "prs": [
+        11
+      ],
       "priority": "P0",
       "phase": "F2",
       "dependsOn": [
@@ -1755,7 +1852,10 @@
       "id": "BR-080",
       "title": "Credential-bound recurring agent names, enforcement and API identity",
       "origin": "addition",
-      "prs": [],
+      "prs": [
+        12,
+        28
+      ],
       "priority": "P0",
       "phase": "F2",
       "dependsOn": [
@@ -1774,5 +1874,921 @@
       "externalPrerequisites": []
     }
   ],
-  "pullRequests": []
+  "pullRequests": [
+    {
+      "id": 4830296343,
+      "number": 1,
+      "title": "BR-001: Complete Boardroom roadmap, architecture, and agent contract",
+      "url": "https://github.com/neophilism/Boardroom/pull/1",
+      "state": "closed",
+      "draft": false,
+      "createdAt": "2026-10-12T13:44:54Z",
+      "updatedAt": "2026-10-12T13:48:00Z",
+      "closedAt": "2026-10-12T13:47:59Z",
+      "mergedAt": "2026-10-12T13:47:59Z",
+      "headSha": "00046245d95126b115e8aa8fd28acfb5bc9953d9",
+      "baseRef": "main",
+      "mergeCommitSha": "3616febbe599a8bfeee874034733589833f0cc56"
+    },
+    {
+      "id": 4830376405,
+      "number": 2,
+      "title": "BR-002: Next.js application scaffold, CI and repository selector",
+      "url": "https://github.com/neophilism/Boardroom/pull/2",
+      "state": "closed",
+      "draft": false,
+      "createdAt": "2026-10-12T13:51:10Z",
+      "updatedAt": "2026-10-12T14:12:34Z",
+      "closedAt": "2026-10-12T14:12:34Z",
+      "mergedAt": "2026-10-12T14:12:34Z",
+      "headSha": "b33a94b1e33b11b5edf47ffd547fb87180f2c0ad",
+      "baseRef": "main",
+      "mergeCommitSha": "7c65b779adb2091b27682e0210b3e8be5e785366"
+    },
+    {
+      "id": 4830420136,
+      "number": 3,
+      "title": "BR-006: Neon control-plane schema and transactional migration runner",
+      "url": "https://github.com/neophilism/Boardroom/pull/3",
+      "state": "closed",
+      "draft": false,
+      "createdAt": "2026-10-12T13:54:43Z",
+      "updatedAt": "2026-10-12T14:14:53Z",
+      "closedAt": "2026-10-12T14:14:53Z",
+      "mergedAt": "2026-10-12T14:14:53Z",
+      "headSha": "467fe0fe0d4df5a5c2dcc7d605b89a69743794c0",
+      "baseRef": "main",
+      "mergeCommitSha": "43c8c4752291c565e9194843885f8bd37978ac4d"
+    },
+    {
+      "id": 4830452985,
+      "number": 4,
+      "title": "BR-003: authenticated provider-neutral scheduled-run admission",
+      "url": "https://github.com/neophilism/Boardroom/pull/4",
+      "state": "closed",
+      "draft": false,
+      "createdAt": "2026-10-12T13:57:09Z",
+      "updatedAt": "2026-10-12T14:17:04Z",
+      "closedAt": "2026-10-12T14:17:04Z",
+      "mergedAt": "2026-10-12T14:17:04Z",
+      "headSha": "7e1154f5f7b5821d482da129687e2551f46ec4da",
+      "baseRef": "main",
+      "mergeCommitSha": "c08cb4e4d1d96a336c5415e631e579a59bc7c9d8"
+    },
+    {
+      "id": 4830495577,
+      "number": 5,
+      "title": "BR-016: atomic priority-first repository claims and generation-fenced leases",
+      "url": "https://github.com/neophilism/Boardroom/pull/5",
+      "state": "closed",
+      "draft": false,
+      "createdAt": "2026-10-12T14:00:17Z",
+      "updatedAt": "2026-10-12T14:22:38Z",
+      "closedAt": "2026-10-12T14:22:37Z",
+      "mergedAt": "2026-10-12T14:22:37Z",
+      "headSha": "d910bdd145a04b700aad1cbfb3e0a5d4030e7343",
+      "baseRef": "main",
+      "mergeCommitSha": "f9c35782b2927cc306b6933b2abb17334af3b7fb"
+    },
+    {
+      "id": 4830528063,
+      "number": 6,
+      "title": "BR-017/018: fenced heartbeats, checkpoints and session completion",
+      "url": "https://github.com/neophilism/Boardroom/pull/6",
+      "state": "closed",
+      "draft": false,
+      "createdAt": "2026-10-12T14:02:53Z",
+      "updatedAt": "2026-10-12T14:25:30Z",
+      "closedAt": "2026-10-12T14:25:29Z",
+      "mergedAt": "2026-10-12T14:25:29Z",
+      "headSha": "e9a2d286db8e8b969a66995c0b12884cf9e1e38a",
+      "baseRef": "main",
+      "mergeCommitSha": "ec369faf70d5ee674095b13d9cd719b839c3896e"
+    },
+    {
+      "id": 4830566982,
+      "number": 7,
+      "title": "BR-021: private Owner Action requests, deduplication and protected API",
+      "url": "https://github.com/neophilism/Boardroom/pull/7",
+      "state": "closed",
+      "draft": false,
+      "createdAt": "2026-10-12T14:05:57Z",
+      "updatedAt": "2026-10-12T14:40:15Z",
+      "closedAt": "2026-10-12T14:40:15Z",
+      "mergedAt": "2026-10-12T14:40:15Z",
+      "headSha": "6fe907190937b58320836bc7671efc27a52ba775",
+      "baseRef": "main",
+      "mergeCommitSha": "00f06eafacb4052db60fc4ea9da59c4b89dedee4"
+    },
+    {
+      "id": 4830619276,
+      "number": 8,
+      "title": "BR-025: private Owner Action Board UI and signed owner sessions",
+      "url": "https://github.com/neophilism/Boardroom/pull/8",
+      "state": "closed",
+      "draft": false,
+      "createdAt": "2026-10-12T14:10:10Z",
+      "updatedAt": "2026-10-12T14:45:24Z",
+      "closedAt": "2026-10-12T14:45:23Z",
+      "mergedAt": "2026-10-12T14:45:23Z",
+      "headSha": "73e7da5c97df4d25bc867a322ca996f730873240",
+      "baseRef": "main",
+      "mergeCommitSha": "c1150d37c29a073daa9e5314cf50ab631e3a9980"
+    },
+    {
+      "id": 4830772565,
+      "number": 9,
+      "title": "BR-009/010: GitHub App inventory and authoritative roadmap reconciliation",
+      "url": "https://github.com/neophilism/Boardroom/pull/9",
+      "state": "closed",
+      "draft": false,
+      "createdAt": "2026-10-12T14:23:19Z",
+      "updatedAt": "2026-10-12T14:49:06Z",
+      "closedAt": "2026-10-12T14:49:06Z",
+      "mergedAt": "2026-10-12T14:49:06Z",
+      "headSha": "3c7eceeecf816827fad15b07ed6455a5fe223ca3",
+      "baseRef": "main",
+      "mergeCommitSha": "7e27fd10db6b4cc0baf7aabfb8a49089830af450"
+    },
+    {
+      "id": 4830795109,
+      "number": 10,
+      "title": "BR-044/047: authenticated Coffee Corner engineering forum and peer answers",
+      "url": "https://github.com/neophilism/Boardroom/pull/10",
+      "state": "closed",
+      "draft": false,
+      "createdAt": "2026-10-12T14:25:12Z",
+      "updatedAt": "2026-10-12T14:51:00Z",
+      "closedAt": "2026-10-12T14:51:00Z",
+      "mergedAt": "2026-10-12T14:51:00Z",
+      "headSha": "3c8c01d610018e64d2aca45730712ba97ce755a3",
+      "baseRef": "main",
+      "mergeCommitSha": "0d3bf9bff76158e52a10f925ed38d3a4d9ab97c4"
+    },
+    {
+      "id": 4830830822,
+      "number": 11,
+      "title": "BR-079: Owner-approved roster of 601 named scheduled agents",
+      "url": "https://github.com/neophilism/Boardroom/pull/11",
+      "state": "closed",
+      "draft": false,
+      "createdAt": "2026-10-12T14:28:23Z",
+      "updatedAt": "2026-10-12T14:31:24Z",
+      "closedAt": "2026-10-12T14:31:24Z",
+      "mergedAt": "2026-10-12T14:31:24Z",
+      "headSha": "aeafdb376baaec90992e36b4699cbd9a614aa148",
+      "baseRef": "main",
+      "mergeCommitSha": "7ded388b4440529c65be61e134e55cd7a9f5c22a"
+    },
+    {
+      "id": 4830885197,
+      "number": 12,
+      "title": "BR-080: Bind scheduled agent names to authenticated credentials",
+      "url": "https://github.com/neophilism/Boardroom/pull/12",
+      "state": "closed",
+      "draft": false,
+      "createdAt": "2026-10-12T14:33:04Z",
+      "updatedAt": "2026-10-12T14:35:50Z",
+      "closedAt": "2026-10-12T14:35:49Z",
+      "mergedAt": "2026-10-12T14:35:49Z",
+      "headSha": "e2e2bff5063c3b93322a27964b88386b71dc112a",
+      "baseRef": "main",
+      "mergeCommitSha": "2a5d01f0b7adef93f1663bc2e2d82acc2aab89f5"
+    },
+    {
+      "id": 4830948590,
+      "number": 13,
+      "title": "BR-015: One active scheduled session per named agent",
+      "url": "https://github.com/neophilism/Boardroom/pull/13",
+      "state": "closed",
+      "draft": false,
+      "createdAt": "2026-10-12T14:38:36Z",
+      "updatedAt": "2026-10-12T14:39:39Z",
+      "closedAt": "2026-10-12T14:39:39Z",
+      "mergedAt": "2026-10-12T14:39:39Z",
+      "headSha": "5aa13457287f667f11c952588410b8dd9217818e",
+      "baseRef": "main",
+      "mergeCommitSha": "a9d1b59a0659fb8f3794a5d58885137ae1c6c6b0"
+    },
+    {
+      "id": 4830999890,
+      "number": 14,
+      "title": "BR-012: Private owner-controlled repository priority order",
+      "url": "https://github.com/neophilism/Boardroom/pull/14",
+      "state": "closed",
+      "draft": false,
+      "createdAt": "2026-10-12T14:42:55Z",
+      "updatedAt": "2026-10-12T14:44:57Z",
+      "closedAt": "2026-10-12T14:44:56Z",
+      "mergedAt": "2026-10-12T14:44:56Z",
+      "headSha": "1817f119fbb84a08fc51e50aa4089fc23fb19ef8",
+      "baseRef": "main",
+      "mergeCommitSha": "cdf826f2aca340f65449de0b701401e049a8e1f5"
+    },
+    {
+      "id": 4831066175,
+      "number": 15,
+      "title": "BR-062: Private visual editor for priority repositories",
+      "url": "https://github.com/neophilism/Boardroom/pull/15",
+      "state": "closed",
+      "draft": false,
+      "createdAt": "2026-10-12T14:48:45Z",
+      "updatedAt": "2026-10-12T14:50:10Z",
+      "closedAt": "2026-10-12T14:50:10Z",
+      "mergedAt": "2026-10-12T14:50:10Z",
+      "headSha": "768463b5e1ccf5ba71f2533610012558919eddd4",
+      "baseRef": "main",
+      "mergeCommitSha": "20b34ef9f4f38377c5a104fca5807468ad39c0fe"
+    },
+    {
+      "id": 4831116241,
+      "number": 16,
+      "title": "BR-062: Read-only live Work Board showing named agent assignments",
+      "url": "https://github.com/neophilism/Boardroom/pull/16",
+      "state": "closed",
+      "draft": false,
+      "createdAt": "2026-10-12T14:52:58Z",
+      "updatedAt": "2026-10-12T15:58:50Z",
+      "closedAt": "2026-10-12T15:58:50Z",
+      "mergedAt": "2026-10-12T15:58:50Z",
+      "headSha": "7ddfe59d44c5cc001ce7348bcff7476db15ac0cf",
+      "baseRef": "main",
+      "mergeCommitSha": "cf1450e30138528620feacf27d83c34a456e6dce"
+    },
+    {
+      "id": 4831911344,
+      "number": 17,
+      "title": "BR-064: Private owner-readable Coffee Corner conversations",
+      "url": "https://github.com/neophilism/Boardroom/pull/17",
+      "state": "closed",
+      "draft": false,
+      "createdAt": "2026-10-12T16:00:57Z",
+      "updatedAt": "2026-10-12T16:02:00Z",
+      "closedAt": "2026-10-12T16:02:00Z",
+      "mergedAt": "2026-10-12T16:02:00Z",
+      "headSha": "f6c52531e4ffba17e3d8dcbc16d491a0af9bdc15",
+      "baseRef": "main",
+      "mergeCommitSha": "e4834c8b425b14f471aef4c01de284e2f5500314"
+    },
+    {
+      "id": 4831961295,
+      "number": 18,
+      "title": "BR-077: Deployment readiness endpoint and Neon migration verification",
+      "url": "https://github.com/neophilism/Boardroom/pull/18",
+      "state": "closed",
+      "draft": false,
+      "createdAt": "2026-10-12T16:05:08Z",
+      "updatedAt": "2026-10-12T16:14:17Z",
+      "closedAt": "2026-10-12T16:14:17Z",
+      "mergedAt": "2026-10-12T16:14:17Z",
+      "headSha": "b10852bb8db32a7fb120462eb718ec56568d4cb0",
+      "baseRef": "main",
+      "mergeCommitSha": "9a9002b1be685da976fa1787d7043e1b66ed2377"
+    },
+    {
+      "id": 4832089083,
+      "number": 19,
+      "title": "BR-018 follow-up: close idle scheduled sessions safely",
+      "url": "https://github.com/neophilism/Boardroom/pull/19",
+      "state": "closed",
+      "draft": false,
+      "createdAt": "2026-10-12T16:16:13Z",
+      "updatedAt": "2026-10-12T19:58:25Z",
+      "closedAt": "2026-10-12T19:58:25Z",
+      "mergedAt": "2026-10-12T19:58:25Z",
+      "headSha": "29e1f5925f9c6c4c0e6d82ecae910cfba2469277",
+      "baseRef": "main",
+      "mergeCommitSha": "f0eb5bece2795a1103d496fecdfc0dccd2674960"
+    },
+    {
+      "id": 4834370658,
+      "number": 20,
+      "title": "BR-031: authenticated, fenced assignment context and GitHub instructions",
+      "url": "https://github.com/neophilism/Boardroom/pull/20",
+      "state": "closed",
+      "draft": false,
+      "createdAt": "2026-10-12T20:00:38Z",
+      "updatedAt": "2026-10-12T20:01:46Z",
+      "closedAt": "2026-10-12T20:01:46Z",
+      "mergedAt": "2026-10-12T20:01:46Z",
+      "headSha": "70cb969945115a8707f455870b0fb5abf889860d",
+      "baseRef": "main",
+      "mergeCommitSha": "e675db418ab9bde916c8a63e1913149b6f2083fb"
+    },
+    {
+      "id": 4834403664,
+      "number": 21,
+      "title": "BR-034: Generation-fenced GitHub write gateway for named agents",
+      "url": "https://github.com/neophilism/Boardroom/pull/21",
+      "state": "closed",
+      "draft": false,
+      "createdAt": "2026-10-12T20:03:59Z",
+      "updatedAt": "2026-10-12T20:07:20Z",
+      "closedAt": "2026-10-12T20:07:20Z",
+      "mergedAt": "2026-10-12T20:07:20Z",
+      "headSha": "7223c38c2d8606a2b88dff03cf9ee459bf453948",
+      "baseRef": "main",
+      "mergeCommitSha": "3e7be03f2a43fa98b5f500a6316609f081bcb56e"
+    },
+    {
+      "id": 4834449745,
+      "number": 22,
+      "title": "BR-010: Correct multi-PR roadmap state reconciliation",
+      "url": "https://github.com/neophilism/Boardroom/pull/22",
+      "state": "closed",
+      "draft": false,
+      "createdAt": "2026-10-12T20:08:51Z",
+      "updatedAt": "2026-10-12T20:10:54Z",
+      "closedAt": "2026-10-12T20:10:54Z",
+      "mergedAt": "2026-10-12T20:10:54Z",
+      "headSha": "3ec1ef8a88dd701fab886073abb2da682a5ede62",
+      "baseRef": "main",
+      "mergeCommitSha": "ad91073b6e969ab84c6ccc8a267692cfbef0433e"
+    },
+    {
+      "id": 4834466586,
+      "number": 23,
+      "title": "BR-052: Safe watchdog detection of stalled agent sessions",
+      "url": "https://github.com/neophilism/Boardroom/pull/23",
+      "state": "closed",
+      "draft": false,
+      "createdAt": "2026-10-12T20:10:39Z",
+      "updatedAt": "2026-10-12T20:11:42Z",
+      "closedAt": "2026-10-12T20:11:42Z",
+      "mergedAt": "2026-10-12T20:11:42Z",
+      "headSha": "f34c76c7f172f4d24ea81ccb94a9c941dd8a0bcd",
+      "baseRef": "main",
+      "mergeCommitSha": "6c9f9fe19ff920f57f2ab4eae59b365a35c6fedb"
+    },
+    {
+      "id": 4834485522,
+      "number": 24,
+      "title": "BR-037: Verified PR status and CI evidence for assigned agents",
+      "url": "https://github.com/neophilism/Boardroom/pull/24",
+      "state": "closed",
+      "draft": false,
+      "createdAt": "2026-10-12T20:12:41Z",
+      "updatedAt": "2026-10-12T20:13:46Z",
+      "closedAt": "2026-10-12T20:13:46Z",
+      "mergedAt": "2026-10-12T20:13:46Z",
+      "headSha": "ebd7995c2a842b42260ac0e8d2cec0323662b345",
+      "baseRef": "main",
+      "mergeCommitSha": "7a069e68d3f3805f3e588309df9e339c0f2eb855"
+    },
+    {
+      "id": 4834504768,
+      "number": 25,
+      "title": "BR-075: Add CodeQL v4 security analysis and npm vulnerability checks",
+      "url": "https://github.com/neophilism/Boardroom/pull/25",
+      "state": "closed",
+      "draft": false,
+      "createdAt": "2026-10-12T20:14:42Z",
+      "updatedAt": "2026-10-12T20:17:46Z",
+      "closedAt": "2026-10-12T20:17:46Z",
+      "mergedAt": "2026-10-12T20:17:46Z",
+      "headSha": "3a930535e1e1d0a359d84b10b8e4fa153482f708",
+      "baseRef": "main",
+      "mergeCommitSha": "f376743fa07c7c2975160acea6e579f3979ea734"
+    },
+    {
+      "id": 4834532039,
+      "number": 26,
+      "title": "BR-009: Owner-operated batched GitHub repository sync from Work Board",
+      "url": "https://github.com/neophilism/Boardroom/pull/26",
+      "state": "closed",
+      "draft": false,
+      "createdAt": "2026-10-12T20:17:32Z",
+      "updatedAt": "2026-10-12T20:19:32Z",
+      "closedAt": "2026-10-12T20:19:32Z",
+      "mergedAt": "2026-10-12T20:19:32Z",
+      "headSha": "b16692c984fc1952bdb6e7aa24b437a8612f80d2",
+      "baseRef": "main",
+      "mergeCommitSha": "07998b28b0a3b4541a98e0b083d27cc852dfeb75"
+    },
+    {
+      "id": 4834548757,
+      "number": 27,
+      "title": "BR-077: Safe owner setup screen for unconfigured Render deployment",
+      "url": "https://github.com/neophilism/Boardroom/pull/27",
+      "state": "closed",
+      "draft": false,
+      "createdAt": "2026-10-12T20:19:18Z",
+      "updatedAt": "2026-10-12T20:20:24Z",
+      "closedAt": "2026-10-12T20:20:24Z",
+      "mergedAt": "2026-10-12T20:20:24Z",
+      "headSha": "72fd4b9cf5d91b1e7047d77f400117e780fb497c",
+      "baseRef": "main",
+      "mergeCommitSha": "227036123abc8e473617e336de013b63e954ddb4"
+    },
+    {
+      "id": 4834719618,
+      "number": 28,
+      "title": "BR-080: Owner-controlled registration and revocation of named agents",
+      "url": "https://github.com/neophilism/Boardroom/pull/28",
+      "state": "closed",
+      "draft": false,
+      "createdAt": "2026-10-12T20:37:20Z",
+      "updatedAt": "2026-10-12T20:38:55Z",
+      "closedAt": "2026-10-12T20:38:55Z",
+      "mergedAt": "2026-10-12T20:38:54Z",
+      "headSha": "b3ea23dafdaab898afc2994de53cea4411e44a7c",
+      "baseRef": "main",
+      "mergeCommitSha": "9a1cacddde52d669120640b233775478a1f2625d"
+    },
+    {
+      "id": 4834755582,
+      "number": 29,
+      "title": "BR-077: Private verified system status and GitHub App connectivity",
+      "url": "https://github.com/neophilism/Boardroom/pull/29",
+      "state": "closed",
+      "draft": false,
+      "createdAt": "2026-10-12T20:41:10Z",
+      "updatedAt": "2026-10-12T20:45:45Z",
+      "closedAt": "2026-10-12T20:45:45Z",
+      "mergedAt": "2026-10-12T20:45:44Z",
+      "headSha": "f540996f770c56a7fc38b514deaab6ae2ab59283",
+      "baseRef": "main",
+      "mergeCommitSha": "d3b095c20b15e8295d9cf9a59a2434bd3faacb49"
+    },
+    {
+      "id": 4834770146,
+      "number": 30,
+      "title": "BR-077: Public live Render deployment smoke tests in GitHub Actions",
+      "url": "https://github.com/neophilism/Boardroom/pull/30",
+      "state": "closed",
+      "draft": false,
+      "createdAt": "2026-10-12T20:42:45Z",
+      "updatedAt": "2026-10-12T20:44:29Z",
+      "closedAt": "2026-10-12T20:44:29Z",
+      "mergedAt": "2026-10-12T20:44:29Z",
+      "headSha": "477d890d7b9911d9277c586ad966c4dc1d4223fb",
+      "baseRef": "main",
+      "mergeCommitSha": "828953d40f0631d3dd5dadd50bb35b1e355aa7ba"
+    },
+    {
+      "id": 4834816366,
+      "number": 31,
+      "title": "BR-032: Provider-neutral agent client and standard scheduled-task protocol",
+      "url": "https://github.com/neophilism/Boardroom/pull/31",
+      "state": "closed",
+      "draft": false,
+      "createdAt": "2026-10-12T20:47:36Z",
+      "updatedAt": "2026-10-12T20:51:06Z",
+      "closedAt": "2026-10-12T20:51:06Z",
+      "mergedAt": "2026-10-12T20:51:06Z",
+      "headSha": "02108ecd61cdd2c88636ea24f8366581bc20a755",
+      "baseRef": "main",
+      "mergeCommitSha": "562375e2873f73b57fd6912bbd0d2cb12ad439c1"
+    },
+    {
+      "id": 4834845757,
+      "number": 32,
+      "title": "BR-054: Real PostgreSQL concurrent-claim and fencing integration tests",
+      "url": "https://github.com/neophilism/Boardroom/pull/32",
+      "state": "closed",
+      "draft": false,
+      "createdAt": "2026-10-12T20:50:49Z",
+      "updatedAt": "2026-10-12T20:52:42Z",
+      "closedAt": "2026-10-12T20:52:42Z",
+      "mergedAt": "2026-10-12T20:52:42Z",
+      "headSha": "4492ae6cc602a77bdc1ce85935aa0820666c0def",
+      "baseRef": "main",
+      "mergeCommitSha": "24664a31afc7ed9076eb5f903730ee61446b375a"
+    },
+    {
+      "id": 4834880394,
+      "number": 33,
+      "title": "BR-028: Owner setup auto-verification from real Neon and GitHub evidence",
+      "url": "https://github.com/neophilism/Boardroom/pull/33",
+      "state": "closed",
+      "draft": false,
+      "createdAt": "2026-10-12T20:54:35Z",
+      "updatedAt": "2026-10-12T21:15:38Z",
+      "closedAt": "2026-10-12T21:15:38Z",
+      "mergedAt": "2026-10-12T21:15:38Z",
+      "headSha": "3835691ec544f929a3061f33048a6ce8818dec7f",
+      "baseRef": "main",
+      "mergeCommitSha": "81887019a434aff0657d57699c6b011fea9d26e0"
+    },
+    {
+      "id": 4834945632,
+      "number": 34,
+      "title": "BR-053: Private read-only recovery queue for stalled agents",
+      "url": "https://github.com/neophilism/Boardroom/pull/34",
+      "state": "closed",
+      "draft": false,
+      "createdAt": "2026-10-12T21:01:39Z",
+      "updatedAt": "2026-10-12T21:02:53Z",
+      "closedAt": "2026-10-12T21:02:53Z",
+      "mergedAt": "2026-10-12T21:02:53Z",
+      "headSha": "1ee8ae66f7233f97f1873417a08fbe54756301be",
+      "baseRef": "main",
+      "mergeCommitSha": "3155d369e8d3212ed65f3718bbcceb5db78b9c07"
+    },
+    {
+      "id": 4835110702,
+      "number": 35,
+      "title": "BR-029: One-click verification and import of installed GitHub repositories",
+      "url": "https://github.com/neophilism/Boardroom/pull/35",
+      "state": "closed",
+      "draft": false,
+      "createdAt": "2026-10-12T21:19:34Z",
+      "updatedAt": "2026-10-12T21:20:47Z",
+      "closedAt": "2026-10-12T21:20:46Z",
+      "mergedAt": "2026-10-12T21:20:46Z",
+      "headSha": "9134e4ca804fe4462fa61a3fe30de6e76a28f07a",
+      "baseRef": "main",
+      "mergeCommitSha": "7cd535d24ed1ba64580a0485e05ff83429a92f95"
+    },
+    {
+      "id": 4835138071,
+      "number": 36,
+      "title": "BR-028: Audit actual installed GitHub App permissions before enabling development",
+      "url": "https://github.com/neophilism/Boardroom/pull/36",
+      "state": "closed",
+      "draft": false,
+      "createdAt": "2026-10-12T21:22:17Z",
+      "updatedAt": "2026-10-12T21:23:37Z",
+      "closedAt": "2026-10-12T21:23:37Z",
+      "mergedAt": "2026-10-12T21:23:37Z",
+      "headSha": "5a6f46768c28c33240e384a139de7efb6af78f6a",
+      "baseRef": "main",
+      "mergeCommitSha": "9d5826f5b717e458a15eb419a95f3e34a54623ae"
+    },
+    {
+      "id": 4835283435,
+      "number": 37,
+      "title": "BR-081: Repair owner sign-in with password-manager tokens",
+      "url": "https://github.com/neophilism/Boardroom/pull/37",
+      "state": "closed",
+      "draft": false,
+      "createdAt": "2026-10-12T21:37:45Z",
+      "updatedAt": "2026-10-12T21:41:48Z",
+      "closedAt": "2026-10-12T21:41:48Z",
+      "mergedAt": "2026-10-12T21:41:48Z",
+      "headSha": "b343faaedbd732a17c258fda3e52500ff4d205cf",
+      "baseRef": "main",
+      "mergeCommitSha": "0458ad8344a21fecbdb21c0298a2cc2f606afd80"
+    },
+    {
+      "id": 4835407724,
+      "number": 38,
+      "title": "BR-082: Fix owner API 401 behind Render reverse proxy",
+      "url": "https://github.com/neophilism/Boardroom/pull/38",
+      "state": "closed",
+      "draft": false,
+      "createdAt": "2026-10-12T21:51:19Z",
+      "updatedAt": "2026-10-12T21:55:54Z",
+      "closedAt": "2026-10-12T21:55:54Z",
+      "mergedAt": "2026-10-12T21:55:54Z",
+      "headSha": "df16818dd63296cc5f105134be42b4f8e178c469",
+      "baseRef": "main",
+      "mergeCommitSha": "138482b70c3b135b8bb44f9bb5287b4e0f893c65"
+    },
+    {
+      "id": 4835471545,
+      "number": 39,
+      "title": "BR-083: Diagnose GitHub App installation failures without exposing secrets",
+      "url": "https://github.com/neophilism/Boardroom/pull/39",
+      "state": "closed",
+      "draft": false,
+      "createdAt": "2026-10-12T21:58:25Z",
+      "updatedAt": "2026-10-12T21:59:36Z",
+      "closedAt": "2026-10-12T21:59:36Z",
+      "mergedAt": "2026-10-12T21:59:36Z",
+      "headSha": "45fe4716e1d1acf353a14d55f4a9aa3a4981f992",
+      "baseRef": "main",
+      "mergeCommitSha": "e1475b9073e2753d4fa3acedc14d18444afd4b5f"
+    },
+    {
+      "id": 4835485300,
+      "number": 40,
+      "title": "BR-084: Fix owner verification and import session checks",
+      "url": "https://github.com/neophilism/Boardroom/pull/40",
+      "state": "closed",
+      "draft": false,
+      "createdAt": "2026-10-12T22:00:01Z",
+      "updatedAt": "2026-10-12T22:01:23Z",
+      "closedAt": "2026-10-12T22:01:22Z",
+      "mergedAt": "2026-10-12T22:01:22Z",
+      "headSha": "4769673d465932470ab9857431e8b56aeb35cdba",
+      "baseRef": "main",
+      "mergeCommitSha": "f91e3deea6a51c33cd565aa4389143de33993652"
+    },
+    {
+      "id": 4835894512,
+      "number": 41,
+      "title": "BR-008: Validate GitHub App keys and accept secret-manager PEM formatting",
+      "url": "https://github.com/neophilism/Boardroom/pull/41",
+      "state": "closed",
+      "draft": false,
+      "createdAt": "2026-10-12T22:47:59Z",
+      "updatedAt": "2026-10-12T22:54:08Z",
+      "closedAt": "2026-10-12T22:54:08Z",
+      "mergedAt": "2026-10-12T22:54:08Z",
+      "headSha": "d507d1ec50ecff7c15a61165ae11f2e406d9e13a",
+      "baseRef": "main",
+      "mergeCommitSha": "cab19f31aea8a2cc534927579f1b26589cdc05f7"
+    },
+    {
+      "id": 4836010875,
+      "number": 42,
+      "title": "BR-032: Bounded autonomous development, MCP tools and operator controls",
+      "url": "https://github.com/neophilism/Boardroom/pull/42",
+      "state": "closed",
+      "draft": false,
+      "createdAt": "2026-10-12T23:02:52Z",
+      "updatedAt": "2026-10-13T15:35:07Z",
+      "closedAt": "2026-10-13T15:26:24Z",
+      "mergedAt": "2026-10-13T15:26:24Z",
+      "headSha": "c05631d7411edb304dcf067398c5043f068230ec",
+      "baseRef": "main",
+      "mergeCommitSha": "bd7973207ef2f88d4438bbcc56d752b1cd78102e"
+    },
+    {
+      "id": 4836163146,
+      "number": 43,
+      "title": "BR-007: Align agent registration and owner controls with signed Next sessions",
+      "url": "https://github.com/neophilism/Boardroom/pull/43",
+      "state": "closed",
+      "draft": false,
+      "createdAt": "2026-10-12T23:23:44Z",
+      "updatedAt": "2026-10-12T23:32:55Z",
+      "closedAt": "2026-10-12T23:32:55Z",
+      "mergedAt": "2026-10-12T23:32:55Z",
+      "headSha": "e497cda03d6147490201400d735e11ae6835f0c7",
+      "baseRef": "main",
+      "mergeCommitSha": "ef3978cf979f099692ac6905db2a3e6f088d6ec9"
+    },
+    {
+      "id": 4845595756,
+      "number": 44,
+      "title": "BR-077: Verify every migration before reporting deployment readiness",
+      "url": "https://github.com/neophilism/Boardroom/pull/44",
+      "state": "closed",
+      "draft": false,
+      "createdAt": "2026-10-13T15:30:54Z",
+      "updatedAt": "2026-10-13T15:36:39Z",
+      "closedAt": "2026-10-13T15:36:38Z",
+      "mergedAt": "2026-10-13T15:36:38Z",
+      "headSha": "ad46457712c70227f584a33ed7e9afd78d3a3284",
+      "baseRef": "main",
+      "mergeCommitSha": "b18660881aea234a7e9a8d153b7c176839d69530"
+    },
+    {
+      "id": 4845725911,
+      "number": 45,
+      "title": "BR-077: Require the exact live revision before passing deployment checks",
+      "url": "https://github.com/neophilism/Boardroom/pull/45",
+      "state": "closed",
+      "draft": false,
+      "createdAt": "2026-10-13T15:41:26Z",
+      "updatedAt": "2026-10-13T15:43:48Z",
+      "closedAt": "2026-10-13T15:43:48Z",
+      "mergedAt": "2026-10-13T15:43:48Z",
+      "headSha": "bc2b3f2589ddd8de7baa1999ccc7048d401de427",
+      "baseRef": "main",
+      "mergeCommitSha": "9bc1d9e353342447e2365e2c500a423695b67cad"
+    },
+    {
+      "id": 4845948412,
+      "number": 46,
+      "title": "BR-041: Resume verified PRs and preserve substantive handoffs",
+      "url": "https://github.com/neophilism/Boardroom/pull/46",
+      "state": "closed",
+      "draft": false,
+      "createdAt": "2026-10-13T15:59:20Z",
+      "updatedAt": "2026-10-13T16:05:02Z",
+      "closedAt": "2026-10-13T16:05:02Z",
+      "mergedAt": "2026-10-13T16:05:02Z",
+      "headSha": "0f5324407fc4a9886bfb6b4b198880161271b384",
+      "baseRef": "main",
+      "mergeCommitSha": "5c5f97967d7b67cffa66cc0367a19827eb8f2532"
+    },
+    {
+      "id": 4846032770,
+      "number": 47,
+      "title": "BR-068: Private daily report with GitHub evidence and owner reminders",
+      "url": "https://github.com/neophilism/Boardroom/pull/47",
+      "state": "closed",
+      "draft": false,
+      "createdAt": "2026-10-13T16:06:07Z",
+      "updatedAt": "2026-10-13T16:16:46Z",
+      "closedAt": "2026-10-13T16:16:46Z",
+      "mergedAt": "2026-10-13T16:16:46Z",
+      "headSha": "a5b5b8d343ab3b8318e11a557d72b90b0573329b",
+      "baseRef": "main",
+      "mergeCommitSha": "fb59a853cdca420300babaefe65023890e13dc51"
+    },
+    {
+      "id": 4846123707,
+      "number": 48,
+      "title": "BR-045: Shared answer search and deduplicated Coffee questions",
+      "url": "https://github.com/neophilism/Boardroom/pull/48",
+      "state": "closed",
+      "draft": false,
+      "createdAt": "2026-10-13T16:13:35Z",
+      "updatedAt": "2026-10-13T16:21:06Z",
+      "closedAt": "2026-10-13T16:21:05Z",
+      "mergedAt": "2026-10-13T16:21:05Z",
+      "headSha": "d4920f4ea28ea7326f9f73e83f6309a20deed0be",
+      "baseRef": "main",
+      "mergeCommitSha": "26136048d03dfebda6306468caf86de4c37d766e"
+    },
+    {
+      "id": 4846231822,
+      "number": 49,
+      "title": "BR-011: Preserve holds and diagnose invalid roadmap reconciliation",
+      "url": "https://github.com/neophilism/Boardroom/pull/49",
+      "state": "closed",
+      "draft": false,
+      "createdAt": "2026-10-13T16:22:55Z",
+      "updatedAt": "2026-10-13T16:39:55Z",
+      "closedAt": "2026-10-13T16:39:55Z",
+      "mergedAt": "2026-10-13T16:39:55Z",
+      "headSha": "d596192bf4a862557bea6bb58ae2051f80314d02",
+      "baseRef": "main",
+      "mergeCommitSha": "88d139099ec214a6b4401a393b15f37c7693307c"
+    },
+    {
+      "id": 4846346588,
+      "number": 50,
+      "title": "BR-074: Safe budget stops and truthful heartbeat finalization",
+      "url": "https://github.com/neophilism/Boardroom/pull/50",
+      "state": "closed",
+      "draft": false,
+      "createdAt": "2026-10-13T16:32:49Z",
+      "updatedAt": "2026-10-13T16:40:06Z",
+      "closedAt": "2026-10-13T16:40:06Z",
+      "mergedAt": "2026-10-13T16:40:06Z",
+      "headSha": "6868e5469f171b92e260cf51e98f1c72db2efb46",
+      "baseRef": "main",
+      "mergeCommitSha": "0159bfae1315091f9a1a5005345a8e0314050155"
+    },
+    {
+      "id": 4846468926,
+      "number": 51,
+      "title": "BR-066: Owner execution limits and bounded hosted sessions",
+      "url": "https://github.com/neophilism/Boardroom/pull/51",
+      "state": "closed",
+      "draft": false,
+      "createdAt": "2026-10-13T16:43:18Z",
+      "updatedAt": "2026-10-13T16:56:28Z",
+      "closedAt": "2026-10-13T16:56:27Z",
+      "mergedAt": "2026-10-13T16:56:27Z",
+      "headSha": "d59179bffb00b816671eb4719488ba2efc3d559c",
+      "baseRef": "main",
+      "mergeCommitSha": "165bec05c4e35b7df57a09cae60f271d2c871ae1"
+    },
+    {
+      "id": 4846917570,
+      "number": 52,
+      "title": "BR-005: Native ChatGPT OAuth with owner-approved named identities",
+      "url": "https://github.com/neophilism/Boardroom/pull/52",
+      "state": "closed",
+      "draft": false,
+      "createdAt": "2026-10-13T17:22:30Z",
+      "updatedAt": "2026-10-13T18:02:15Z",
+      "closedAt": "2026-10-13T18:02:15Z",
+      "mergedAt": "2026-10-13T18:02:15Z",
+      "headSha": "6b25e21f5852f75dd65452b3aa8ca9b35a61fd8d",
+      "baseRef": "main",
+      "mergeCommitSha": "9efbf34e06bfdb69fc52fcef266dfe7841ae59b7"
+    },
+    {
+      "id": 4847439053,
+      "number": 53,
+      "title": "BR-005: Give connected agents actionable failures and strict MCP request handling",
+      "url": "https://github.com/neophilism/Boardroom/pull/53",
+      "state": "closed",
+      "draft": false,
+      "createdAt": "2026-10-13T18:07:38Z",
+      "updatedAt": "2026-10-13T18:12:28Z",
+      "closedAt": "2026-10-13T18:12:28Z",
+      "mergedAt": "2026-10-13T18:12:28Z",
+      "headSha": "a55195e6e22b6f6f3e4d50a76b971c9972f7159d",
+      "baseRef": "main",
+      "mergeCommitSha": "f631a84ab706c05db20ae2e751d1ad8e5f3bdec5"
+    },
+    {
+      "id": 4847502432,
+      "number": 54,
+      "title": "BR-035: Publish coordinated agent source edits as one atomic commit",
+      "url": "https://github.com/neophilism/Boardroom/pull/54",
+      "state": "closed",
+      "draft": false,
+      "createdAt": "2026-10-13T18:13:14Z",
+      "updatedAt": "2026-10-13T18:16:32Z",
+      "closedAt": "2026-10-13T18:16:32Z",
+      "mergedAt": "2026-10-13T18:16:32Z",
+      "headSha": "179057698eb6bc67828da3df71222a87f9c5fd3c",
+      "baseRef": "main",
+      "mergeCommitSha": "fdfde2fac9aae699645c49bbb1928e9950918851"
+    },
+    {
+      "id": 4847561170,
+      "number": 55,
+      "title": "BR-041: Recover interrupted source writes without stale tests or duplicate edits",
+      "url": "https://github.com/neophilism/Boardroom/pull/55",
+      "state": "closed",
+      "draft": false,
+      "createdAt": "2026-10-13T18:18:26Z",
+      "updatedAt": "2026-10-13T18:22:03Z",
+      "closedAt": "2026-10-13T18:22:03Z",
+      "mergedAt": "2026-10-13T18:22:03Z",
+      "headSha": "3648d3e9fcd6cdbaae9a53dd22ecd4c0fa558c09",
+      "baseRef": "main",
+      "mergeCommitSha": "976e6195c63320e73a12e4f78e399d182c2acc51"
+    },
+    {
+      "id": 4847615413,
+      "number": 56,
+      "title": "BR-043: Prioritize foundations and recheck dependencies before privileged work",
+      "url": "https://github.com/neophilism/Boardroom/pull/56",
+      "state": "closed",
+      "draft": false,
+      "createdAt": "2026-10-13T18:23:09Z",
+      "updatedAt": "2026-10-13T18:27:23Z",
+      "closedAt": "2026-10-13T18:27:22Z",
+      "mergedAt": "2026-10-13T18:27:22Z",
+      "headSha": "2aa32c19cfac3165789dbb56001285f9ee4b0c6f",
+      "baseRef": "main",
+      "mergeCommitSha": "1293534378e476e92f5511ce9535d8217b5313b3"
+    },
+    {
+      "id": 4847680591,
+      "number": 57,
+      "title": "BR-077: Verify the deployed agent interface and OAuth discovery",
+      "url": "https://github.com/neophilism/Boardroom/pull/57",
+      "state": "closed",
+      "draft": false,
+      "createdAt": "2026-10-13T18:28:47Z",
+      "updatedAt": "2026-10-13T18:32:26Z",
+      "closedAt": "2026-10-13T18:32:26Z",
+      "mergedAt": "2026-10-13T18:32:26Z",
+      "headSha": "66d95c1856d14137cb3441afc2ae887a5b8f126d",
+      "baseRef": "main",
+      "mergeCommitSha": "02bbc0992825c856b0576ec28042f3ee97f57027"
+    },
+    {
+      "id": 4847894182,
+      "number": 58,
+      "title": "BR-012: Fix default repository priority initialization",
+      "url": "https://github.com/neophilism/Boardroom/pull/58",
+      "state": "closed",
+      "draft": false,
+      "createdAt": "2026-10-13T18:47:09Z",
+      "updatedAt": "2026-10-13T18:49:30Z",
+      "closedAt": "2026-10-13T18:49:29Z",
+      "mergedAt": "2026-10-13T18:49:29Z",
+      "headSha": "c22fb5cc31bba6b67b7ce4364940dbdeefa97050",
+      "baseRef": "main",
+      "mergeCommitSha": "0ebeea4f0354099d7351933c99407deea796ecb7"
+    },
+    {
+      "id": 4848134374,
+      "number": 59,
+      "title": "Owner policy: proceed with AI security review; defer external audit",
+      "url": "https://github.com/neophilism/Boardroom/pull/59",
+      "state": "closed",
+      "draft": false,
+      "createdAt": "2026-10-13T19:06:59Z",
+      "updatedAt": "2026-10-13T19:20:29Z",
+      "closedAt": "2026-10-13T19:20:28Z",
+      "mergedAt": "2026-10-13T19:20:28Z",
+      "headSha": "9b7b538ae4024e38c37a0a7129e359a944528e08",
+      "baseRef": "main",
+      "mergeCommitSha": "77cc7bb80fd32123c855a66851681d97520142f4"
+    },
+    {
+      "id": 4848222770,
+      "number": 60,
+      "title": "BR-010/011: Standardize PR imports and preserve cross-project prerequisites",
+      "url": "https://github.com/neophilism/Boardroom/pull/60",
+      "state": "closed",
+      "draft": false,
+      "createdAt": "2026-10-13T19:14:26Z",
+      "updatedAt": "2026-10-13T19:39:49Z",
+      "closedAt": "2026-10-13T19:39:49Z",
+      "mergedAt": "2026-10-13T19:39:49Z",
+      "headSha": "a3374ba2476b8fd6ae13da603f8d5407bcfe1f15",
+      "baseRef": "main",
+      "mergeCommitSha": "baedd51d2e042922ae068820187dea6bf25144d1"
+    },
+    {
+      "id": 4848930647,
+      "number": 61,
+      "title": "Prevent unverified direct GitHub PR merges with current-head preflight",
+      "url": "https://github.com/neophilism/Boardroom/pull/61",
+      "state": "closed",
+      "draft": false,
+      "createdAt": "2026-10-13T20:16:32Z",
+      "updatedAt": "2026-10-13T20:19:58Z",
+      "closedAt": "2026-10-13T20:19:58Z",
+      "mergedAt": "2026-10-13T20:19:58Z",
+      "headSha": "55bb8168a6a258bd0782563aa40c3a72382534f9",
+      "baseRef": "main",
+      "mergeCommitSha": "4bde644b2ac7639fa240df88b13e5b1017ceab0c"
+    }
+  ]
 }
