@@ -11,7 +11,7 @@
   "priority": "highest",
   "schemaVersion": 1,
   "roadmapVersion": 2,
-  "observedAt": "2026-10-15T08:27:15Z",
+  "observedAt": "2026-10-15T08:45:51Z",
   "units": [
     {
       "id": "BR-001",
@@ -679,7 +679,8 @@
       "title": "Resolution, verify-and-requeue, and decline handling",
       "origin": "original",
       "prs": [
-        35
+        35,
+        75
       ],
       "priority": "P0",
       "phase": "F3",
@@ -2899,6 +2900,21 @@
       "headSha": "b25cba32ff8325b73ebb04545f30ba27e278ce31",
       "baseRef": "main",
       "mergeCommitSha": "6e9e860b93a6b8caf72dad00ae26cd49630454d2"
+    },
+    {
+      "id": 4870618247,
+      "number": 75,
+      "title": "BR-029: Verify owner fulfillment and requeue dependent work",
+      "url": "https://github.com/neophilism/Boardroom/pull/75",
+      "state": "open",
+      "draft": true,
+      "createdAt": "2026-10-15T08:45:51Z",
+      "updatedAt": "2026-10-15T08:45:51Z",
+      "closedAt": null,
+      "mergedAt": null,
+      "headSha": "ac452e007d42408cf4999cc0f70fa44e3b16d249",
+      "baseRef": "main",
+      "mergeCommitSha": "873518acfab396e81a51eb55c09b908a8dd5b1da"
     }
   ]
 }
