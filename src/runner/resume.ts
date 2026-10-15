@@ -1,6 +1,23 @@
 import {safeWorkBranch} from "../server/github-write-gateway.ts";
 
 export type ResumeProgress={summary?:string;nextAction?:string;prNumber:number|null};
+export type HandoffTest={name:string;status:"PASSED"|"FAILED";exitCode:number;headSha:string};
+
+export function durableHandoff(repository:string,unitId:string,headSha:string|null,progress:ResumeProgress,
+  tests:HandoffTest[],sourceNeedsRefresh:boolean){
+  const branch=safeWorkBranch(unitId),base="https://github.com/"+repository.split("/").map(encodeURIComponent).join("/");
+  const failed=tests.find(test=>test.status==="FAILED");
+  return {
+    version:1,repository,unitId,
+    remainingWork:{summary:progress.summary??null,nextAction:progress.nextAction??null},
+    tests,
+    retry:sourceNeedsRefresh?{required:true,reason:"SOURCE_RECONCILIATION_REQUIRED"}:
+      failed?{required:true,reason:"CHECK_FAILED",check:failed.name}:{required:false,reason:null},
+    links:{branch:base+"/tree/"+encodeURIComponent(branch),
+      ...(headSha?{commit:base+"/commit/"+headSha}:{}),
+      ...(progress.prNumber?{pullRequest:base+"/pull/"+progress.prNumber}:{})}
+  };
+}
 /** Checkpoints are hints, never proof of checks, authority, or PR scope. */
 export function checkpointProgress(checkpoint:unknown,unitId:string):ResumeProgress{
   const empty:ResumeProgress={prNumber:null};
