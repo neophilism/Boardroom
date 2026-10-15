@@ -30,3 +30,10 @@ Each inbox title links to `/owner-actions/{actionId}`, an owner-session-protecte
 Credential owner actions use structured references such as `render://services/boardroom-production/GITHUB_TOKEN`; the reference identifies a provider location and secret name, never the secret value. The server accepts only approved Render, GitHub Actions, and Boardroom runtime references with no extra fields. Verification is allowed only while the exact credential action is awaiting verification and only when the reference matches its approved secure-entry destination.
 
 A provider adapter receives the private reference and the capability list already stored on the owner action. The agent-visible result contains only presence, the subset of requested capabilities actually verified, a boolean outcome, and an opaque bounded evidence ID. Extra provider capabilities are discarded, malformed evidence fails closed, and audit records omit the locator and secret name. Provider adapters must never return or log credential material. BR-029 separately owns fulfillment, dependent requeueing, and final action resolution.
+
+
+## Explicit risk approvals
+
+Scheduled agents must request an exact owner approval before spending, destructive work, privilege changes, legal or political risk, or a production release. The `boardroom_risk_approval_request` tool canonicalizes the category, target, exact action summary, and maximum cost (required only for spending) into a content-addressed private action key. Changing any field requires a new approval.
+
+Risky adapters must call the server-side approval guard with the authenticated run, credential, and lease generation. The guard derives the current repository and work unit from the live lease, accepts only the matching `VERIFIED` approval attached to that scope, locks it, and records a secret-free consumption event before invoking the adapter. Each approval is single-use; concurrent or repeated attempts fail closed. A failed adapter attempt does not restore the approval because silently replaying spending or destructive work is less safe than requiring the owner to approve a retry.
