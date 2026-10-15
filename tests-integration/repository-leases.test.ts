@@ -146,7 +146,8 @@ test("expired but still assigned repo stays unavailable to other scheduled agent
   const result=await claimAssignment(db,runs[2],credentials[2]);
   assert.equal(result,null);
   const count=await db.query<{n:string}>(
-    "SELECT COUNT(*)::text AS n FROM work_assignments WHERE released_at IS NULL"
+    "SELECT COUNT(*)::text AS n FROM work_assignments WHERE repository_id=ANY($1::bigint[]) AND released_at IS NULL",
+    [repoIds]
   );
   assert.equal(count.rows[0].n,"2");
   const idle=await finishIdleSession(db,runs[2],credentials[2]);
@@ -160,7 +161,8 @@ test("fenced owner completes and releases, then a distinct activation becomes el
     assert.equal(result.replay,false);
   }
   const outstanding=await db.query<{n:string}>(
-    "SELECT COUNT(*)::text AS n FROM repository_leases WHERE run_id IS NOT NULL"
+    "SELECT COUNT(*)::text AS n FROM repository_leases WHERE repository_id=ANY($1::bigint[]) AND run_id IS NOT NULL",
+    [repoIds]
   );
   assert.equal(outstanding.rows[0].n,"0");
   const result=await admitAgentRun(db,
