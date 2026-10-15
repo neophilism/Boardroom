@@ -23,3 +23,24 @@ test("creation date is deterministic fallback and repository id breaks ties", ()
 test("does not treat a currently leased priority repo as available ordinary work", () => {
   assert.equal(selectRepository([r(1,"2026-03-01T00:00:00Z",{leaseHeld:true}), r(2,"2026-04-01T00:00:00Z")],[1])?.id,2);
 });
+
+test("selection is invariant to candidate enumeration order", () => {
+  const candidates = [
+    r(30, "2026-06-01T00:00:00Z"),
+    r(20, "2026-02-01T00:00:00Z"),
+    r(10, "2026-02-01T00:00:00Z")
+  ];
+  const permutations = [
+    candidates,
+    [candidates[0], candidates[2], candidates[1]],
+    [candidates[1], candidates[0], candidates[2]],
+    [candidates[1], candidates[2], candidates[0]],
+    [candidates[2], candidates[0], candidates[1]],
+    [candidates[2], candidates[1], candidates[0]]
+  ];
+  for (const ordering of permutations) {
+    assert.equal(selectRepository(ordering, [30, 20])?.id, 30, "explicit priority order wins");
+    assert.equal(selectRepository(ordering, [])?.id, 10, "oldest timestamp uses the id tie-break");
+    assert.equal(selectRepository(ordering.map(repo => ({...repo, leaseHeld: true})), []), null);
+  }
+});
