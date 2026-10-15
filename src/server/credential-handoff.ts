@@ -73,9 +73,9 @@ export async function verifyCredentialHandoff(
     "INSERT INTO audit_events(kind,details) VALUES('owner_action.credential_capability_checked',$1::jsonb)",
     [JSON.stringify({provider:reference.provider,...outcome})]
   );
-  if(verified)await resolveVerifiedOwnerAction(db,actionId,{
+  if(verified&&safeEvidenceId)await resolveVerifiedOwnerAction(db,actionId,{
     kind:"credential_capability",
-    evidenceId:safeEvidenceId??reference.provider+":capability-check",
+    evidenceId:safeEvidenceId,
     verified:true
   });
   return outcome;
