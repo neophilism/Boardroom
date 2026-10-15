@@ -11,7 +11,7 @@
   "priority": "highest",
   "schemaVersion": 1,
   "roadmapVersion": 2,
-  "observedAt": "2026-10-15T09:13:00Z",
+  "observedAt": "2026-10-15T09:19:33Z",
   "units": [
     {
       "id": "BR-001",
@@ -777,7 +777,9 @@
       "id": "BR-033",
       "title": "Isolated coding execution harness",
       "origin": "original",
-      "prs": [],
+      "prs": [
+        80
+      ],
       "priority": "P0",
       "phase": "F4",
       "dependsOn": [
@@ -2946,6 +2948,21 @@
       "closedAt": null,
       "mergedAt": null,
       "headSha": "cdf4b3c6bf4fdd76852d74e5f2920027f6fd3dcd",
+      "baseRef": "main",
+      "mergeCommitSha": null
+    },
+    {
+      "id": 4871003361,
+      "number": 80,
+      "title": "BR-033: Prove assigned repository sandbox execution",
+      "url": "https://github.com/neophilism/Boardroom/pull/80",
+      "state": "open",
+      "draft": true,
+      "createdAt": "2026-10-15T09:19:33Z",
+      "updatedAt": "2026-10-15T09:19:33Z",
+      "closedAt": null,
+      "mergedAt": null,
+      "headSha": "b5f78379b4b52bc66b34f8e7f2eecb4757077b74",
       "baseRef": "main",
       "mergeCommitSha": null
     }
