@@ -14,6 +14,10 @@ The runner checks out source through the assigned-repository gateway rather than
 
 Current harness limits: Node package checks; 1,000 files; 30 MB total source; 1 MB per snapshot file; UTF-8 source edits up to 200 KB. A project outside those limits requires an authorized runtime that supports it, not an invented test success. This is not a production benchmark or security review.
 
+## BR-033 acceptance evidence
+
+The `Verify isolated coding harness` workflow runs on a disposable GitHub-hosted worker. It exercises the same snapshot materializer used by the hosted runner to load every assigned-repository file through the fenced source gateway, runs that repository's install and test commands in the credential-free container, and verifies that cancellation removes the actual container before cleanup returns. This is live harness evidence for BR-033, not evidence for the separate BR-004 or BR-042 scheduled-activation gates.
+
 To add named workers, launch the same broker instruction from distinct protected runtimes, each with its own registered credential and exact approved label. Their concurrent arrivals are coordinated by database leases. Do not share one credential across differently named workers. The checked-in initial workflow is intentionally one worker until the live trial passes; the database integration suite tests contention by 500 named activations.
 
 ## Existing ChatGPT/Claude/Grok scheduled tasks
