@@ -11,7 +11,7 @@
   "priority": "highest",
   "schemaVersion": 1,
   "roadmapVersion": 2,
-  "observedAt": "2026-10-15T09:19:33Z",
+  "observedAt": "2026-10-15T09:27:07Z",
   "units": [
     {
       "id": "BR-001",
@@ -801,7 +801,8 @@
       "title": "Fenced GitHub write gateway",
       "origin": "original",
       "prs": [
-        21
+        21,
+        82
       ],
       "priority": "P0",
       "phase": "F4",
@@ -2965,6 +2966,21 @@
       "headSha": "b5f78379b4b52bc66b34f8e7f2eecb4757077b74",
       "baseRef": "main",
       "mergeCommitSha": null
+    },
+    {
+      "id": 4871090684,
+      "number": 82,
+      "title": "BR-034: Prove fenced gateway denial",
+      "url": "https://github.com/neophilism/Boardroom/pull/82",
+      "state": "open",
+      "draft": true,
+      "createdAt": "2026-10-15T09:27:07Z",
+      "updatedAt": "2026-10-15T09:27:07Z",
+      "closedAt": null,
+      "mergedAt": null,
+      "headSha": "e54788ecb28def9420ab3c3144675bca6f6db280",
+      "baseRef": "main",
+      "mergeCommitSha": "35f4b5cb7b64477585deee2a0eebc7a90d165dcf"
     }
   ]
 }
