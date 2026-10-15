@@ -46,8 +46,9 @@ export const AGENT_TOOLS=[
     ...session,threadId:string,messageId:string,adr:string},["runId","generation","threadId","messageId","adr"]),
   tool("boardroom_owner_action","Create one deduplicated private request for an owner-only prerequisite. Never include a credential value.",{
     ...session,actionKey:string,title:string,type:{enum:["ACCOUNT","CREDENTIAL","PURCHASE","APPROVAL","HUMAN_INPUT","OTHER"]},
+    condition:{enum:["OWNER_ACCOUNT_CREATION","OWNER_CREDENTIAL_PROVISION","OWNER_PURCHASE","OWNER_APPROVAL","OWNER_LEGAL_OR_PERSONAL_INPUT","OWNER_PRODUCTION_ACCESS","TECHNICAL_QUESTION","AUTONOMOUS_CODE_CHANGE","AUTONOMOUS_TEST_FAILURE","RETRYABLE_EXTERNAL_FAILURE"]},
     instructions:string,requestedPermissions:{type:"array",items:string},secureEntryLocation:{type:["string","null"]},priceEstimateCents:{type:["integer","null"],minimum:0}},
-    ["runId","generation","actionKey","title","type","instructions"]),
+    ["runId","generation","actionKey","title","type","condition","instructions"]),
   tool("boardroom_finish","Checkpoint, make a bounded Coffee pass, then release your current assignment. COMPLETED does not assert code acceptance.",{
     ...session,outcome:{enum:["COMPLETED","YIELDED","BLOCKED","FAILED","CANCELLED"]}},["runId","generation","outcome"]),
   tool("boardroom_finish_idle","End an admitted session that received no repository. Never frees an assigned lease.",{runId:string},["runId"])

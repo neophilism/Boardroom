@@ -11,7 +11,7 @@
   "priority": "highest",
   "schemaVersion": 1,
   "roadmapVersion": 2,
-  "observedAt": "2026-10-15T06:58:00Z",
+  "observedAt": "2026-10-15T07:14:00Z",
   "units": [
     {
       "id": "BR-001",
@@ -511,7 +511,9 @@
       "id": "BR-022",
       "title": "Agent escalation and owner-only classifier",
       "origin": "original",
-      "prs": [],
+      "prs": [
+        67
+      ],
       "priority": "P0",
       "phase": "F3",
       "dependsOn": [
