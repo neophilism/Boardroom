@@ -3,7 +3,7 @@ import {mkdtemp,mkdir,open,chmod,rm,lstat} from "node:fs/promises";
 import {constants} from "node:fs";
 import {tmpdir} from "node:os";
 import path from "node:path";
-import {randomUUID} from "node:crypto";
+import {createHash,randomUUID} from "node:crypto";
 import {readableSourcePath} from "../server/source.ts";
 
 export class SandboxFailure extends Error{constructor(message:string){super(message);}}
@@ -69,4 +69,52 @@ export class CodingSandbox{
     }
   }
   async dispose(){for(const name of this.#containers)await this.#remove(name);this.#containers.clear();await rm(this.directory,{recursive:true,force:true});}
+}
+
+
+export type AssignedRepositorySnapshot={
+  repository:string;headSha:string;entries:{path:string;sha:string;size?:number}[];
+};
+type LoadedBlob={path:string;sha:string;contentBase64:string;snapshotSha:string};
+
+/** Materialize only the server-fenced immutable snapshot for the assigned repository. */
+export async function loadAssignedRepositorySandbox(
+  snapshot:AssignedRepositorySnapshot,assignedRepository:string,
+  loadBlob:(entry:AssignedRepositorySnapshot["entries"][number])=>Promise<LoadedBlob>,
+  signal:AbortSignal
+){
+  if(snapshot.repository!==assignedRepository||!/^[0-9a-f]{40}$/i.test(snapshot.headSha))
+    throw new SandboxFailure("Assigned repository snapshot mismatch");
+  const paths=new Set<string>();
+  let totalBytes=0;
+  for(const entry of snapshot.entries){
+    const safe=readableSourcePath(entry.path);
+    if(paths.has(safe)||!/^[0-9a-f]{40}$/i.test(entry.sha)||!Number.isSafeInteger(entry.size)||
+      entry.size===undefined||entry.size<0||entry.size>1000000)
+      throw new SandboxFailure("Invalid assigned repository tree entry");
+    paths.add(safe);totalBytes+=entry.size;
+  }
+  if(snapshot.entries.length>1000||totalBytes>30000000)
+    throw new SandboxFailure("Repository snapshot exceeds hosted sandbox limits");
+  const sandbox=await CodingSandbox.create();
+  try{
+    for(const entry of snapshot.entries){
+      signal.throwIfAborted();
+      const blob=await loadBlob(entry);
+      if(blob.path!==entry.path||blob.sha!==entry.sha||blob.snapshotSha!==snapshot.headSha)
+        throw new SandboxFailure("Repository blob does not match the assigned snapshot");
+      if(typeof blob.contentBase64!=="string"||blob.contentBase64.length>1400000||
+        !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(blob.contentBase64))
+        throw new SandboxFailure("Malformed repository blob encoding");
+      const bytes=Buffer.from(blob.contentBase64,"base64");
+      const gitSha=createHash("sha1").update(`blob ${bytes.length}\0`).update(bytes).digest("hex");
+      if(bytes.length!==entry.size||gitSha!==entry.sha)
+        throw new SandboxFailure("Repository blob content does not match the assigned snapshot");
+      await sandbox.put(entry.path,bytes);
+    }
+    return sandbox;
+  }catch(error){
+    await sandbox.dispose();
+    throw error;
+  }
 }
