@@ -105,7 +105,10 @@ export function parseGithubWriteRequest(value:unknown){
   const body=value as Record<string,unknown>;
   if(!isValidRunId(body.runId)||!isValidGeneration(body.generation))
     throw new GithubWriteValidation("Valid runId and generation required");
-  return {runId:body.runId,generation:body.generation,op:parseGithubWrite(body)};
+  if(["repository","repositoryId","fullName","owner","repo"].some(key=>Object.hasOwn(body,key)))
+    throw new GithubWriteValidation("Repository scope is derived from the current assignment");
+  const {runId,generation,...operation}=body;
+  return {runId,generation,op:parseGithubWrite(operation)};
 }
 function repoParts(repo:string):{owner:string;name:string}{
   const parts=repo.split("/");
