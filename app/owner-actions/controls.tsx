@@ -1,7 +1,7 @@
 "use client";
 import {useRouter} from "next/navigation";
 import {useState} from "react";
-export default function OwnerActionControls({actionId,status,actionType}:{actionId:string;status:string;actionType:string}){
+export default function OwnerActionControls({actionId,status,canApprove}:{actionId:string;status:string;canApprove:boolean}){
   const [busy,setBusy]=useState(false),[error,setError]=useState("");
   const router=useRouter();
   if(!["OPEN","ACKNOWLEDGED","AWAITING_VERIFICATION"].includes(status))return null;
@@ -18,7 +18,7 @@ export default function OwnerActionControls({actionId,status,actionType}:{action
     finally{setBusy(false);}
   }
   return <div className="card-actions">
-    {actionType==="APPROVAL"&&<button disabled={busy} onClick={()=>change("VERIFIED")}>Approve exact action</button>}
+    {canApprove&&<button disabled={busy} onClick={()=>change("VERIFIED")}>Approve exact action</button>}
     {status==="OPEN"&&<button disabled={busy} onClick={()=>change("ACKNOWLEDGED")}>Acknowledge</button>}
     {status!=="AWAITING_VERIFICATION"&&<button disabled={busy} onClick={()=>change("AWAITING_VERIFICATION")}>Done — verify</button>}
     <button className="outline" disabled={busy} onClick={()=>change("DECLINED")}>Decline</button>
