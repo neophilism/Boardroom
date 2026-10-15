@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {checkpointProgress,resumablePrNumber} from "../src/runner/resume.ts";
+import {checkpointProgress,durableHandoff,resumablePrNumber} from "../src/runner/resume.ts";
 import {runHostedAgent,type RunnerConfig} from "../src/runner/run.ts";
 
 const id="26741e83-9694-4fb3-8174-783b2f9bf61c",sha="a".repeat(40);
@@ -12,6 +12,30 @@ test("checkpoint hints belong to the current deterministic work branch",()=>{
   assert.deepEqual(checkpointProgress(c,"CI-002"),{prNumber:null});
   assert.equal(checkpointProgress({...c,state:{prNumber:"8"}},"CI-001").prNumber,null);
 });
+test("durable handoff identifies remote code, tests, remaining work and retry cause",()=>{
+  const progress={summary:"Implementation pushed",nextAction:"Fix the database test",prNumber:8};
+  assert.deepEqual(durableHandoff("neophilism/Boardroom","BR-040",sha,progress,[
+    {name:"typecheck",status:"PASSED",exitCode:0,headSha:sha},
+    {name:"test",status:"FAILED",exitCode:1,headSha:sha}
+  ],false),{
+    version:1,repository:"neophilism/Boardroom",unitId:"BR-040",
+    remainingWork:{summary:"Implementation pushed",nextAction:"Fix the database test"},
+    tests:[
+      {name:"typecheck",status:"PASSED",exitCode:0,headSha:sha},
+      {name:"test",status:"FAILED",exitCode:1,headSha:sha}
+    ],
+    retry:{required:true,reason:"CHECK_FAILED",check:"test"},
+    links:{
+      branch:"https://github.com/neophilism/Boardroom/tree/boardroom%2FBR-040",
+      commit:"https://github.com/neophilism/Boardroom/commit/"+sha,
+      pullRequest:"https://github.com/neophilism/Boardroom/pull/8"
+    }
+  });
+  const uncertain=durableHandoff("neophilism/Boardroom","BR-040",null,{prNumber:null},[],true);
+  assert.deepEqual(uncertain.retry,{required:true,reason:"SOURCE_RECONCILIATION_REQUIRED"});
+  assert.equal("commit" in uncertain.links,false);
+});
+
 test("resume requires an authoritative open or merged PR at the actual snapshot head",()=>{
   const p={number:8,state:"open",mergedAt:null,headSha:sha};
   assert.equal(resumablePrNumber({pullRequest:p},sha),8);
