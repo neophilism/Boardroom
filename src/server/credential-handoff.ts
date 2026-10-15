@@ -68,7 +68,7 @@ export async function verifyCredentialHandoff(
   const outcome={actionId,present,verified,capabilities,evidenceId:safeEvidenceId};
   await db.query(
     "INSERT INTO audit_events(kind,details) VALUES('owner_action.credential_capability_checked',$1::jsonb)",
-    [JSON.stringify({actionId,provider:reference.provider,...outcome})]
+    [JSON.stringify({provider:reference.provider,...outcome})]
   );
   return outcome;
 }
