@@ -11,7 +11,7 @@
   "priority": "highest",
   "schemaVersion": 1,
   "roadmapVersion": 2,
-  "observedAt": "2026-10-15T06:38:00Z",
+  "observedAt": "2026-10-15T06:37:00Z",
   "units": [
     {
       "id": "BR-001",
@@ -225,7 +225,8 @@
       "prs": [
         9,
         22,
-        60
+        60,
+        62
       ],
       "priority": "P0",
       "phase": "F2",
@@ -249,7 +250,8 @@
       "origin": "original",
       "prs": [
         49,
-        60
+        60,
+        62
       ],
       "priority": "P0",
       "phase": "F2",
@@ -2789,6 +2791,21 @@
       "headSha": "55bb8168a6a258bd0782563aa40c3a72382534f9",
       "baseRef": "main",
       "mergeCommitSha": "4bde644b2ac7639fa240df88b13e5b1017ceab0c"
+    },
+    {
+      "id": 4869275478,
+      "number": 62,
+      "title": "BR-010/011: Reconcile canonical registry with live PR history",
+      "url": "https://github.com/neophilism/Boardroom/pull/62",
+      "state": "open",
+      "draft": true,
+      "createdAt": "2026-10-15T06:36:49Z",
+      "updatedAt": "2026-10-15T06:36:49Z",
+      "closedAt": null,
+      "mergedAt": null,
+      "headSha": "fe9c6de009986b13d497f9bd23521f261c780df0",
+      "baseRef": "main",
+      "mergeCommitSha": null
     }
   ]
 }
