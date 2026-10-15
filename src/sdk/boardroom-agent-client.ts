@@ -15,7 +15,12 @@ export type Claim=
 export type AgentContext={
   assignment:{assignmentId:string;repositoryId:string;repository:string;unitId:string;generation:string;expiresAt:string};
   workUnit:{title:string;state:string;version:number;dependsOn:unknown;acceptanceCriteria:string|null;pullRequests:unknown};
-  checkpoint:{branch:string|null;headSha:string|null;state:unknown;createdAt:string}|null;
+  approvedUnits:{unitId:string;title:string;state:string;version:number;dependsOn:unknown;acceptanceCriteria:string|null;pullRequests:unknown;dependencyStatus:{localUnmet:unknown;externalUnmet:unknown;ownerBlockers:number;eligible:boolean}}[];
+  repositoryState:{defaultBranch:string;branches:{name:string;headSha:string;protected:boolean}[];truncated:boolean};
+  historicalDecisions:{unitId:string;adr:string;acceptedAt:string}[];
+  checkpoint:{checkpointId:string;unitId:string|null;branch:string|null;headSha:string|null;state:unknown;createdAt:string}|null;
+  recentCheckpoints:{checkpointId:string;unitId:string|null;branch:string|null;headSha:string|null;state:unknown;createdAt:string}[];
+  contextLimits:{approvedUnits:number;recentCheckpoints:number;technicalQuestions:number;branches:number};
   repositoryInstructions:{path:"AGENTS.md";text:string;sha:string}|null;
   technicalQuestions?:unknown[];
   executionLimits?:{maxSessionSeconds:number;maxToolCalls:number;maxTokens:number;deadlineAt:string};
