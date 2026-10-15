@@ -1,6 +1,7 @@
 import test,{before,after} from "node:test";
 import assert from "node:assert/strict";
 import {Pool} from "pg";
+import {createHash} from "node:crypto";
 import {performFencedGithubWrite,parseGithubWriteRequest,GithubWriteValidation} from "../src/server/github-write-gateway.ts";
 import {SessionConflict} from "../src/server/sessions.ts";
 
@@ -17,8 +18,8 @@ before(async()=>{
   await db.query("INSERT INTO repository_leases(repository_id,generation) VALUES($1,0)",[repositoryId]);
   await db.query("INSERT INTO roadmap_units(repository_id,unit_id,title,version,approved,state) VALUES($1,'GATE-001','Gateway fixture',1,TRUE,'PENDING')",[repositoryId]);
   const credentials=await Promise.all([
-    db.query<{credential_id:string}>("INSERT INTO agent_credentials(label,provider,token_digest) VALUES('Gateway Owner','test',$1) RETURNING credential_id",["7".repeat(64)]),
-    db.query<{credential_id:string}>("INSERT INTO agent_credentials(label,provider,token_digest) VALUES('Gateway Other','test',$1) RETURNING credential_id",["8".repeat(64)])
+    db.query<{credential_id:string}>("INSERT INTO agent_credentials(label,provider,token_digest) VALUES('Gateway Owner','test',$1) RETURNING credential_id",[createHash("sha256").update("br-034-gateway-owner").digest("hex")]),
+    db.query<{credential_id:string}>("INSERT INTO agent_credentials(label,provider,token_digest) VALUES('Gateway Other','test',$1) RETURNING credential_id",[createHash("sha256").update("br-034-gateway-other").digest("hex")])
   ]);
   credentialId=credentials[0].rows[0].credential_id;
   otherCredentialId=credentials[1].rows[0].credential_id;
