@@ -15,4 +15,4 @@ Before a squash merge, Boardroom rechecks the exact GitHub head and requires:
 
 Missing, malformed, pending, truncated, skipped, neutral, cancelled or failed evidence blocks the operation. GitHub responses with more than the bounded first page of suites, runs, statuses or reviews are not treated as complete. The merge uses the verified expected SHA so a head change between evaluation and GitHub's merge transaction is rejected.
 
-Only the private owner-authenticated operations endpoint can change repository merge policy. Owner changes and successful merges are audited. There is no agent-supplied bypass or exception flag.
+Only the private owner-authenticated operations endpoint can change repository merge policy. Owner changes, successful merges, and denied authorized preflights are audited. A denial record contains only the assigned unit, PR number, exact head SHA, and deduplicated blocker codes; if the denial cannot be persisted, Boardroom still fails closed. There is no agent-supplied bypass or exception flag.
