@@ -36,4 +36,10 @@ test("historical decisions expose only immutable ADR references for the assigned
   assert.equal(normalizeRepositoryDecision("neophilism/Boardroom",{
     unitId:"BR-031",adr:"https://attacker.invalid/private",occurredAt:acceptedAt
   }),null);
+  assert.equal(normalizeRepositoryDecision("neophilism/Boardroom",{
+    unitId:"BR-031",adr:"https://user:password@github.com/neophilism/Boardroom/blob/"+"a".repeat(40)+"/docs/adr/context.md",occurredAt:acceptedAt
+  }),null);
+  assert.equal(normalizeRepositoryDecision("neophilism/Boardroom",{
+    unitId:"../../private",adr:"https://github.com/neophilism/Boardroom/blob/"+"a".repeat(40)+"/docs/adr/context.md",occurredAt:acceptedAt
+  }),null);
 });
