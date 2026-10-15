@@ -98,3 +98,14 @@ button.outline{background:transparent;color:#bedbe8;border:1px solid #6f899a}
 .agent-list{display:grid;gap:10px}
 .agent-entry{display:flex;gap:18px;align-items:center;justify-content:space-between;flex-wrap:wrap;border:1px solid #344b5b;border-radius:10px;padding:12px 16px}
 .agent-entry small{display:block;color:#a4b8c6;margin-top:4px}
+
+/* Owner Action Board inbox controls */
+.action-inbox-filters{display:flex;align-items:end;gap:10px;flex-wrap:wrap;margin:0 0 12px}
+.action-inbox-filters label{font-size:13px;font-weight:700;color:#c7dce8}
+.action-inbox-filters select{font:inherit;color:#f1f8fc;background:#102033;border:1px solid #5d7686;border-radius:8px;padding:10px 12px}
+.action-inbox-filters a{color:#c9e7f3;padding:10px 4px}
+.action-inbox-result{font-size:13px;color:#9db6c6;margin:0 0 20px}
+.action-card details{border-top:1px solid #30475b;padding-top:12px}
+.action-card summary{cursor:pointer;color:#c9e7f3;font-weight:700;font-size:14px}
+.action-card details[open] summary{margin-bottom:12px}
+@media(max-width:600px){.action-inbox-filters label{flex-basis:100%}.action-inbox-filters select{width:100%}}
