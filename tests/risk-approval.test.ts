@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {executeApprovedRisk,parseRiskIntent,renderRiskApprovalRequest,riskApprovalActionKey,RiskApprovalRejected} from "../src/server/risk-approval.ts";
+import {executeApprovedRisk,parseRiskIntent,renderRiskApprovalRequest,riskApprovalActionKey,RiskApprovalRejected,verifyRiskApproval} from "../src/server/risk-approval.ts";
 
 const runId="7d54a632-94aa-4a9b-b84f-58ebaa0c7208";
 const credentialId="26741e83-9694-4fb3-8174-783b2f9bf61c";
@@ -58,4 +58,17 @@ test("an exact approval is consumed before one execution and cannot be reused",a
   const second=database(true,true);
   await assert.rejects(()=>executeApprovedRisk(second.db as never,runId,credentialId,"2",production,async()=>{executions++;}),/already consumed/);
   assert.equal(executions,1);
+});
+
+test("the owner can verify only an exact risk approval action",async()=>{
+  const calls:string[]=[];
+  const client={query:async(sql:string)=>{
+    calls.push(sql);
+    if(sql.startsWith("SELECT action_id"))return {rowCount:1,rows:[{action_id:"a1",action_key:riskApprovalActionKey(production),action_type:"APPROVAL",status:"AWAITING_VERIFICATION"}]};
+    return {rowCount:1,rows:[]};
+  },release:()=>{}};
+  assert.deepEqual(await verifyRiskApproval({connect:async()=>client} as never,runId),{actionId:runId,status:"VERIFIED"});
+  assert.ok(calls.some(sql=>sql.includes("owner.risk_approval.verified")));
+  const invalid={...client,query:async(sql:string)=>sql.startsWith("SELECT action_id")?{rowCount:1,rows:[{action_id:"a2",action_key:"generic:approval",action_type:"APPROVAL",status:"OPEN"}]}:{rowCount:1,rows:[]}};
+  await assert.rejects(()=>verifyRiskApproval({connect:async()=>invalid} as never,runId),/unavailable/);
 });
