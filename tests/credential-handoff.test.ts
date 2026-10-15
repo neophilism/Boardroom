@@ -10,6 +10,7 @@ test("credential references identify a store location without accepting values",
   assert.deepEqual(parseCredentialReference(reference),reference);
   assert.throws(()=>parseCredentialReference({...reference,value:"github_pat_not_allowed"}),/extra fields/);
   assert.throws(()=>parseCredentialReference({...reference,locator:"service?token=secret"}),/locator/);
+  assert.throws(()=>parseCredentialReference({...reference,locator:"github_pat_ABC12345678901234567890"}),/locator/);
 });
 
 test("capability verification returns and audits only a bounded outcome",async()=>{
@@ -49,8 +50,18 @@ test("an absent secret returns a bounded negative presence outcome",async()=>{
     action_type:"CREDENTIAL",status:"AWAITING_VERIFICATION",requested_permissions:["Contents: read"],
     secure_entry_location:credentialReferenceLocation(reference)
   }]}:{rowCount:1,rows:[]}};
-  const outcome=await verifyCredentialHandoff(db as never,actionId,reference,async()=>({present:false,capabilities:[],evidenceId:"render-check:404"}));
+  const outcome=await verifyCredentialHandoff(db as never,actionId,reference,async()=>({present:false,capabilities:["Contents: read"],evidenceId:"render-check:404"}));
   assert.deepEqual(outcome,{actionId,present:false,verified:false,capabilities:[],evidenceId:"render-check:404"});
+});
+
+test("provider evidence identifiers cannot smuggle recognizable credential values",async()=>{
+  const db={query:async()=>({rowCount:1,rows:[{
+    action_type:"CREDENTIAL",status:"AWAITING_VERIFICATION",requested_permissions:["Contents: read"],
+    secure_entry_location:credentialReferenceLocation(reference)
+  }]})};
+  await assert.rejects(()=>verifyCredentialHandoff(db as never,actionId,reference,async()=>({
+    present:true,capabilities:["Contents: read"],evidenceId:"github_pat_ABC12345678901234567890"
+  })),/evidence identifier/);
 });
 
 test("wrong action state or destination is rejected before a provider probe",async()=>{
