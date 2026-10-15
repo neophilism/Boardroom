@@ -873,7 +873,8 @@
       "title": "CI, test, and acceptance-evidence collector",
       "origin": "original",
       "prs": [
-        24
+        24,
+        86
       ],
       "priority": "P0",
       "phase": "F4",
