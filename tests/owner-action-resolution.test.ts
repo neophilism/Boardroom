@@ -26,7 +26,8 @@ test("verified provider evidence resolves one action and requeues every dependen
   assert.deepEqual(result,{actionId,status:"VERIFIED",requeued:[
     {repositoryId:"41",unitId:"A-1"},{repositoryId:"42",unitId:null}
   ]});
-  assert.ok(fixture.calls.some(call=>call.sql.includes("status=\'VERIFIED\'")));\n  assert.ok(fixture.calls.some(call=>call.sql.includes("other.action_id<>")&&call.sql.includes("NOT IN (\'VERIFIED\',\'CANCELLED\')")));
+  assert.ok(fixture.calls.some(call=>call.sql.includes("status=\'VERIFIED\'")));
+  assert.ok(fixture.calls.some(call=>call.sql.includes("other.action_id<>")&&call.sql.includes("NOT IN (\'VERIFIED\',\'CANCELLED\')")));
   const audit=fixture.calls.find(call=>call.sql.includes("fulfillment_verified"));
   assert.match(String(audit?.params?.[0]),/github-check:938/);
   assert.match(String(audit?.params?.[0]),/"repositoryId":"42"/);
