@@ -11,7 +11,7 @@
   "priority": "highest",
   "schemaVersion": 1,
   "roadmapVersion": 2,
-  "observedAt": "2026-10-15T09:28:50Z",
+  "observedAt": "2026-10-15T09:42:48Z",
   "units": [
     {
       "id": "BR-001",
@@ -873,7 +873,8 @@
       "title": "CI, test, and acceptance-evidence collector",
       "origin": "original",
       "prs": [
-        24
+        24,
+        87
       ],
       "priority": "P0",
       "phase": "F4",
@@ -2983,6 +2984,21 @@
       "baseRef": "main",
       "mergeCommitSha": null,
       "id": 4871110439
+    },
+    {
+      "id": 4871278457,
+      "number": 87,
+      "title": "BR-037: Complete authoritative CI evidence",
+      "url": "https://github.com/neophilism/Boardroom/pull/87",
+      "state": "open",
+      "draft": true,
+      "createdAt": "2026-10-15T09:42:48Z",
+      "updatedAt": "2026-10-15T09:42:48Z",
+      "closedAt": null,
+      "mergedAt": null,
+      "headSha": "54600e5498ca8af4cc81a9e4cf027a9b3c333c8d",
+      "baseRef": "main",
+      "mergeCommitSha": "a41627130155c0ae54fe0f24b0e5556f727b43da"
     }
   ]
 }
