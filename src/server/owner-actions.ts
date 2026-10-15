@@ -2,13 +2,42 @@ import type { Pool } from "pg";
 import { isValidRunId, isValidGeneration, SessionConflict } from "./sessions.ts";
 
 export type OwnerActionType = "ACCOUNT"|"CREDENTIAL"|"PURCHASE"|"APPROVAL"|"HUMAN_INPUT"|"OTHER";
+export const ESCALATION_CONDITIONS = [
+  "OWNER_ACCOUNT_CREATION",
+  "OWNER_CREDENTIAL_PROVISION",
+  "OWNER_PURCHASE",
+  "OWNER_APPROVAL",
+  "OWNER_LEGAL_OR_PERSONAL_INPUT",
+  "OWNER_PRODUCTION_ACCESS",
+  "TECHNICAL_QUESTION",
+  "AUTONOMOUS_CODE_CHANGE",
+  "AUTONOMOUS_TEST_FAILURE",
+  "RETRYABLE_EXTERNAL_FAILURE"
+] as const;
+export type EscalationCondition = typeof ESCALATION_CONDITIONS[number];
 export type OwnerActionInput = {
   runId:string; generation:string; actionKey:string; title:string; type:OwnerActionType;
-  instructions:string; requestedPermissions:string[]; secureEntryLocation:string|null;
+  condition:EscalationCondition; instructions:string; requestedPermissions:string[]; secureEntryLocation:string|null;
   priceEstimateCents:number|null;
 };
 const validTypes = new Set(["ACCOUNT","CREDENTIAL","PURCHASE","APPROVAL","HUMAN_INPUT","OTHER"]);
 const apparentSecret = /(?:github_pat_[A-Za-z0-9_]{12,}|gh[pousr]_[A-Za-z0-9]{20,}|sk-[A-Za-z0-9_-]{20,}|-----BEGIN [A-Z ]*PRIVATE KEY|(?:password|api.?key|secret|token)\s*[:=]\s*["']?[A-Za-z0-9+/_=-]{20,})/i;
+const ownerConditions:Record<string,readonly OwnerActionType[]>={
+  OWNER_ACCOUNT_CREATION:["ACCOUNT"],
+  OWNER_CREDENTIAL_PROVISION:["CREDENTIAL"],
+  OWNER_PURCHASE:["PURCHASE"],
+  OWNER_APPROVAL:["APPROVAL"],
+  OWNER_LEGAL_OR_PERSONAL_INPUT:["HUMAN_INPUT"],
+  OWNER_PRODUCTION_ACCESS:["CREDENTIAL","APPROVAL"]
+};
+
+export type EscalationDestination="OWNER_ACTION"|"COFFEE_CORNER"|"AUTONOMOUS";
+export function classifyEscalation(value:unknown):EscalationDestination{
+  if(typeof value!=="string"||!ESCALATION_CONDITIONS.includes(value as EscalationCondition))
+    throw new SessionConflict("Explicit unmet-condition classification required");
+  if(value in ownerConditions)return "OWNER_ACTION";
+  return value==="TECHNICAL_QUESTION"?"COFFEE_CORNER":"AUTONOMOUS";
+}
 
 export function parseOwnerAction(payload: unknown): OwnerActionInput {
   if (!payload || typeof payload !== "object" || Array.isArray(payload)) throw new SessionConflict("Owner action object required");
@@ -17,6 +46,11 @@ export function parseOwnerAction(payload: unknown): OwnerActionInput {
   if (typeof obj.actionKey !== "string" || !/^[a-z0-9][a-z0-9:._/-]{8,120}$/i.test(obj.actionKey)) throw new SessionConflict("Stable actionKey required");
   if (typeof obj.title !== "string" || obj.title.trim().length < 5 || obj.title.length > 240) throw new SessionConflict("Action title must be 5-240 characters");
   if (typeof obj.type !== "string" || !validTypes.has(obj.type)) throw new SessionConflict("Unsupported action type");
+  const destination=classifyEscalation(obj.condition);
+  if(destination==="COFFEE_CORNER")throw new SessionConflict("Technical questions belong in Coffee Corner after search-before-asking");
+  if(destination==="AUTONOMOUS")throw new SessionConflict("This condition is authorized agent work; troubleshoot, retry, or checkpoint it instead of escalating to the owner");
+  if(!ownerConditions[String(obj.condition)].includes(obj.type as OwnerActionType))
+    throw new SessionConflict("Owner action type does not match the classified unmet condition");
   if (typeof obj.instructions !== "string" || obj.instructions.trim().length < 15 || obj.instructions.length > 4000) throw new SessionConflict("Actionable owner instructions required");
   const permissions = obj.requestedPermissions ?? [];
   if (!Array.isArray(permissions) || permissions.length > 30 ||
@@ -29,8 +63,9 @@ export function parseOwnerAction(payload: unknown): OwnerActionInput {
   if (apparentSecret.test(values)) throw new SessionConflict("Possible credential value detected; give only its name and secure entry location");
   return {
     runId:obj.runId,generation:obj.generation,actionKey:obj.actionKey.trim().toLowerCase(),
-    title:obj.title.trim(),type:obj.type as OwnerActionType,instructions:obj.instructions.trim(),
-    requestedPermissions:permissions,secureEntryLocation:target as string|null,priceEstimateCents:cost as number|null
+    title:obj.title.trim(),type:obj.type as OwnerActionType,condition:obj.condition as EscalationCondition,
+    instructions:obj.instructions.trim(),requestedPermissions:permissions,
+    secureEntryLocation:target as string|null,priceEstimateCents:cost as number|null
   };
 }
 
@@ -62,7 +97,7 @@ export async function createOwnerAction(db:Pool,credentialId:string,input:OwnerA
     );
     await client.query(
       "INSERT INTO audit_events(run_id,repository_id,kind,details) VALUES($1,$2,'owner_action.requested',$3::jsonb)",
-      [input.runId,repositoryId,JSON.stringify({actionId:action.action_id,type:input.type})]
+      [input.runId,repositoryId,JSON.stringify({actionId:action.action_id,type:input.type,condition:input.condition})]
     );
     await client.query("COMMIT");
     return {actionId:action.action_id,status:action.status};
