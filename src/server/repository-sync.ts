@@ -4,9 +4,17 @@ import {normalizeRoadmap} from "./roadmap-import.ts";
 import {reconcileRoadmapUnits,recordReconciliationFailure} from "./roadmap-reconciliation.ts";
 import {ensureDefaultRepositoryPriority} from "./repository-priority-bootstrap.ts";
 
-function activityDate(repo:GitHubRepository,pulls:readonly GitHubPull[]):string|null{
-  const values=[repo.pushed_at,...pulls.map(p=>p.updated_at)].filter((v):v is string=>!!v&&Number.isFinite(Date.parse(v)));
-  return values.sort((a,b)=>Date.parse(b)-Date.parse(a))[0]??null;
+/** GitHub's PR updated_at also changes for comments, labels, reviews, and other
+ * metadata. Only repository pushes and PR lifecycle timestamps are development
+ * events; queue refreshes must never make a repository look recently developed.
+ */
+export function latestDevelopmentAt(repo:GitHubRepository,pulls:readonly GitHubPull[]):string|null{
+  const values=[
+    repo.pushed_at,
+    ...pulls.flatMap(p=>[p.created_at,p.merged_at]),
+  ].filter((value):value is string=>!!value&&Number.isFinite(Date.parse(value)));
+  if(!values.length)return null;
+  return values.reduce((latest,value)=>Date.parse(value)>Date.parse(latest)?value:latest);
 }
 export type SyncReport={total:number;processed:number;nextAfterId:string|null;verified:number;missing:number;failed:number;errors:{repository:string;reason:string}[]};
 export type RepositorySyncOptions={limit?:number;afterId?:string|null};
@@ -49,7 +57,7 @@ async function syncOne(repository:GitHubRepository):Promise<"VERIFIED"|"MISSING"
     await client.query("BEGIN");
     await client.query(
       "INSERT INTO repositories(repository_id,full_name,description,archived,created_at,last_development_at,source_observed_at) VALUES($1,$2,$3,$4,$5,$6,now()) ON CONFLICT(repository_id) DO UPDATE SET full_name=excluded.full_name,description=excluded.description,archived=excluded.archived,last_development_at=excluded.last_development_at,source_observed_at=now(),updated_at=now()",
-      [repository.id,repository.full_name,repository.description,repository.archived,repository.created_at,activityDate(repository,pulls)]
+      [repository.id,repository.full_name,repository.description,repository.archived,repository.created_at,latestDevelopmentAt(repository,pulls)]
     );
     await client.query(
       "INSERT INTO repository_leases(repository_id,generation) VALUES($1,0) ON CONFLICT(repository_id) DO NOTHING",
