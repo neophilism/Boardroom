@@ -54,6 +54,28 @@ export function renderRiskApprovalRequest(session:RiskApprovalSession,value:unkn
   };
 }
 
+export async function verifyRiskApproval(db:Pool,actionId:string):Promise<{actionId:string;status:"VERIFIED"}>{
+  if(!uuid.test(actionId))throw new RiskApprovalRejected("Valid risk approval action required");
+  const client=await db.connect();
+  try{
+    await client.query("BEGIN");
+    const result=await client.query<{action_id:string;action_key:string;action_type:string;status:string}>(
+      "SELECT action_id,action_key,action_type,status FROM owner_actions WHERE action_id=$1 FOR UPDATE",
+      [actionId]
+    );
+    const action=result.rows[0];
+    const category=RISK_CATEGORIES.map(value=>value.toLowerCase()).join("|");
+    if(!action||action.action_type!=="APPROVAL"||!new RegExp(`^approval:(?:${category}):[a-f0-9]{64}$`).test(action.action_key)||
+       !["OPEN","ACKNOWLEDGED","AWAITING_VERIFICATION"].includes(action.status))
+      throw new RiskApprovalRejected("Risk approval is unavailable or already final");
+    await client.query("UPDATE owner_actions SET status='VERIFIED',updated_at=now(),resolved_at=now() WHERE action_id=$1",[actionId]);
+    await client.query("INSERT INTO audit_events(kind,details) VALUES('owner.risk_approval.verified',$1::jsonb)",[JSON.stringify({actionId})]);
+    await client.query("COMMIT");
+    return {actionId,status:"VERIFIED"};
+  }catch(error){await client.query("ROLLBACK");throw error;}
+  finally{client.release();}
+}
+
 export async function executeApprovedRisk<T>(
   db:Pool,runId:string,credentialId:string,generationValue:string,rawIntent:unknown,execute:()=>Promise<T>
 ):Promise<T>{
