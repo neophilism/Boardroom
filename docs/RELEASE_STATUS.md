@@ -1,5 +1,12 @@
 # Boardroom release checklist
 
+## October 15, 2026 selection conformance
+
+BR-019 is covered by a focused deterministic selection matrix plus the existing real PostgreSQL contention suite. The matrix verifies that candidate enumeration order cannot change explicit owner priority, oldest-development fallback, numeric tie-breaking, or the idle result. The PostgreSQL suite concurrently admits 500 named activations against 50 repositories and requires exactly 50 unique active leases.
+
+This closes the repository-selection conformance code boundary only after PR #66 passes exact-head CI and PostgreSQL checks. It does not establish BR-004 live ChatGPT-to-Boardroom invocation, BR-042 useful scheduled development, or production acceptance.
+
+
 ## October 13, 2026 follow-on implementation pass
 
 The following PRs are merged after passing their current GitHub build, PostgreSQL, isolated sandbox, dependency-audit and CodeQL checks:
