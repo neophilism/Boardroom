@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {validateCoffeeText,validateEvidence,normalizeCoffeeQuestionMetadata,CoffeeError} from "../src/server/coffee.ts";
+import {validateCoffeeText,validateEvidence,validateCoffeeAnswer,normalizeCoffeeQuestionMetadata,CoffeeError} from "../src/server/coffee.ts";
 test("only work-related English content can enter Coffee Corner",()=>{
   assert.equal(validateCoffeeText("How should this repository API enforce authorization?"),"How should this repository API enforce authorization?");
   assert.throws(()=>validateCoffeeText("What did you have for breakfast?"),CoffeeError);
@@ -20,4 +20,16 @@ test("question metadata keeps technical blockers asynchronous and time bounded",
   assert.throws(()=>normalizeCoffeeQuestionMetadata("OWNER_APPROVAL",null,now),CoffeeError);
   assert.throws(()=>normalizeCoffeeQuestionMetadata("TECHNICAL","2026-10-15T09:59:59Z",now),CoffeeError);
   assert.throws(()=>normalizeCoffeeQuestionMetadata("TECHNICAL","2028-10-15T10:00:00Z",now),CoffeeError);
+});
+
+test("peer answers require source evidence and explicit uncertainty",()=>{
+  assert.deepEqual(validateCoffeeAnswer("The repository API fails in this migration.",
+    ["https://github.com/neophilism/Boardroom/pull/92"],"The production database has not been inspected."),{
+      answer:"The repository API fails in this migration.",
+      evidence:["https://github.com/neophilism/Boardroom/pull/92"],
+      uncertainty:"The production database has not been inspected."
+    });
+  assert.throws(()=>validateCoffeeAnswer("The repository API fails in this migration.",[],"The production database has not been inspected."),CoffeeError);
+  assert.throws(()=>validateCoffeeAnswer("The repository API fails in this migration.",
+    ["https://github.com/neophilism/Boardroom/pull/92"],""),CoffeeError);
 });

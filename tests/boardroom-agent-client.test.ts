@@ -85,3 +85,15 @@ test("Coffee questions carry blocker classification and optional deadline",async
   await client.askCoffee("run","Which database API failed?","The database integration test fails after migration.",[],"1","TEST_FAILURE","2026-10-16T10:00:00Z");
   assert.deepEqual(JSON.parse(String(f.requests[0].init.body)),{runId:"run",subject:"Which database API failed?",question:"The database integration test fails after migration.",evidence:[],classification:"TEST_FAILURE",generation:"1",deadlineAt:"2026-10-16T10:00:00Z"});
 });
+
+test("Coffee answers carry source evidence and uncertainty",async()=>{
+  const f=fake([{status:201,value:{messageId:"fixture",status:"ANSWERED_UNVERIFIED"}}]);
+  const client=new BoardroomAgentClient({baseUrl:"https://boardroom.example",bearerToken:secret,assignedName:"Smith",transport:f.transport});
+  await client.answerCoffee("run","thread","The repository API fix is documented.",
+    ["https://github.com/neophilism/Boardroom/pull/92"],"The production database has not been inspected.");
+  assert.deepEqual(JSON.parse(String(f.requests[0].init.body)),{
+    runId:"run",answer:"The repository API fix is documented.",
+    evidence:["https://github.com/neophilism/Boardroom/pull/92"],
+    uncertainty:"The production database has not been inspected."
+  });
+});

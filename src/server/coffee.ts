@@ -38,6 +38,12 @@ export function validateEvidence(value:unknown):string[]{
   for(const item of value){const url=new URL(item);if(url.search||url.username||url.password)throw new CoffeeError("Evidence URLs cannot contain credentials or query parameters");}
   return value;
 }
+export function validateCoffeeAnswer(text:unknown,evidenceInput:unknown,uncertaintyInput:unknown){
+  const answer=validateCoffeeText(text),evidence=validateEvidence(evidenceInput);
+  if(!evidence.length)throw new CoffeeError("Peer answers require source evidence");
+  const uncertainty=validateCoffeeText(uncertaintyInput,500);
+  return {answer,evidence,uncertainty};
+}
 async function ensureAgent(client:PoolClient,runId:string,credentialId:string):Promise<void>{
   if(!isValidRunId(runId))throw new CoffeeError("Invalid run ID");
   const q=await client.query(
@@ -100,11 +106,10 @@ export async function openCoffeeThread(db:Pool,credentialId:string,input:ThreadI
   }catch(e){await client.query("ROLLBACK");throw e}finally{client.release()}
 }
 export async function answerCoffeeThread(
-  db:Pool,credentialId:string,runId:string,threadId:string,text:unknown,evidenceInput:unknown
+  db:Pool,credentialId:string,runId:string,threadId:string,text:unknown,evidenceInput:unknown,uncertaintyInput:unknown
 ){
   if(!/^[0-9a-f-]{36}$/i.test(threadId))throw new CoffeeError("Invalid thread ID");
-  const answer=validateCoffeeText(text);
-  const evidence=validateEvidence(evidenceInput);
+  const {answer,evidence,uncertainty}=validateCoffeeAnswer(text,evidenceInput,uncertaintyInput);
   const client=await db.connect();
   try{
     await client.query("BEGIN");
@@ -116,7 +121,7 @@ export async function answerCoffeeThread(
       throw new CoffeeError("Question is not open for answers");
     const msg=await client.query<{message_id:string}>(
       "INSERT INTO coffee_messages(thread_id,author_run_id,content,evidence,message_kind) VALUES($1,$2,$3,$4::jsonb,'ANSWER') RETURNING message_id",
-      [threadId,runId,answer,JSON.stringify(evidence)]
+      [threadId,runId,answer+"\n\nUncertainty: "+uncertainty,JSON.stringify(evidence)]
     );
     await client.query(
       "UPDATE coffee_threads SET status='ANSWERED',updated_at=now() WHERE thread_id=$1 AND status IN ('OPEN','ANSWERED')",[threadId]

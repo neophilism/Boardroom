@@ -20,7 +20,9 @@ test("concurrent repeated questions share one thread, and answer/ADR search is l
   assert.equal(new Set(attempts.map(a=>a.threadId)).size,1);
   assert.equal(attempts.filter(a=>!a.reused).length,1);
   const threadId=attempts[0].threadId;
-  await answerCoffeeThread(db,credentialId,input.runId,threadId,"The database API test needs the literal percent%_marker in its migration fixture.",["https://github.com/ci/repo/pull/7"]);
+  await answerCoffeeThread(db,credentialId,input.runId,threadId,
+    "The database API test needs the literal percent%_marker in its migration fixture.",
+    ["https://github.com/ci/repo/pull/7"],"The production database migration has not been inspected.");
   const matches=await searchCoffeeThreads(db,"percent%_marker",null);
   assert.ok(matches.some(t=>t.thread_id===threadId&&t.blocker_classification==="TEST_FAILURE"&&
     t.deadline_at?.toISOString()===deadlineAt&&t.messages.some(m=>m.kind==="ANSWER")));

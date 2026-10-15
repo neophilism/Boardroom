@@ -17,7 +17,7 @@ export async function POST(request:Request,{params}:{params:Promise<{threadId:st
       return NextResponse.json({error:"JSON object required"},{status:400});
     const item=payload as Record<string,unknown>;
     if(typeof item.runId!=="string")return NextResponse.json({error:"runId required"},{status:400});
-    const result=await answerCoffeeThread(db,agent.credentialId,item.runId,threadId,item.answer,item.evidence);
+    const result=await answerCoffeeThread(db,agent.credentialId,item.runId,threadId,item.answer,item.evidence,item.uncertainty);
     return NextResponse.json(result,{status:201,headers:{"Cache-Control":"no-store"}});
   }catch(e){
     if(e instanceof InvalidAgentCredential)return NextResponse.json({error:"Unauthorized"},{status:401});
