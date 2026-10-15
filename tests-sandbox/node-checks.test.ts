@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import {createHash} from "node:crypto";
 import {CodingSandbox,loadAssignedRepositorySandbox} from "../src/runner/sandbox.ts";
 
 if(process.env.BOARDROOM_DOCKER_TESTS!=="true")throw new Error("Sandbox acceptance must be explicitly invoked on a disposable Docker-capable CI runner");
@@ -33,7 +34,10 @@ test("a live worker loads and tests only its assigned immutable repository snaps
     "package-lock.json":JSON.stringify({name:"assigned-fixture",version:"1.0.0",lockfileVersion:3,packages:{"":{name:"assigned-fixture",version:"1.0.0"}}}),
     "verify.mjs":"console.log('ASSIGNED_REPOSITORY_TESTED')"
   };
-  const entries=Object.entries(files).map(([path,text],index)=>({path,sha:String(index+1).repeat(40),size:Buffer.byteLength(text)}));
+  const entries=Object.entries(files).map(([path,text])=>{
+    const bytes=Buffer.from(text);
+    return {path,sha:createHash("sha1").update(`blob ${bytes.length}\0`).update(bytes).digest("hex"),size:bytes.length};
+  });
   const requested:string[]=[];
   const sandbox=await loadAssignedRepositorySandbox({repository,headSha,entries},repository,async entry=>{
     requested.push(entry.path);
