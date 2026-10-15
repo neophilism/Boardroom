@@ -5,7 +5,7 @@ export type GitHubRepository = {
   updated_at:string; description:string|null; archived:boolean;
 };
 export type GitHubPull = {
-  number:number; title:string; state:"open"|"closed"; updated_at:string; merged_at:string|null;
+  number:number; title:string; state:"open"|"closed"; created_at:string; updated_at:string; merged_at:string|null;
 };
 type TokenCache={value:string;expires:number;permissions:Record<string,string>|null};
 let tokenCache:TokenCache|undefined;
