@@ -11,7 +11,7 @@
   "priority": "highest",
   "schemaVersion": 1,
   "roadmapVersion": 2,
-  "observedAt": "2026-10-15T07:14:00Z",
+  "observedAt": "2026-10-15T07:24:00Z",
   "units": [
     {
       "id": "BR-001",
@@ -534,7 +534,9 @@
       "id": "BR-023",
       "title": "Action templates for accounts, credentials, purchases, and approvals",
       "origin": "original",
-      "prs": [],
+      "prs": [
+        68
+      ],
       "priority": "P0",
       "phase": "F3",
       "dependsOn": [

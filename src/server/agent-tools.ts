@@ -12,6 +12,7 @@ import {mergeAssignedPullRequest} from "./merge-policy.ts";
 import {advanceAssignedWork} from "./chain.ts";
 import {openCoffeeThread,answerCoffeeThread} from "./coffee.ts";
 import {createOwnerAction,parseOwnerAction} from "./owner-actions.ts";
+import {renderOwnerActionTemplate,type OwnerActionTemplateInput} from "./owner-action-templates.ts";
 import {resolveCoffeeAnswer} from "./coffee-resolution.ts";
 import {searchCoffeeThreads} from "./coffee-search.ts";
 
@@ -49,6 +50,11 @@ export const AGENT_TOOLS=[
     condition:{enum:["OWNER_ACCOUNT_CREATION","OWNER_CREDENTIAL_PROVISION","OWNER_PURCHASE","OWNER_APPROVAL","OWNER_LEGAL_OR_PERSONAL_INPUT","OWNER_PRODUCTION_ACCESS","TECHNICAL_QUESTION","AUTONOMOUS_CODE_CHANGE","AUTONOMOUS_TEST_FAILURE","RETRYABLE_EXTERNAL_FAILURE"]},
     instructions:string,requestedPermissions:{type:"array",items:string},secureEntryLocation:{type:["string","null"]},priceEstimateCents:{type:["integer","null"],minimum:0}},
     ["runId","generation","actionKey","title","type","condition","instructions"]),
+  tool("boardroom_owner_action_from_template","Create a structured owner-only request with target, minimum permissions, prerequisites, expected expense, secure entry location, and verification method.",{
+    ...session,actionKey:string,template:{enum:["ACCOUNT","CREDENTIAL","PURCHASE","APPROVAL"]},targetSystem:string,requestedAction:string,
+    requestedPermissions:{type:"array",items:string},prerequisites:{type:"array",items:string},secureEntryLocation:{type:["string","null"]},
+    priceEstimateCents:{type:["integer","null"],minimum:0},verificationMethod:string},
+    ["runId","generation","actionKey","template","targetSystem","requestedAction","requestedPermissions","prerequisites","secureEntryLocation","priceEstimateCents","verificationMethod"]),
   tool("boardroom_finish","Checkpoint, make a bounded Coffee pass, then release your current assignment. COMPLETED does not assert code acceptance.",{
     ...session,outcome:{enum:["COMPLETED","YIELDED","BLOCKED","FAILED","CANCELLED"]}},["runId","generation","outcome"]),
   tool("boardroom_finish_idle","End an admitted session that received no repository. Never frees an assigned lease.",{runId:string},["runId"])
@@ -106,6 +112,7 @@ export async function executeAgentTool(db:Pool,agent:AuthenticatedAgent,name:str
     case "boardroom_coffee_answer":return answerCoffeeThread(db,agent.credentialId,runId,String(args.threadId),args.answer,args.evidence);
     case "boardroom_coffee_resolve":return resolveCoffeeAnswer(db,runId,agent.credentialId,generation,String(args.threadId),String(args.messageId),String(args.adr));
     case "boardroom_owner_action":return createOwnerAction(db,agent.credentialId,parseOwnerAction(args));
+    case "boardroom_owner_action_from_template":return createOwnerAction(db,agent.credentialId,renderOwnerActionTemplate(args as OwnerActionTemplateInput));
     case "boardroom_finish":return finishRun(db,runId,agent.credentialId,generation,parseSessionOutcome(args.outcome));
     case "boardroom_finish_idle":return finishIdleSession(db,runId,agent.credentialId);
     default:throw new AgentToolError();
