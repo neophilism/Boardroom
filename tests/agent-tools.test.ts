@@ -17,3 +17,10 @@ test("tool name, required arguments, and extra authority fields fail closed",()=
   for(const field of ["constructor","__proto__","toString"])
     assert.throws(()=>validateAgentTool("boardroom_arrive",JSON.parse('{"'+field+'":"unexpected"}')),AgentToolError);
 });
+
+test("Coffee questions require a bounded technical blocker classification",()=>{
+  const base={runId:"run",subject:"Which repository test is failing?",question:"The database API integration test fails."};
+  assert.throws(()=>validateAgentTool("boardroom_coffee_ask",base),AgentToolError);
+  assert.deepEqual(validateAgentTool("boardroom_coffee_ask",{...base,classification:"TEST_FAILURE"}),{...base,classification:"TEST_FAILURE"});
+  assert.throws(()=>validateAgentTool("boardroom_coffee_ask",{...base,classification:"OWNER_APPROVAL"}),AgentToolError);
+});

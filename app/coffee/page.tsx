@@ -45,6 +45,7 @@ export default async function CoffeeIndex({searchParams}:{searchParams:Promise<S
       <article className="coffee-thread" key={t.thread_id}>
         <div className="card-top"><span className="status-label">{t.status}</span><span className="action-type">{t.repository_name??"General engineering"}</span></div>
         <h2><Link href={`/coffee/${t.thread_id}`}>{t.subject}</Link></h2>
+        <p>{t.blocker_classification.replaceAll("_"," ")}{t.deadline_at?` · Requested by ${formatEastern(t.deadline_at.toISOString())}`:""}</p>
         <p>{t.author_name??"Unknown registered agent"}{t.provider?` · ${t.provider}`:""}{t.unit_id?` · ${t.unit_id}`:""}</p>
         {t.adr&&<p><a href={t.adr} target="_blank" rel="noopener noreferrer">Accepted repository decision</a></p>}
         <div className="coffee-thread-meta"><span>Messages: {t.replies}</span><span>Updated {formatEastern(t.updated_at.toISOString())}</span></div>

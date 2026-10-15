@@ -178,9 +178,10 @@ export class BoardroomAgentClient{
   resolveCoffee(runId:string,generation:string,threadId:string,messageId:string,adr:string):Promise<unknown>{
     return this.#request("POST","/api/v1/coffee/threads/"+encodeURIComponent(threadId)+"/resolve",{runId,generation,messageId,adr});
   }
-  askCoffee(runId:string,subject:string,question:string,evidence:string[]=[],generation?:string){
+  askCoffee(runId:string,subject:string,question:string,evidence:string[]=[],generation?:string,
+    classification:"TECHNICAL"|"DEPENDENCY"|"TEST_FAILURE"|"ARCHITECTURE"="TECHNICAL",deadlineAt?:string){
     return this.#request("POST","/api/v1/coffee/threads",
-      {runId,subject,question,evidence,...(generation?{generation}:{})});
+      {runId,subject,question,evidence,classification,...(generation?{generation}:{}),...(deadlineAt?{deadlineAt}:{})});
   }
   ownerAction(payload:Record<string,unknown>):Promise<unknown>{
     return this.#request("POST","/api/v1/owner-actions",payload);

@@ -78,3 +78,10 @@ test("Coffee text filters are encoded without overriding state or authority",asy
   assert.equal(url.searchParams.get("status"),"RESOLVED");
   assert.equal(url.searchParams.get("q"),"API & status=OPEN %_");
 });
+
+test("Coffee questions carry blocker classification and optional deadline",async()=>{
+  const f=fake([{status:201,value:{threadId:"fixture",status:"OPEN"}}]);
+  const client=new BoardroomAgentClient({baseUrl:"https://boardroom.example",bearerToken:secret,assignedName:"Smith",transport:f.transport});
+  await client.askCoffee("run","Which database API failed?","The database integration test fails after migration.",[],"1","TEST_FAILURE","2026-10-16T10:00:00Z");
+  assert.deepEqual(JSON.parse(String(f.requests[0].init.body)),{runId:"run",subject:"Which database API failed?",question:"The database integration test fails after migration.",evidence:[],classification:"TEST_FAILURE",generation:"1",deadlineAt:"2026-10-16T10:00:00Z"});
+});
