@@ -1,0 +1,7 @@
+# Owner action notifications
+
+BR-030 adds a transport-neutral notification boundary for the private Owner Action Board. `deliverOwnerActionNotifications` claims one consolidated batch under a PostgreSQL advisory transaction lock, sends it through an injected provider adapter, and records bounded delivery evidence. A reservation suppresses concurrent attempts for 30 minutes; successful delivery suppresses another reminder for 24 hours. Actions younger than 24 hours are not notified.
+
+Notification subject and body are generated exclusively from allowlisted action type, lifecycle status, age, count, and exact private HTTPS action links. They never include titles, instructions, repository names, work-unit names, requested permissions, prices, secure-entry locations, owner notes, provider responses, or arbitrary audit payloads. The provider adapter receives no recipient address from Boardroom; deployment configuration owns the recipient and provider credential outside the database and repository.
+
+Each action receives a reservation and delivery audit record containing only its action ID, a random batch ID, and a bounded provider delivery ID. Provider errors are not persisted because they can contain sensitive material. Failed batches become eligible after the reservation expires. This repository increment does not claim that a production notification provider or scheduled delivery has been configured.
