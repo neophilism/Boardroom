@@ -55,6 +55,40 @@ before(async()=>{
 });
 after(async()=>{await db.end();});
 
+test("identical workflow activations from distinct credentials receive independent runs",async()=>{
+  const created=await Promise.all([
+    db.query<{credential_id:string}>(
+      "INSERT INTO agent_credentials(label,provider,token_digest) VALUES('Admission A','test',$1) RETURNING credential_id",
+      ["a".repeat(64)]
+    ),
+    db.query<{credential_id:string}>(
+      "INSERT INTO agent_credentials(label,provider,token_digest) VALUES('Admission B','test',$1) RETURNING credential_id",
+      ["b".repeat(64)]
+    )
+  ]);
+  const principals=created.map((result,index)=>({
+    credentialId:result.rows[0].credential_id,
+    label:index===0?"Admission A":"Admission B",
+    provider:"test"
+  }));
+  const admitted=await Promise.all(principals.map(principal=>admitAgentRun(db,principal,null)));
+  assert.ok(admitted.every(result=>result.kind==="CREATED"));
+  const runIds=admitted.map(result=>{
+    if(result.kind!=="CREATED")throw new Error("Expected independent admission");
+    return result.runId;
+  });
+  assert.equal(new Set(runIds).size,2);
+  const rows=await db.query<{run_id:string;credential_id:string}>(
+    "SELECT run_id::text,credential_id::text FROM agent_runs WHERE run_id=ANY($1::uuid[])",
+    [runIds]
+  );
+  assert.deepEqual(new Set(rows.rows.map(row=>row.credential_id)),new Set(principals.map(p=>p.credentialId)));
+  await db.query(
+    "UPDATE agent_runs SET state='CANCELLED',ended_at=now() WHERE run_id=ANY($1::uuid[])",
+    [runIds]
+  );
+});
+
 test("two concurrent sessions claim distinct repositories with top priority included",async()=>{
   const results=await Promise.all([
     claimAssignment(db,runs[0],credentials[0]),

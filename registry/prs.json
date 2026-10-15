@@ -11,7 +11,7 @@
   "priority": "highest",
   "schemaVersion": 1,
   "roadmapVersion": 2,
-  "observedAt": "2026-10-15T06:44:00Z",
+  "observedAt": "2026-10-15T06:53:00Z",
   "units": [
     {
       "id": "BR-001",
@@ -321,7 +321,9 @@
       "id": "BR-014",
       "title": "Stateless identical-prompt session admission",
       "origin": "original",
-      "prs": [],
+      "prs": [
+        65
+      ],
       "priority": "P0",
       "phase": "F2",
       "dependsOn": [
@@ -2823,6 +2825,21 @@
       "baseRef": "main",
       "mergeCommitSha": "6810b0303d6c44bea27eaba4984e5aac709dc8e3",
       "id": 4869333765
+    },
+    {
+      "id": 4869417702,
+      "number": 65,
+      "title": "BR-014: Verify independent identical-prompt admissions",
+      "url": "https://github.com/neophilism/Boardroom/pull/65",
+      "state": "open",
+      "draft": true,
+      "createdAt": "2026-10-15T06:52:19Z",
+      "updatedAt": "2026-10-15T06:52:19Z",
+      "closedAt": null,
+      "mergedAt": null,
+      "headSha": "c75437080832e05fba27f0f0d257fefc4f2a104a",
+      "baseRef": "main",
+      "mergeCommitSha": "6362c500b774c39fe2025562306505aa91f2c2de"
     }
   ]
 }
