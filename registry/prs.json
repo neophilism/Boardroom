@@ -11,7 +11,7 @@
   "priority": "highest",
   "schemaVersion": 1,
   "roadmapVersion": 2,
-  "observedAt": "2026-10-15T07:24:00Z",
+  "observedAt": "2026-10-15T07:32:00Z",
   "units": [
     {
       "id": "BR-001",
@@ -557,7 +557,9 @@
       "id": "BR-024",
       "title": "Duplicate merging and blocker aggregation",
       "origin": "original",
-      "prs": [],
+      "prs": [
+        69
+      ],
       "priority": "P0",
       "phase": "F3",
       "dependsOn": [
