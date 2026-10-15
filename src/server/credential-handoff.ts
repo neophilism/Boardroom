@@ -36,8 +36,8 @@ export function parseCredentialReference(value:unknown):CredentialReference{
   return {provider:item.provider as CredentialReferenceProvider,locator:item.locator,secretName:item.secretName};
 }
 
-function capabilityList(value:unknown):string[]{
-  if(!Array.isArray(value)||value.length<1||value.length>30||value.some(item=>typeof item!=="string"||item.length<2||item.length>180))
+function capabilityList(value:unknown,requireOne=true):string[]{
+  if(!Array.isArray(value)||(requireOne&&value.length<1)||value.length>30||value.some(item=>typeof item!=="string"||item.length<2||item.length>180))
     throw new CredentialHandoffRejected("Credential action requires explicit bounded capabilities");
   return [...new Set(value)].sort();
 }
@@ -59,7 +59,7 @@ export async function verifyCredentialHandoff(
     throw new CredentialHandoffRejected("Credential reference does not match the approved secure-entry destination");
   const requiredCapabilities=capabilityList(record.requested_permissions);
   const result=await probe({reference,requiredCapabilities:[...requiredCapabilities]});
-  const capabilities=capabilityList(result.capabilities).filter(item=>requiredCapabilities.includes(item));
+  const capabilities=capabilityList(result.capabilities,false).filter(item=>requiredCapabilities.includes(item));
   const safeEvidenceId=result.evidenceId===null?null:
     typeof result.evidenceId==="string"&&evidenceId.test(result.evidenceId)?result.evidenceId:
       (()=>{throw new CredentialHandoffRejected("Invalid provider evidence identifier")})();
