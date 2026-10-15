@@ -10,7 +10,7 @@ function database(status="AWAITING_VERIFICATION",type="CREDENTIAL"){
     calls.push({sql,params});
     if(sql.startsWith("SELECT action_type"))return {rowCount:1,rows:[{action_type:type,status}]};
     if(sql.startsWith("SELECT status"))return {rowCount:1,rows:[{status}]};
-    if(sql.startsWith("SELECT repository_id"))return {rowCount:2,rows:[
+    if(sql.includes("FROM owner_action_dependents d"))return {rowCount:2,rows:[
       {repository_id:"41",unit_id:"A-1"},{repository_id:"42",unit_id:null}
     ]};
     return {rowCount:1,rows:[]};
