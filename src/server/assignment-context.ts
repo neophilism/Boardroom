@@ -91,7 +91,7 @@ export async function getAssignmentContext(db:Pool,runId:string,credentialId:str
       externalPrerequisites:item.external_prerequisites,source:item.source_metadata},
     dependencyStatus,
     approvedUnits:mappedUnits,
-    checkpoint:mappedCheckpoints[0]??null,
+    checkpoint:mappedCheckpoints.find((checkpoint)=>checkpoint.unitId===item.unit_id)??null,
     recentCheckpoints:mappedCheckpoints,
     repositoryBranches:branchSnapshot.branches,
     repositoryBranchesLimited:branchSnapshot.limited,
