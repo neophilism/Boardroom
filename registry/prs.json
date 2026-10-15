@@ -11,7 +11,7 @@
   "priority": "highest",
   "schemaVersion": 1,
   "roadmapVersion": 2,
-  "observedAt": "2026-10-15T09:28:50Z",
+  "observedAt": "2026-10-15T10:48:00Z",
   "units": [
     {
       "id": "BR-001",
@@ -1139,7 +1139,9 @@
       "id": "BR-048",
       "title": "Asynchronous help and automatic unblock",
       "origin": "original",
-      "prs": [],
+      "prs": [
+        94
+      ],
       "priority": "P0",
       "phase": "F5",
       "dependsOn": [

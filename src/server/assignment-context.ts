@@ -14,6 +14,7 @@ type ApprovedUnit={
   unit_id:string;title:string;state:string;version:number;depends_on:unknown;acceptance_criteria:string|null;planned_prs:unknown;
   local_unmet:unknown;external_unmet:unknown;owner_blockers:number;
 };
+type ResumeSignal={threadId:string|null;messageId:string|null;adr:string|null;acceptedAt:Date};
 
 export function validateAssignedContextRequest(runId:unknown,generation:unknown):assertsRun {
   if(!isValidRunId(runId)||!isValidGeneration(generation))
@@ -46,6 +47,13 @@ export function normalizeRepositoryDecision(repository:string,value:{unitId:stri
   }catch{return null;}
 }
 
+export function normalizeCoffeeResumeSignal(repository:string,unitId:string,value:ResumeSignal){
+  const decision=normalizeRepositoryDecision(repository,{unitId,adr:value.adr,occurredAt:value.acceptedAt});
+  const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  if(!decision||!value.threadId||!value.messageId||!uuid.test(value.threadId)||!uuid.test(value.messageId))return null;
+  return {unitId,threadId:value.threadId,messageId:value.messageId,adr:decision.adr,acceptedAt:decision.acceptedAt};
+}
+
 /** All context reads are fenced by the current live lease, run, and credential. */
 export async function getAssignmentContext(db:Pool,runId:string,credentialId:string,generation:string){
   validateAssignedContextRequest(runId,generation);
@@ -70,7 +78,7 @@ export async function getAssignmentContext(db:Pool,runId:string,credentialId:str
   );
   if(current.rowCount!==1)throw new SessionConflict("Current authorized assignment or lease unavailable");
   const item=current.rows[0],api="/repos/"+item.full_name.split("/").map(encodeURIComponent).join("/");
-  const [checkpoint,instructions,discussions,units,decisions,repository,branchResponse]=await Promise.all([
+  const [checkpoint,instructions,discussions,units,decisions,resume,repository,branchResponse]=await Promise.all([
     db.query<Checkpoint>(`SELECT checkpoint_id::text,unit_id,branch,head_sha,state,created_at FROM checkpoints WHERE repository_id=$1 ORDER BY created_at DESC,checkpoint_id DESC LIMIT 25`,[item.repository_id]),
     fetchRepositoryInstruction(item.full_name,"AGENTS.md"),
     db.query(`SELECT t.thread_id,t.subject,t.status,
@@ -94,6 +102,10 @@ export async function getAssignmentContext(db:Pool,runId:string,credentialId:str
     db.query<{unitId:string|null;adr:string|null;occurredAt:Date}>(`SELECT details->>'unitId' AS "unitId",details->>'adr' AS adr,occurred_at AS "occurredAt"
       FROM audit_events WHERE repository_id=$1 AND kind='coffee.answer.accepted_in_adr'
       ORDER BY occurred_at DESC,event_id DESC LIMIT 100`,[item.repository_id]),
+    db.query<ResumeSignal>(`SELECT details->>'threadId' AS "threadId",details->>'messageId' AS "messageId",
+        details->>'adr' AS adr,occurred_at AS "acceptedAt"
+      FROM audit_events WHERE repository_id=$1 AND kind='coffee.answer.accepted_in_adr' AND details->>'unitId'=$2
+      ORDER BY occurred_at DESC,event_id DESC LIMIT 1`,[item.repository_id,item.unit_id]),
     githubAppRequest("GET",api),
     githubAppRequest("GET",api+"/branches?per_page=101")
   ]);
@@ -122,6 +134,7 @@ export async function getAssignmentContext(db:Pool,runId:string,credentialId:str
     approvedUnits,
     repositoryState:{defaultBranch:repo.default_branch,...branches},
     historicalDecisions:decisions.rows.map(row=>normalizeRepositoryDecision(item.full_name,row)).filter(x=>x!==null&&approvedIds.has(x.unitId)),
+    resumeSignal:resume.rows[0]?normalizeCoffeeResumeSignal(item.full_name,item.unit_id,resume.rows[0]):null,
     checkpoint:recentCheckpoints.find(row=>row.unitId===item.unit_id)??null,
     recentCheckpoints,
     repositoryInstructions:instructions,
