@@ -51,7 +51,7 @@ export default async function OwnerActionsPage({searchParams}:{searchParams:Prom
     {actions.length===0?<section className="action-card"><h2>No matching requests</h2><p>Change or reset the inbox filters to inspect other owner actions.</p></section>:
       <div className="action-grid">{actions.map(a=><article className="action-card" id={"action-"+a.action_id} key={a.action_id}>
         <div className="card-top"><span className="action-type">{a.action_type.replaceAll("_"," ")}</span><span className="status-label">{a.status.replaceAll("_"," ")}</span></div>
-        <h2>{a.title}</h2>
+        <h2><Link href={"/owner-actions/"+a.action_id}>{a.title}</Link></h2>
         <details>
           <summary>Inspect request</summary>
           <p className="instruction">{a.instructions}</p>
