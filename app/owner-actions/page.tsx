@@ -5,9 +5,10 @@ import {OWNER_COOKIE,validOwnerSession} from "../../src/server/owner-session";
 import {getDatabase} from "../../src/server/db";
 import {parseOwnerActionInboxView,selectOwnerActionInbox} from "../../src/server/owner-action-inbox";
 import OwnerActionControls from "./controls";
+import {isRiskApprovalKey} from "../../src/server/risk-approval";
 export const dynamic="force-dynamic";
 type ActionRow={
-  action_id:string; title:string; action_type:string; instructions:string;status:string;
+  action_id:string; action_key:string; title:string; action_type:string; instructions:string;status:string;
   requested_permissions:string[];secure_entry_location:string|null;
   price_estimate_cents:string|null;created_at:Date;
   affected:{repositoryId:string;fullName:string|null;unitId:string|null}[];
@@ -22,7 +23,7 @@ export default async function OwnerActionsPage({searchParams}:{searchParams:Prom
   if(!validOwnerSession(jar.get(OWNER_COOKIE)?.value))redirect("/login");
   const view=parseOwnerActionInboxView(await searchParams);
   const results=await getDatabase().query<ActionRow>(
-    "SELECT a.action_id,a.title,a.action_type,a.instructions,a.requested_permissions,a.secure_entry_location,a.price_estimate_cents,a.status,a.created_at,COALESCE(json_agg(json_build_object('repositoryId',d.repository_id::text,'fullName',r.full_name,'unitId',d.unit_id) ORDER BY r.full_name,d.repository_id,d.unit_id) FILTER (WHERE d.repository_id IS NOT NULL),'[]'::json) AS affected FROM owner_actions a LEFT JOIN owner_action_dependents d ON d.action_id=a.action_id LEFT JOIN repositories r ON r.repository_id=d.repository_id GROUP BY a.action_id LIMIT 250"
+    "SELECT a.action_id,a.action_key,a.title,a.action_type,a.instructions,a.requested_permissions,a.secure_entry_location,a.price_estimate_cents,a.status,a.created_at,COALESCE(json_agg(json_build_object('repositoryId',d.repository_id::text,'fullName',r.full_name,'unitId',d.unit_id) ORDER BY r.full_name,d.repository_id,d.unit_id) FILTER (WHERE d.repository_id IS NOT NULL),'[]'::json) AS affected FROM owner_actions a LEFT JOIN owner_action_dependents d ON d.action_id=a.action_id LEFT JOIN repositories r ON r.repository_id=d.repository_id GROUP BY a.action_id LIMIT 250"
   );
   const allActions=results.rows;
   const actions=selectOwnerActionInbox(allActions,view.filter,view.sort);
@@ -61,7 +62,7 @@ export default async function OwnerActionsPage({searchParams}:{searchParams:Prom
           <p><strong>Affected repositories:</strong> {a.affected.map(x=>x.fullName||x.repositoryId).join(", ")||"Not recorded"}</p>
           <p><strong>Requested:</strong> {new Date(a.created_at).toLocaleString("en-US",{timeZone:"UTC",dateStyle:"medium",timeStyle:"short"})} UTC</p>
         </details>
-        <OwnerActionControls actionId={a.action_id} status={a.status}/>
+        <OwnerActionControls actionId={a.action_id} status={a.status} canApprove={isRiskApprovalKey(a.action_key)}/>
       </article>)}</div>}
   </main>;
 }
