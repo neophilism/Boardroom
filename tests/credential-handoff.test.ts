@@ -44,6 +44,15 @@ test("missing or under-scoped capabilities fail closed",async()=>{
   assert.deepEqual(outcome.capabilities,["Contents: read"]);
 });
 
+test("an absent secret returns a bounded negative presence outcome",async()=>{
+  const db={query:async(sql:string)=>sql.startsWith("SELECT")?{rowCount:1,rows:[{
+    action_type:"CREDENTIAL",status:"AWAITING_VERIFICATION",requested_permissions:["Contents: read"],
+    secure_entry_location:credentialReferenceLocation(reference)
+  }]}:{rowCount:1,rows:[]}};
+  const outcome=await verifyCredentialHandoff(db as never,actionId,reference,async()=>({present:false,capabilities:[],evidenceId:"render-check:404"}));
+  assert.deepEqual(outcome,{actionId,present:false,verified:false,capabilities:[],evidenceId:"render-check:404"});
+});
+
 test("wrong action state or destination is rejected before a provider probe",async()=>{
   let probed=false;
   const db={query:async()=>({rowCount:1,rows:[{
