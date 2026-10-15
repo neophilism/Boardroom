@@ -75,9 +75,13 @@ export async function mergeAssignedPullRequest(db:Pool,runId:string,credentialId
     const pr=await githubAppRequest("GET",api+"/pulls/"+number) as {
       state:string;draft:boolean;merged:boolean;head:{sha:string;ref:string;repo:{id:number}};html_url:string;
     };
-    if(pr.head.ref!==safeWorkBranch(scope.unit_id)||String(pr.head.repo.id)!==scope.repository_id)
-      throw new SessionConflict("PR is outside the assigned work branch");
-    if(pr.merged){const unitState=await reconcileMergedUnit();await client.query("COMMIT");return {merged:true,replay:true,url:pr.html_url,unitState};}
+    const prScopeMatches=pr.head.ref===safeWorkBranch(scope.unit_id)&&
+      String(pr.head.repo.id)===scope.repository_id;
+    if(pr.merged){
+      if(!prScopeMatches)throw new SessionConflict("PR is outside the assigned work branch");
+      const unitState=await reconcileMergedUnit();await client.query("COMMIT");transactionOpen=false;
+      return {merged:true,replay:true,url:pr.html_url,unitState};
+    }
     const [owner,name]=scope.full_name.split("/");
     const controlsItsOwnAuthority=scope.full_name.toLowerCase()===(process.env.BOARDROOM_GITHUB_OWNER??"neophilism").toLowerCase()+"/boardroom";
     const observed=await githubAppRequest("POST","/graphql",{
@@ -102,9 +106,9 @@ export async function mergeAssignedPullRequest(db:Pool,runId:string,credentialId
       statuses:statuses.statuses,reviews:reviews.map(r=>({login:r.user.login,state:r.state,commitId:r.commit_id}))});
     if(reasons.length){
       const details=mergeDenialAuditDetails(scope.unit_id,number,pr.head.sha,reasons);
-      await client.query("ROLLBACK");transactionOpen=false;
-      await db.query("INSERT INTO audit_events(run_id,repository_id,kind,details) VALUES($1,$2,'github.pr.merge_denied',$3::jsonb)",
+      await client.query("INSERT INTO audit_events(run_id,repository_id,kind,details) VALUES($1,$2,'github.pr.merge_denied',$3::jsonb)",
         [runId,scope.repository_id,JSON.stringify(details)]);
+      await client.query("COMMIT");transactionOpen=false;
       throw new SessionConflict("Merge blocked: "+reasons.join(", "));
     }
     const merged=await githubAppRequest("PUT",api+"/pulls/"+number+"/merge",{sha:expectedSha,merge_method:"squash"}) as {merged:boolean;sha:string};
