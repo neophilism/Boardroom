@@ -23,3 +23,10 @@ The `boardroom_owner_action_from_template` tool provides four executable request
 ## Private detail and evidence view
 
 Each inbox title links to `/owner-actions/{actionId}`, an owner-session-protected page that presents the classified reason, lifecycle-derived urgency, full instructions, exact permission or secret scope, secure-entry destination, affected repositories and work units, expected expense, and explicit HTTPS links. Unknown or malformed action IDs return the private application's not-found response. The page never attempts to render a secret value and does not weaken the separate verification boundary.
+
+
+## Secure credential handoff
+
+Credential owner actions use structured references such as `render://services/boardroom-production/GITHUB_TOKEN`; the reference identifies a provider location and secret name, never the secret value. The server accepts only approved Render, GitHub Actions, and Boardroom runtime references with no extra fields. Verification is allowed only while the exact credential action is awaiting verification and only when the reference matches its approved secure-entry destination.
+
+A provider adapter receives the private reference and the capability list already stored on the owner action. The agent-visible result contains only presence, the subset of requested capabilities actually verified, a boolean outcome, and an opaque bounded evidence ID. Extra provider capabilities are discarded, malformed evidence fails closed, and audit records omit the locator and secret name. Provider adapters must never return or log credential material. BR-029 separately owns fulfillment, dependent requeueing, and final action resolution.
