@@ -1,7 +1,7 @@
 import type {Pool} from "pg";
 
 export type OwnerActionDetail={
-  action_id:string;title:string;action_type:string;instructions:string;status:string;
+  action_id:string;action_key:string;title:string;action_type:string;instructions:string;status:string;
   requested_permissions:string[];secure_entry_location:string|null;price_estimate_cents:string|null;
   created_at:Date;updated_at:Date;resolved_at:Date|null;reason:string|null;
   affected:{repositoryId:string;fullName:string;unitId:string|null}[];
@@ -21,7 +21,7 @@ export function ownerActionLinks(...values:(string|null)[]):string[]{
 export async function getOwnerActionDetail(db:Pool,actionId:string):Promise<OwnerActionDetail|null>{
   if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(actionId))return null;
   const result=await db.query<OwnerActionDetail>(
-    `SELECT a.action_id,a.title,a.action_type,a.instructions,a.status,a.requested_permissions,
+    `SELECT a.action_id,a.action_key,a.title,a.action_type,a.instructions,a.status,a.requested_permissions,
       a.secure_entry_location,a.price_estimate_cents,a.created_at,a.updated_at,a.resolved_at,
       (SELECT e.details->>'condition' FROM audit_events e
        WHERE e.kind='owner_action.requested' AND e.details->>'actionId'=a.action_id::text
