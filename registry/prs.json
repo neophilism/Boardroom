@@ -11,7 +11,7 @@
   "priority": "highest",
   "schemaVersion": 1,
   "roadmapVersion": 2,
-  "observedAt": "2026-10-15T10:48:00Z",
+  "observedAt": "2026-10-15T10:55:00Z",
   "units": [
     {
       "id": "BR-001",
@@ -1163,7 +1163,10 @@
       "id": "BR-049",
       "title": "Architecture deliberation and repository ADR persistence",
       "origin": "original",
-      "prs": [],
+      "prs": [
+        42,
+        95
+      ],
       "priority": "P0",
       "phase": "F5",
       "dependsOn": [
