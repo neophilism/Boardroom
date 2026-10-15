@@ -3,8 +3,8 @@ import assert from "node:assert/strict";
 import {normalizeRoadmap} from "../src/server/roadmap-import.ts";
 import type {GitHubPull} from "../src/server/github-app.ts";
 const prs:GitHubPull[]=[
-  {number:7,title:"AB-001: Setup",state:"closed",merged_at:"2026-10-01T00:00:00Z",updated_at:"2026-10-01T00:00:00Z"},
-  {number:8,title:"AB-002: Implement",state:"open",merged_at:null,updated_at:"2026-10-05T00:00:00Z"}
+  {number:7,title:"AB-001: Setup",state:"closed",created_at:"2026-10-01T00:00:00Z",merged_at:"2026-10-01T00:00:00Z",updated_at:"2026-10-01T00:00:00Z"},
+  {number:8,title:"AB-002: Implement",state:"open",created_at:"2026-10-05T00:00:00Z",merged_at:null,updated_at:"2026-10-05T00:00:00Z"}
 ];
 const plan={
   repository:"owner/example",schemaVersion:1,roadmapVersion:1,observedAt:"2026-10-13T00:00:00Z",pullRequests:[],planVerified:true,plannedPrCount:3,
@@ -64,7 +64,7 @@ test("compound PR prefixes map to every included stable ID without inventing uni
 test("closed-unmerged changes remain UNKNOWN rather than falsely counted done",()=>{
   const p={...plan,plannedPrCount:1,units:[{id:"AB-001",title:"Bootstrap",dependsOn:[],prs:[5]}]};
   const result=normalizeRoadmap(p,"owner/example",[
-    {...prs[0],number:5,state:"closed",merged_at:null,title:"AB-001: Abandoned attempt"}
+    {...prs[0],number:5,state:"closed",created_at:"2026-10-01T00:00:00Z",merged_at:null,title:"AB-001: Abandoned attempt"}
   ]);
   assert.equal(result.units[0].status,"UNKNOWN");
 });

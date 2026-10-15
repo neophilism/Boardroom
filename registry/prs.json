@@ -11,7 +11,7 @@
   "priority": "highest",
   "schemaVersion": 1,
   "roadmapVersion": 2,
-  "observedAt": "2026-10-15T06:37:00Z",
+  "observedAt": "2026-10-15T06:44:00Z",
   "units": [
     {
       "id": "BR-001",
@@ -298,7 +298,9 @@
       "id": "BR-013",
       "title": "Authoritative least-recently-updated comparator",
       "origin": "original",
-      "prs": [],
+      "prs": [
+        63
+      ],
       "priority": "P0",
       "phase": "F2",
       "dependsOn": [
@@ -2806,6 +2808,21 @@
       "headSha": "fe9c6de009986b13d497f9bd23521f261c780df0",
       "baseRef": "main",
       "mergeCommitSha": null
+    },
+    {
+      "number": 63,
+      "title": "BR-013: Verify authoritative least-recently-updated selection",
+      "url": "https://github.com/neophilism/Boardroom/pull/63",
+      "state": "open",
+      "draft": true,
+      "createdAt": "2026-10-15T06:43:21Z",
+      "updatedAt": "2026-10-15T06:43:21Z",
+      "closedAt": null,
+      "mergedAt": null,
+      "headSha": "e3af97aa685bd417fed4bc02e723febe9b90c58c",
+      "baseRef": "main",
+      "mergeCommitSha": "6810b0303d6c44bea27eaba4984e5aac709dc8e3",
+      "id": 4869333765
     }
   ]
 }
