@@ -73,7 +73,7 @@ export async function respondToOwnerAction(db:Pool,actionId:string,rawResponse:u
     await client.query("COMMIT");committed=true;
     return {actionId,status:response.status};
   }catch(error){if(!committed)await client.query("ROLLBACK");throw error;}
-  finally{owned?.release();}
+  finally{client.release();}
 }
 
 export async function resolveVerifiedOwnerAction(
@@ -113,5 +113,5 @@ export async function resolveVerifiedOwnerAction(
     await client.query("COMMIT");committed=true;
     return {actionId,status:"VERIFIED",requeued};
   }catch(error){if(!committed)await client.query("ROLLBACK");throw error;}
-  finally{client.release();}
+  finally{owned?.release();}
 }
