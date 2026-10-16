@@ -1,6 +1,6 @@
 # October 16 maintenance authentication follow-up
 
-A separate maintenance change adds opt-in, narrowly scoped GitHub OIDC authentication to the bounded internal tick. It removes the need to copy a long-lived scheduler secret for that route while preserving legacy token support. The workflow can run every ten minutes, but the server denies GitHub assertions until explicitly configured. No source change alone establishes a successful live maintenance run. See [FIVE_AGENT_LAUNCH.md](FIVE_AGENT_LAUNCH.md).
+[PR #101](https://github.com/neophilism/Boardroom/pull/101) adds opt-in, narrowly scoped GitHub OIDC authentication to the bounded internal tick. It removes the need to copy a long-lived scheduler secret for that route while preserving legacy token support. The workflow can run every ten minutes, but the server denies GitHub assertions until explicitly configured. No source change alone establishes a successful live maintenance run. See [FIVE_AGENT_LAUNCH.md](FIVE_AGENT_LAUNCH.md).
 
 # October 16 five-agent launch implementation
 
