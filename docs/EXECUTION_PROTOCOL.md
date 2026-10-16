@@ -12,7 +12,7 @@ Code/CI validation does not pass the live integration gates. BR-004 requires a g
 
 ## Reliability
 
-Signed GitHub webhooks enqueue deduplicated, minimized repository reconciliation jobs. Event payloads never set project progress directly. The outbox rereads actual GitHub metadata, survives interrupted dispatch, bounds retries and exposes failed jobs in Operations. The protected maintenance tick combines stale-session detection, periodic inventory refresh and outbox dispatch. Its scheduler remains disabled until its distinct token is configured. Expiry alone never releases a repository.
+Signed GitHub webhooks enqueue deduplicated, minimized repository reconciliation jobs. Event payloads never set project progress directly. The outbox rereads actual GitHub metadata, survives interrupted dispatch, bounds retries and exposes failed jobs in Operations. The protected maintenance tick combines stale-session detection, periodic inventory refresh and outbox dispatch. Its GitHub scheduler can authenticate with a short-lived, narrowly scoped OIDC assertion once BOARDROOM_GITHUB_MAINTENANCE_OIDC_ENABLED is enabled on the existing server; an explicit false repository variable pauses it. A previously configured distinct maintenance token remains supported. See docs/FIVE_AGENT_LAUNCH.md. Expiry alone never releases a repository.
 
 Owner controls pause claims and writes, configure per-repository merge policy, and explicitly recover stopped/isolated runs. Recovery revokes the old credential and increments the lease generation before requeue. A declined Owner Action continues to block affected work. Checkpoints reject apparent secrets, and the MCP validator rejects unknown fields, wrong types, unsupported operations and caller-supplied identity authority.
 

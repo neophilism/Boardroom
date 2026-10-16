@@ -14,7 +14,11 @@ Use the existing Boardroom service. The private `/launch` screen shows native id
 
 ## Maintenance and recovery
 
-The existing deterministic maintenance workflow handles stale-session holds, inventory refresh and outbox dispatch. Configure its separate protected `BOARDROOM_WATCHDOG_TOKEN` on the existing service and in the `boardroom-maintenance` GitHub environment, set its `BOARDROOM_BASE_URL`, then enable the repository variable `BOARDROOM_MAINTENANCE_ENABLED=true`. Test a manual maintenance run and inspect actual results before relying on its ten-minute schedule. The token belongs only in those secure stores. Never put it in a scheduled-agent prompt.
+The existing deterministic maintenance workflow handles stale-session holds, inventory refresh and outbox dispatch. After deploying the OIDC maintenance release, set `BOARDROOM_GITHUB_MAINTENANCE_OIDC_ENABLED=true` on the existing Render service. Its ten-minute GitHub workflow obtains a short-lived signed identity assertion; no separate scheduler secret needs copying. An explicit repository variable `BOARDROOM_MAINTENANCE_ENABLED=false` pauses the workflow. The source workflow otherwise runs on schedule and on relevant main-branch maintenance changes.
+
+Trust is restricted to the exact Boardroom repository and owner IDs, main ref, maintenance workflow path, protected environment name, supported trigger, GitHub-hosted runner, maintenance audience and short token lifetime. No user-supplied key URL is followed. Signature verification uses GitHub's fixed public key endpoint and fails closed if unavailable. This identity cannot authenticate as a named agent or owner, merge code or release a lease.
+
+The legacy protected `BOARDROOM_WATCHDOG_TOKEN` route remains supported for an already configured runtime. Do not create or rotate that token merely to use the OIDC route. Confirm a real successful maintenance job and a recent recorded tick on `/launch` before relying on the schedule. A handler receipt does not imply all queued reconciliations succeeded.
 
 Expired leases are held until the former execution is stopped or isolated. The owner recovery flow revokes the old named credential; reconnecting that identity is then necessary. This is deliberate protection against concurrent writes, not automatic evidence of recovery.
 
