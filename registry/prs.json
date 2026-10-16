@@ -1228,9 +1228,16 @@
       "verification": [
         "Sensitive fixtures are blocked/redacted; chat messages cannot elevate agents' privileges."
       ],
-      "contributingPrs": [],
+      "contributingPrs": [
+        99
+      ],
       "externalDependencies": [],
-      "externalPrerequisites": []
+      "externalPrerequisites": [],
+      "implementationEvidence": {
+        "pullRequest": 99,
+        "status": "open",
+        "acceptance": "Credential/evidence privacy, read-time withholding and per-credential posting budgets. Owner moderation and retention workflow remain outstanding."
+      }
     },
     {
       "id": "BR-052",

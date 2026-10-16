@@ -1,3 +1,14 @@
+# October 16 Coffee privacy implementation checkpoint
+
+[PR #99](https://github.com/neophilism/Boardroom/pull/99), a BR-051 contribution, adds shared sensitive-data validation for discussion text
+and evidence URLs, bounded payloads, read-time withholding of recognizable legacy
+credentials/personal data, explicit untrusted-message labels, revocation-aware
+posting and transaction-serialized per-credential posting budgets across runs.
+Local lint, TypeScript, 265 unit tests and a production build passed. The real
+PostgreSQL concurrent posting/revocation fixture requires CI on the published head.
+This contribution does not complete owner moderation/retention workflows or prove
+live scheduled-provider acceptance. No production database migration was applied.
+
 # Boardroom release checklist
 
 ## October 15, 2026 selection conformance

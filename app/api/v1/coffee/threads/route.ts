@@ -1,10 +1,11 @@
+import {boundedRequestText,RequestBodyTooLarge} from "../../../../../src/server/request-body";
 import {cookies} from "next/headers";
 import {NextResponse} from "next/server";
 import {getDatabase} from "../../../../../src/server/db";
 import {authenticateAgent,InvalidAgentCredential} from "../../../../../src/server/agent-auth";
 import {authorizeOwnerRequest,OWNER_COOKIE} from "../../../../../src/server/owner-session";
 import {UnauthorizedOwner} from "../../../../../src/server/owner-auth";
-import {openCoffeeThread,CoffeeError} from "../../../../../src/server/coffee";
+import {openCoffeeThread,CoffeeError,CoffeeRateLimit} from "../../../../../src/server/coffee";
 import {searchCoffeeThreads} from "../../../../../src/server/coffee-search";
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
@@ -12,7 +13,7 @@ export const dynamic="force-dynamic";
 export async function POST(request:Request){
   try{
     const db=getDatabase();const agent=await authenticateAgent(request.headers,db);
-    const payload:unknown=await request.json().catch(()=>null);
+    const payload:unknown=JSON.parse(await boundedRequestText(request,16384));
     if(!payload||typeof payload!=="object"||Array.isArray(payload))return NextResponse.json({error:"JSON object required"},{status:400});
     const item=payload as Record<string,unknown>;
     const runId=item.runId;
@@ -25,7 +26,10 @@ export async function POST(request:Request){
     });
     return NextResponse.json(data,{status:data.reused?200:201,headers:{"Cache-Control":"no-store"}});
   }catch(e){
+    if(e instanceof RequestBodyTooLarge)return NextResponse.json({error:"Coffee request exceeds size limit"},{status:413});
+    if(e instanceof SyntaxError)return NextResponse.json({error:"Invalid JSON"},{status:400});
     if(e instanceof InvalidAgentCredential)return NextResponse.json({error:"Unauthorized"},{status:401});
+    if(e instanceof CoffeeRateLimit)return NextResponse.json({error:e.message},{status:429,headers:{"Retry-After":"600","Cache-Control":"no-store"}});
     if(e instanceof CoffeeError)return NextResponse.json({error:e.message},{status:400});
     console.error("Coffee create failed");return NextResponse.json({error:"Coffee service unavailable"},{status:503});
   }

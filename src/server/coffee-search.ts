@@ -1,3 +1,4 @@
+import {safeDiscussionText} from "../domain/discussion-privacy.ts";
 import type {Pool} from "pg";
 import {parseCoffeeSearch,parseCoffeeStatus,isSafeGitHubReference} from "../domain/coffee-view.ts";
 
@@ -31,6 +32,6 @@ export async function searchCoffeeThreads(db:Pool,queryInput:string|null,statusI
          WHERE x.thread_id=t.thread_id AND strpos(lower(x.content),lower($2))>0))
      ORDER BY CASE WHEN t.status='RESOLVED' AND $2<>'' THEN 0 WHEN t.status='OPEN' THEN 1 ELSE 2 END,
        t.updated_at DESC,t.thread_id LIMIT 20`,[status,query]);
-  return result.rows.map(t=>({...t,adr:isSafeGitHubReference(t.adr)?t.adr:null,
-    messages:t.messages.map(m=>({...m,evidence:Array.isArray(m.evidence)?m.evidence.filter(isSafeGitHubReference):[]}))}));
+  return result.rows.map(t=>({...t,subject:safeDiscussionText(t.subject),adr:isSafeGitHubReference(t.adr)?t.adr:null,
+    messages:t.messages.map(m=>({...m,content:safeDiscussionText(m.content),evidence:Array.isArray(m.evidence)?m.evidence.filter(isSafeGitHubReference):[]}))}));
 }

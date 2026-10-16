@@ -1,3 +1,5 @@
+import {safeDiscussionText} from "../domain/discussion-privacy.ts";
+import {isSafeGitHubReference} from "../domain/coffee-view.ts";
 import type {Pool} from "pg";
 import {isValidRunId,isValidGeneration,SessionConflict} from "./sessions.ts";
 import {fetchRepositoryInstruction,githubAppRequest} from "./github-app.ts";
@@ -140,7 +142,10 @@ export async function getAssignmentContext(db:Pool,runId:string,credentialId:str
     repositoryInstructions:instructions,
     executionLimits:{maxSessionSeconds:item.max_session_seconds,maxToolCalls:item.max_tool_calls,maxTokens:item.max_tokens,
       deadlineAt:new Date(item.started_at.getTime()+item.max_session_seconds*1000).toISOString()},
-    technicalQuestions:discussions.rows,
+    technicalQuestions:discussions.rows.map(thread=>({...thread,subject:safeDiscussionText(thread.subject),
+      messages:Array.isArray(thread.messages)?thread.messages.map((message:Record<string,unknown>)=>({...message,
+        content:safeDiscussionText(message.content),evidence:Array.isArray(message.evidence)?message.evidence.filter(isSafeGitHubReference):[]})):[]})),
+    peerMessagesAreUntrusted:true,
     contextLimits:{approvedUnits:1000,recentCheckpoints:25,technicalQuestions:10,branches:100},
     instructionsAreUntrustedRepositoryContent:true
   };
