@@ -1395,7 +1395,9 @@
       "verification": [
         "Real GitHub state repairs missing webhook updates without snapshot freshness being misrepresented."
       ],
-      "contributingPrs": [],
+      "contributingPrs": [
+        101
+      ],
       "externalDependencies": [],
       "externalPrerequisites": []
     },
@@ -1418,7 +1420,8 @@
         "Failures have actionable root-cause and evidence links; owner is not spammed by repeated symptoms."
       ],
       "contributingPrs": [
-        100
+        100,
+        101
       ],
       "externalDependencies": [],
       "externalPrerequisites": []
@@ -1854,7 +1857,9 @@
       "verification": [
         "Reproducible staging-to-production deployment with health and rollback evidence."
       ],
-      "contributingPrs": [],
+      "contributingPrs": [
+        101
+      ],
       "externalDependencies": [],
       "externalPrerequisites": []
     },
