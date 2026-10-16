@@ -91,16 +91,13 @@ def redact(s):
     s = re.sub(r"((?:https?://|postgres(?:ql)?://)[^\s:@]+:)[^\s@]+(@)",r"\1[REDACTED]\2",s)
     return s[:320]
 
-def inspect_repo(name, root):
-    destination=root/name
-    url=f"https://github.com/{OWNER}/{name}.git"
-    run("git","-c","credential.helper=","clone","-q","--depth=1","--no-tags",url,str(destination),timeout=120)
+def scan_tree(name, destination, *, check_policy=True):
     sha=run("git","rev-parse","HEAD",cwd=destination).decode().strip()
     paths=run("git","ls-files","-z",cwd=destination).decode("utf-8").split("\0")
     policy=destination/"AGENTS.md"
-    good = (policy.is_file() and
+    good = (not check_policy or policy.is_file()) and (not check_policy or (
             "Owner security-review policy" in policy.read_text(encoding="utf-8") and
-            "without waiting for an independent human security review" in policy.read_text(encoding="utf-8"))
+            "without waiting for an independent human security review" in policy.read_text(encoding="utf-8")))
     summary={"repository":f"{OWNER}/{name}","sha":sha,"files":0,"textFiles":0,
              "policy":good,"findings":[],"oversize":[],"errors":[]}
     for path in paths:
@@ -136,12 +133,52 @@ def inspect_repo(name, root):
                                      "status-or-schema","test-or-fixture","mention")}
     return summary
 
+def inspect_repo(name, root):
+    destination=root/name
+    url=f"https://github.com/{OWNER}/{name}.git"
+    run("git","-c","credential.helper=","clone","-q","--depth=1","--no-tags",url,str(destination),timeout=120)
+    return scan_tree(name, destination)
+
+
+def list_open_prs(name):
+    token=os.environ.get("GITHUB_TOKEN", "")
+    output=[]
+    for page in range(1, 12):
+        url=f"https://api.github.com/repos/{OWNER}/{name}/pulls?state=open&per_page=100&page={page}"
+        headers={"Accept":"application/vnd.github+json","User-Agent":"owner-release-review-audit"}
+        if token:headers["Authorization"]="Bearer "+token
+        with urllib.request.urlopen(urllib.request.Request(url,headers=headers),timeout=30) as response:
+            data=json.load(response)
+        if not isinstance(data,list):raise RuntimeError("Incomplete PR inventory")
+        output+=data
+        if len(data)<100:break
+    if len(output)!=len({x["number"] for x in output}):raise RuntimeError("Duplicate PR entries")
+    return output
+
+
+def inspect_open_pr(name, root, pr):
+    number=pr["number"]
+    if not isinstance(number,int) or number<1:raise ValueError("Invalid PR number")
+    repository=root/name
+    run("git","fetch","-q","--depth=1","origin",f"refs/pull/{number}/head",cwd=repository,timeout=120)
+    head=run("git","rev-parse","FETCH_HEAD",cwd=repository).decode().strip()
+    if head!=pr["head"]["sha"]:raise RuntimeError("PR head changed during audit")
+    destination=root/f"pr-{name}-{number}"
+    run("git","worktree","add","-q","--detach",str(destination),head,cwd=repository,timeout=90)
+    item=scan_tree(name,destination,check_policy=False)
+    item["number"]=number
+    item["url"]=f"https://github.com/{OWNER}/{name}/pull/{number}"
+    item["mainPolicyApplies"]=True
+    return item
+
+
 def main():
     p=argparse.ArgumentParser()
     p.add_argument("--output",default="artifacts/human-audit-gates.json")
     args=p.parse_args()
     names,total=api_repos()
     reports=[]
+    pr_reports=[]
     with tempfile.TemporaryDirectory(prefix="owner-review-audit-") as t:
         root=Path(t)
         for i,name in enumerate(names,1):
@@ -159,13 +196,34 @@ def main():
             except Exception as e:
                 reports.append({"repository":f"{OWNER}/{name}","error":str(e),"policy":False})
                 print(f"ERROR {name}: {type(e).__name__}: {str(e)}",flush=True)
+        # Independently inspect every open PR head, not just merged default branches.
+        for name in names:
+            try:
+                prs=list_open_prs(name)
+                for pr in prs:
+                    try:
+                        result=inspect_open_pr(name,root,pr)
+                        pr_reports.append(result)
+                        n=result["counts"]["executable-candidate"]+result["counts"]["certification-or-release-candidate"]
+                        print(f"PR_HEAD {name}#{pr['number']} sha={result['sha']} candidates={n} "
+                              f"scanErrors={len(result['errors'])+len(result['oversize'])}",flush=True)
+                    except Exception as e:
+                        pr_reports.append({"repository":f"{OWNER}/{name}","number":pr.get("number"),
+                                           "error":str(e)})
+                        print(f"ERROR PR {name}#{pr.get('number')}: {str(e)}",flush=True)
+            except Exception as e:
+                pr_reports.append({"repository":f"{OWNER}/{name}","error":"PR enumeration failed: "+str(e)})
+                print(f"ERROR PR INVENTORY {name}: {str(e)}",flush=True)
     destination=Path(args.output)
     destination.parent.mkdir(parents=True,exist_ok=True)
     destination.write_text(json.dumps({"owner":OWNER,"visibleRepositories":total,
-        "excluded":sorted(EXCLUDED),"coveredRepositories":len(names),"results":reports},
+        "excluded":sorted(EXCLUDED),"coveredRepositories":len(names),"results":reports,
+        "openPullRequests":pr_reports,"openPRCount":len(pr_reports)},
         indent=2)+"\n",encoding="utf-8")
     problems=[r for r in reports if not r.get("policy") or r.get("error") or r.get("errors") or r.get("oversize")]
-    print(f"SUMMARY repo_count={len(reports)} policy_missing={sum(not r.get('policy') for r in reports)} "
+    problems += [r for r in pr_reports if r.get("error") or r.get("errors") or r.get("oversize")]
+    print(f"SUMMARY repo_count={len(reports)} open_pr_count={len(pr_reports)} "
+          f"policy_missing={sum(not r.get('policy') for r in reports)} "
           f"scan_errors={len(problems)} output={destination}")
     if problems: raise SystemExit(2)
 
