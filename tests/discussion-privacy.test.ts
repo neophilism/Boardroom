@@ -9,7 +9,9 @@ import type {PoolClient} from "pg";
 test("Coffee rejects encoded, Unicode-obfuscated and credential-bearing URL values",()=>{
   const token="ghp_"+"a".repeat(25);
   const cases=[token,"gh\u200Bp_"+"a".repeat(25),encodeURIComponent(token).replace("ghp_","gh%70_"),
-    "postgresql://operator:credential-value@db.example.test/project","Authorization: Bearer abcdefghijklmnopqrstuvwxyz",
+    "postgresql://operator:credential-value@db.example.test/project",
+    "postgresql://operator:abcd%2Fefgh%3Fijkl@db.example.test/project",
+    "eyJhbGciOiJIUzI1NiJ9."+"a".repeat(20)+"."+"z".repeat(32),"Authorization: Bearer abcdefghijklmnopqrstuvwxyz",
     '"api_key": "abcdefghijklmno"',"AKIA"+"A".repeat(16),"-----BEGIN OPENSSH PRIVATE KEY-----"];
   for(const value of cases){
     assert.equal(containsSensitiveDiscussionData(value),true,value);

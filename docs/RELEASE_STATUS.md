@@ -1,6 +1,6 @@
 # October 16 Coffee privacy implementation checkpoint
 
-A BR-051 contribution adds shared sensitive-data validation for discussion text
+[PR #99](https://github.com/neophilism/Boardroom/pull/99), a BR-051 contribution, adds shared sensitive-data validation for discussion text
 and evidence URLs, bounded payloads, read-time withholding of recognizable legacy
 credentials/personal data, explicit untrusted-message labels, revocation-aware
 posting and transaction-serialized per-credential posting budgets across runs.

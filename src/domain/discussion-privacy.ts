@@ -6,7 +6,7 @@ function normalizedForInspection(value:string){
   });
   return text.normalize("NFKC").replace(/[\u200B-\u200D\u2060\uFEFF]/g,"");
 }
-const credentials=/(?:github_pat_[A-Za-z0-9_]{12,}|gh[pousr]_[A-Za-z0-9]{20,}|sk-[A-Za-z0-9_-]{20,}|(?:AKIA|ASIA)[A-Z0-9]{16}|(?:rnd_|napi_)[A-Za-z0-9_-]{16,}|-----BEGIN [A-Z ]*PRIVATE KEY|(?:password|api[ _-]?key|secret|token)["']?\s*[:=]\s*["']?[A-Za-z0-9+/.=_-]{8,}|authorization\s*:\s*(?:bearer|basic)\s+[A-Za-z0-9+/._=-]{8,}|[a-z][a-z0-9+.-]*:\/\/[^\s/?#:@]+:[^\s/?#@]+@)/i;
+const credentials=/(?:github_pat_[A-Za-z0-9_]{12,}|gh[pousr]_[A-Za-z0-9]{20,}|sk-[A-Za-z0-9_-]{20,}|eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{16,}|(?:AKIA|ASIA)[A-Z0-9]{16}|(?:rnd_|napi_)[A-Za-z0-9_-]{16,}|-----BEGIN [A-Z ]*PRIVATE KEY|(?:password|api[ _-]?key|secret|token)["']?\s*[:=]\s*["']?[A-Za-z0-9+/.=_-]{8,}|authorization\s*:\s*(?:bearer|basic)\s+[A-Za-z0-9+/._=-]{8,}|[a-z][a-z0-9+.-]*:\/\/[^\s/?#:@]+:[^\s@]+@)/i;
 
 function validCardCandidate(value:string){
   const digits=value.replace(/\D/g,"");
