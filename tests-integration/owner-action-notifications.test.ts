@@ -11,11 +11,14 @@ test("daily owner summary is consolidated, deduplicated, and redacted",async()=>
   const db=new Pool({connectionString:url,max:2});
   const actionKey="ci:notification:private";
   try{
-    await db.query(
-      "INSERT INTO owner_actions(action_key,title,action_type,instructions,status,created_at,secure_entry_location) VALUES($1,$2,'CREDENTIAL',$3,'OPEN',now()-interval '8 days',$4)",
-      [actionKey,"Private person and project name","token=must-not-appear","render://private/SECRET_NAME"]
-    );
+    // Both sides of the time comparison must share a fixed test clock.
+    // Using now() made this test fail after its October 2026 fixture date.
     const observedAt=new Date("2026-10-15T12:00:00Z");
+    const createdAt=new Date(observedAt.getTime()-8*24*60*60*1000);
+    await db.query(
+      "INSERT INTO owner_actions(action_key,title,action_type,instructions,status,created_at,secure_entry_location) VALUES($1,$2,'CREDENTIAL',$3,'OPEN',$4,$5)",
+      [actionKey,"Private person and project name","token=must-not-appear",createdAt,"render://private/SECRET_NAME"]
+    );
     const first=await queueOwnerActionNotification(db,"https://boardroom.example",observedAt);
     const second=await queueOwnerActionNotification(db,"https://boardroom.example",observedAt);
     assert.ok(first?.created);assert.equal(second?.created,false);
