@@ -3,13 +3,13 @@ on:
   pull_request:
     paths:
       - scripts/audit-owner-human-review-gates.py
-      - tests/audit-owner-human-review-gates.test.py
+      - tests/test_audit_owner_human_review_gates.py
       - .github/workflows/cross-repo-review-gates.yml
   push:
     branches: [main]
     paths:
       - scripts/audit-owner-human-review-gates.py
-      - tests/audit-owner-human-review-gates.test.py
+      - tests/test_audit_owner_human_review_gates.py
       - .github/workflows/cross-repo-review-gates.yml
   workflow_dispatch:
   schedule:
@@ -29,7 +29,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Unit-test gate detection (no repos executed)
-        run: python3 -m unittest discover -s tests -p 'audit-owner-human-review-gates.test.py' -v
+        run: python3 -m unittest discover -s tests -p 'test_audit_owner_human_review_gates.py' -v
       - name: Enumerate and inspect every covered public repository
         run: python3 scripts/audit-owner-human-review-gates.py --output artifacts/human-audit-gates.json
       - name: Preserve exact commit-bound audit findings
