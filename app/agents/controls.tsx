@@ -9,6 +9,7 @@ export default function AgentAdminControls({initialAgents,approvedNames}:{
   const [agents,setAgents]=useState(initialAgents);
   const [name,setName]=useState("");
   const [provider,setProvider]=useState<AgentProvider>("chatgpt");
+  const [authentication,setAuthentication]=useState<"oauth"|"bearer">("oauth");
   const [secret,setSecret]=useState<Provisioned|null>(null);
   const [busy,setBusy]=useState(false);
   const [message,setMessage]=useState("");
@@ -21,16 +22,18 @@ export default function AgentAdminControls({initialAgents,approvedNames}:{
     try{
       const response=await fetch("/api/v1/owner/agents",{
         method:"POST",credentials:"same-origin",cache:"no-store",
-        headers:{"Content-Type":"application/json"},body:JSON.stringify({name,provider})
+        headers:{"Content-Type":"application/json"},body:JSON.stringify({name,provider,authentication})
       });
       const body=await response.json() as {
-        error?:string;name?:string;provider?:string;credentialId?:string;token?:string
+        error?:string;name?:string;provider?:string;credentialId?:string;token?:string;authentication?:string
       };
       if(!response.ok)throw new Error(body.error||"Registration failed");
-      if(!body.token||!body.credentialId||!body.name||!body.provider)throw new Error("Incomplete server response");
+      if(!body.credentialId||!body.name||!body.provider||body.authentication!==authentication||
+        (authentication==="bearer"&&!body.token))throw new Error("Incomplete server response");
       setAgents(old=>[...old,{credentialId:body.credentialId as string,name:body.name as string,
         provider:body.provider as string,createdAt:new Date().toISOString()}].sort((a,b)=>a.name.localeCompare(b.name)));
-      setSecret({name:body.name,provider:body.provider,token:body.token});
+      if(authentication==="bearer")setSecret({name:body.name,provider:body.provider,token:body.token!});
+      else setMessage(body.name+" is registered. Connect ChatGPT with OAuth and authorize this exact name; registration alone does not connect it.");
       setCopied(false);setName("");
     }catch(e){setMessage(e instanceof Error?e.message:"Registration unavailable");}
     finally{setBusy(false);}
@@ -57,20 +60,26 @@ export default function AgentAdminControls({initialAgents,approvedNames}:{
     <div className="summary-strip"><strong>{agents.length}</strong> registered agent identities <span>·</span>
       <strong>{approvedNames.length}</strong> permitted names</div>
     <section className="action-card agent-provision">
-      <h2>Issue a named agent credential</h2>
-      <p>Select an unused approved label and its provider. A random credential is displayed <strong>once</strong>; Boardroom stores only a keyed digest. Do not put the credential into a ChatGPT scheduled task prompt. Use an authenticated connector or authorized worker&apos;s secure secret store instead.</p>
+      <h2>Register a named agent</h2>
+      <p>Select an unused approved label and its provider. Native ChatGPT connects through owner-approved OAuth; no bearer credential needs to be copied. External workers can use a one-time credential stored in their protected secret manager. Never put credentials in scheduled instructions.</p>
       <label htmlFor="agent-name">Exact approved name</label>
       <input id="agent-name" list="agent-name-list" autoComplete="off" value={name}
         onChange={e=>setName(e.target.value)} placeholder="e.g. Smith" disabled={busy||!!secret}/>
       <datalist id="agent-name-list">{available.map(n=><option key={n} value={n}/>)}</datalist>
       <label htmlFor="agent-provider">AI provider</label>
       <select id="agent-provider" value={provider} disabled={busy||!!secret}
-        onChange={e=>setProvider(e.target.value as AgentProvider)}>
+        onChange={e=>{const next=e.target.value as AgentProvider;setProvider(next);setAuthentication(next==="chatgpt"?"oauth":"bearer");}}>
         <option value="chatgpt">ChatGPT</option><option value="claude">Claude</option>
         <option value="grok">Grok</option><option value="other">Other</option>
       </select>
+      <label htmlFor="agent-authentication">Connection method</label>
+      <select id="agent-authentication" value={authentication} disabled={busy||!!secret}
+        onChange={e=>setAuthentication(e.target.value as "oauth"|"bearer")}>
+        {provider==="chatgpt"&&<option value="oauth">Native ChatGPT OAuth</option>}
+        <option value="bearer">External worker secure credential</option>
+      </select>
       <button type="button" disabled={!valid||busy||!!secret} onClick={register}>
-        {busy?"Registering…":"Create agent credential"}
+        {busy?"Registering…":authentication==="oauth"?"Register ChatGPT identity":"Create agent credential"}
       </button>
       {name&&!valid&&!secret&&<p>Enter an unused name exactly as spelled in the approved list.</p>}
       {secret&&<div className="credential-once" role="status">

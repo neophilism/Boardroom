@@ -12,12 +12,18 @@ test("real schema produces a private digest from receipts and pending actions",a
   await db.query("INSERT INTO repositories(repository_id,full_name,created_at) VALUES($1,'ci/digest',now())",[repositoryId]);
   await db.query("INSERT INTO audit_events(repository_id,kind,details) VALUES($1,'github.write.upsert_file',$2::jsonb)",
     [repositoryId,JSON.stringify({unitId:"REPORT-001",result:{commitSha:sha,privateField:"must-not-appear"}})]);
+  const atomicSha="b".repeat(40),noOpSha="c".repeat(40);
+  await db.query("INSERT INTO audit_events(repository_id,kind,details) VALUES($1,'github.write.commit_files',$2::jsonb),($1,'github.write.commit_files',$3::jsonb)",
+    [repositoryId,JSON.stringify({unitId:"REPORT-001",result:{commitSha:atomicSha,changed:true}}),
+      JSON.stringify({unitId:"REPORT-001",result:{commitSha:noOpSha,changed:false}})]);
   await db.query("INSERT INTO audit_events(repository_id,kind,details) VALUES($1,'agent.run.finished',$2::jsonb)",
     [repositoryId,JSON.stringify({outcome:"COMPLETED",unverifiedClaim:"must-not-appear"})]);
   await db.query("INSERT INTO owner_actions(action_key,title,action_type,instructions,created_at) VALUES('ci:digest:credential','Configure fixture credential','CREDENTIAL','Private fixture instructions must-not-appear',now()-interval '8 days')");
   const env:NodeJS.ProcessEnv={NODE_ENV:"test",...Object.fromEntries(REQUIRED_CONFIG.map(name=>[name,"x".repeat(40)]))};
   const report=await getOperationalDigest(db,env);
   assert.ok(report.activity.some(a=>a.repository==="ci/digest"&&a.url.endsWith("/commit/"+sha)));
+  assert.ok(report.activity.some(a=>a.repository==="ci/digest"&&a.url.endsWith("/commit/"+atomicSha)));
+  assert.ok(!report.activity.some(a=>a.url.endsWith("/commit/"+noOpSha)));
   assert.ok(report.ownerActions.some(a=>a.title==="Configure fixture credential"&&a.attention==="OVERDUE"));
   assert.ok(!JSON.stringify(report).includes("must-not-appear"));
   assert.equal(report.deployment.ready,true);

@@ -29,7 +29,7 @@ Recurring ChatGPT tasks (and later Claude/Grok scheduled executions) all use the
 
 > Visit Boardroom using your authorized connected tool. Check in, accept the exclusive repository assignment supplied by Boardroom, load the approved GitHub instructions and latest durable checkpoint, and complete as much eligible approved development as your authorized runtime allows. Save all real progress to GitHub; report results and blockers. If a technical question blocks you, search or ask Coffee Corner. If only the owner can resolve it, create a specific private Owner Action request without sharing any secret value. When work is finished or you must yield, checkpoint; answer any Coffee Corner questions you can substantiate within a bounded time; finalize and release your session. If no assignment is available, check Coffee Corner once and end. Do not claim execution or completion you have not verified. Do not circumvent approvals, tool restrictions, spending limits, or repository leases.
 
-The above instruction is identical for every ChatGPT schedule; the provider integration supplies authentication separately. The message does not require a numbered task identity, account number, or persistent memory.
+The detailed copyable instruction in `docs/SCHEDULED_AGENT_PROTOCOL.md` and `/launch` is identical for every ChatGPT schedule; the provider integration supplies authentication separately. The message does not require a numbered task identity, account number, or persistent memory.
 
 ## Compatibility with existing portfolio
 

@@ -11,7 +11,7 @@ export class AgentRegistrationError extends Error{
 export class AgentAlreadyRegistered extends AgentRegistrationError{
   constructor(){super("This name already has an active credential. Revoke it before issuing a replacement.");}
 }
-export function parseAgentRegistration(value:unknown):{name:string;provider:AgentProvider}{
+export function parseAgentRegistration(value:unknown):{name:string;provider:AgentProvider;authentication:"bearer"|"oauth"}{
   if(!value||typeof value!=="object"||Array.isArray(value))
     throw new AgentRegistrationError("Registration object required");
   const body=value as Record<string,unknown>;
@@ -20,7 +20,12 @@ export function parseAgentRegistration(value:unknown):{name:string;provider:Agen
   catch{throw new AgentRegistrationError("Name must exactly match one of the 601 approved labels");}
   if(typeof body.provider!=="string"||!PROVIDERS.includes(body.provider as AgentProvider))
     throw new AgentRegistrationError("Choose chatgpt, claude, grok, or other");
-  return {name,provider:body.provider as AgentProvider};
+  const authentication=body.authentication??"bearer";
+  if(authentication!=="bearer"&&authentication!=="oauth")
+    throw new AgentRegistrationError("Choose bearer or oauth authentication");
+  if(authentication==="oauth"&&body.provider!=="chatgpt")
+    throw new AgentRegistrationError("Native OAuth registration currently supports ChatGPT only");
+  return {name,provider:body.provider as AgentProvider,authentication};
 }
 export type RegisteredAgent={
   credentialId:string;name:string;provider:string;createdAt:string;
@@ -37,7 +42,7 @@ export async function listRegisteredAgents(db:Pool):Promise<RegisteredAgent[]>{
 }
 /** Only return a raw token to the authenticated owner once. Never persist plaintext. */
 export async function registerNamedAgent(db:Pool,value:unknown,pepper:string){
-  const {name,provider}=parseAgentRegistration(value);
+  const {name,provider,authentication}=parseAgentRegistration(value);
   const token=randomBytes(48).toString("base64url");
   const digest=digestCredential(token,pepper);
   const client=await db.connect();
@@ -50,10 +55,13 @@ export async function registerNamedAgent(db:Pool,value:unknown,pepper:string){
     );
     await client.query(
       "INSERT INTO audit_events(kind,details) VALUES('owner.agent_credential.issued',$1::jsonb)",
-      [JSON.stringify({credentialId:created.rows[0].credential_id,name,provider})]
+      [JSON.stringify({credentialId:created.rows[0].credential_id,name,provider,authentication})]
     );
     await client.query("COMMIT");committed=true;
-    return {credentialId:created.rows[0].credential_id,name,provider,token};
+    // OAuth registration discards the generated bearer secret. Consent and
+    // PKCE token exchange remain mandatory; registration grants no connection.
+    return {credentialId:created.rows[0].credential_id,name,provider,authentication,
+      ...(authentication==="bearer"?{token}:{})};
   }catch(error){
     if(!committed)await client.query("ROLLBACK");
     if((error as {code?:string}).code==="23505")throw new AgentAlreadyRegistered();

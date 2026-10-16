@@ -65,6 +65,7 @@ export default async function WorkBoardPage(){
         <Link className="priority-nav" href="/priorities">Priorities</Link>
         <Link className="priority-nav" href="/coffee">Coffee Corner</Link>
         <Link className="priority-nav" href="/agents">Scheduled agents</Link>
+        <Link className="priority-nav" href="/launch">Five-agent launch</Link>
         <Link className="priority-nav" href="/system">System status</Link>
         <Link className="priority-nav" href="/recovery">Recovery queue</Link>
         <Link className="priority-nav" href="/operations">Operations</Link>
