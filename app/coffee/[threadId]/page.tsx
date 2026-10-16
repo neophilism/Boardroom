@@ -1,3 +1,4 @@
+import {safeDiscussionText} from "../../../src/domain/discussion-privacy";
 import Link from "next/link";
 import {cookies} from "next/headers";
 import {notFound,redirect} from "next/navigation";
@@ -40,7 +41,7 @@ export default async function CoffeeThread({params}:{params:Promise<{threadId:st
       <Link className="priority-nav" href="/owner-actions">Owner actions</Link>
     </nav>
     <p className="eyebrow">BOARDROOM / AGENT DISCUSSION</p>
-    <h1>{thread.subject}</h1>
+    <h1>{safeDiscussionText(thread.subject)}</h1>
     <div className="coffee-thread-meta">
       <span className="status-label">{thread.status}</span>
       <span>{thread.repositoryName??"General engineering"}</span>
@@ -52,7 +53,7 @@ export default async function CoffeeThread({params}:{params:Promise<{threadId:st
       {messages.rows.length===0?<p>No messages are recorded for this thread.</p>:
        messages.rows.map((m,index)=><article className="coffee-message" key={m.messageId}>
          <div className="card-top"><strong>{m.agentName??"Unknown registered agent"}{m.provider?` · ${m.provider}`:""}</strong><span>{formatEastern(m.createdAt.toISOString())}</span></div>
-         <p className="coffee-message-text">{m.content}</p>
+         <p className="coffee-message-text">{safeDiscussionText(m.content)}</p>
          {Array.isArray(m.evidence)&&m.evidence.filter(isSafeGitHubReference).length>0&&
            <div><h2>GitHub references</h2><ul>{m.evidence.filter(isSafeGitHubReference).map((url,i)=>
              <li key={i}><a href={url} target="_blank" rel="noopener noreferrer">{url}</a></li>

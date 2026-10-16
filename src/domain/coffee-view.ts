@@ -1,3 +1,4 @@
+import {containsSensitiveDiscussionData} from "./discussion-privacy.ts";
 export const COFFEE_STATUSES = ["OPEN", "ANSWERED", "RESOLVED", "CLOSED"] as const;
 export type CoffeeStatus = typeof COFFEE_STATUSES[number];
 
@@ -16,7 +17,7 @@ export function isCoffeeThreadId(value: string): boolean {
 }
 
 export function isSafeGitHubReference(value: unknown): value is string {
-  if (typeof value !== "string" || value.length > 450) return false;
+  if (typeof value !== "string" || value.length > 450 || containsSensitiveDiscussionData(value)) return false;
   try {
     const url = new URL(value);
     return url.protocol === "https:" && url.hostname === "github.com" &&

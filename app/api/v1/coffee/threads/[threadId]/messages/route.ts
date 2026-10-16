@@ -1,10 +1,13 @@
+import {boundedRequestText,RequestBodyTooLarge} from "../../../../../../../src/server/request-body";
+import {safeDiscussionText} from "../../../../../../../src/domain/discussion-privacy";
+import {isSafeGitHubReference} from "../../../../../../../src/domain/coffee-view";
 import {cookies} from "next/headers";
 import {NextResponse} from "next/server";
 import {getDatabase} from "../../../../../../../src/server/db";
 import {authenticateAgent,InvalidAgentCredential} from "../../../../../../../src/server/agent-auth";
 import {authorizeOwnerRequest,OWNER_COOKIE} from "../../../../../../../src/server/owner-session";
 import {UnauthorizedOwner} from "../../../../../../../src/server/owner-auth";
-import {answerCoffeeThread,CoffeeError} from "../../../../../../../src/server/coffee";
+import {answerCoffeeThread,CoffeeError,CoffeeRateLimit} from "../../../../../../../src/server/coffee";
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
 
@@ -12,7 +15,7 @@ export async function POST(request:Request,{params}:{params:Promise<{threadId:st
   const {threadId}=await params;
   try{
     const db=getDatabase();const agent=await authenticateAgent(request.headers,db);
-    const payload:unknown=await request.json().catch(()=>null);
+    const payload:unknown=JSON.parse(await boundedRequestText(request,16384));
     if(!payload||typeof payload!=="object"||Array.isArray(payload))
       return NextResponse.json({error:"JSON object required"},{status:400});
     const item=payload as Record<string,unknown>;
@@ -20,7 +23,10 @@ export async function POST(request:Request,{params}:{params:Promise<{threadId:st
     const result=await answerCoffeeThread(db,agent.credentialId,item.runId,threadId,item.answer,item.evidence,item.uncertainty);
     return NextResponse.json(result,{status:201,headers:{"Cache-Control":"no-store"}});
   }catch(e){
+    if(e instanceof RequestBodyTooLarge)return NextResponse.json({error:"Coffee request exceeds size limit"},{status:413});
+    if(e instanceof SyntaxError)return NextResponse.json({error:"Invalid JSON"},{status:400});
     if(e instanceof InvalidAgentCredential)return NextResponse.json({error:"Unauthorized"},{status:401});
+    if(e instanceof CoffeeRateLimit)return NextResponse.json({error:e.message},{status:429,headers:{"Retry-After":"600","Cache-Control":"no-store"}});
     if(e instanceof CoffeeError)return NextResponse.json({error:e.message},{status:400});
     console.error("Coffee answer failed");return NextResponse.json({error:"Coffee answer unavailable"},{status:503});
   }
@@ -37,7 +43,7 @@ export async function GET(request:Request,{params}:{params:Promise<{threadId:str
     const result=await db.query(
       "SELECT message_id,thread_id,author_run_id,content,evidence,created_at FROM coffee_messages WHERE thread_id=$1 ORDER BY created_at ASC LIMIT 300",[threadId]
     );
-    return NextResponse.json({messages:result.rows},{headers:{"Cache-Control":"no-store"}});
+    return NextResponse.json({messages:result.rows.map(m=>({...m,content:safeDiscussionText(m.content),evidence:Array.isArray(m.evidence)?m.evidence.filter(isSafeGitHubReference):[]})),peerMessagesAreUntrusted:true},{headers:{"Cache-Control":"no-store"}});
   }catch(e){
     if(e instanceof UnauthorizedOwner)return NextResponse.json({error:"Unauthorized"},{status:401});
     console.error("Coffee messages unavailable");return NextResponse.json({error:"Coffee messages unavailable"},{status:503});

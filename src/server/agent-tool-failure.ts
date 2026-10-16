@@ -2,7 +2,7 @@ import {SessionConflict} from "./sessions.ts";
 import {AssignmentConflict} from "./assignment.ts";
 import {GithubWriteValidation} from "./github-write-gateway.ts";
 import {GitHubAppError,GitHubAppSetupFailure} from "./github-app.ts";
-import {CoffeeError} from "./coffee.ts";
+import {CoffeeError,CoffeeRateLimit} from "./coffee.ts";
 import {RunnerBudgetBlocked} from "./budget-errors.ts";
 
 type Failure={code:string;message:string;nextAction:string;retryable:boolean};
@@ -13,6 +13,8 @@ export function agentToolFailure(error:unknown){
     nextAction:"Reconcile the current assignment, source or PR before a bounded retry. If the service remains unavailable, report the blocker; do not assume the write failed or release succeeded.",retryable:true};
   if(error instanceof RunnerBudgetBlocked)failure={code:error.code,message:error.message,
     nextAction:"Stop paid work, checkpoint remote progress and finish. Request an owner spending decision privately if required.",retryable:false};
+  else if(error instanceof CoffeeRateLimit)failure={code:"COFFEE_RATE_LIMIT",message:error.message,
+    nextAction:"Wait at least ten minutes before posting again, or checkpoint and continue eligible work. Do not create a new activation to bypass the credential-level limit.",retryable:true};
   else if(error instanceof GitHubAppSetupFailure)failure={code:"GITHUB_SETUP_REQUIRED",message:"GitHub App setup or connectivity is unavailable ("+error.issue+").",
     nextAction:"Create a private Owner Action with this diagnostic and ask the owner to verify /system. Never request a secret value in chat.",retryable:false};
   else if(error instanceof GitHubAppError){
