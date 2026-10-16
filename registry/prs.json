@@ -1417,7 +1417,9 @@
       "verification": [
         "Failures have actionable root-cause and evidence links; owner is not spammed by repeated symptoms."
       ],
-      "contributingPrs": [],
+      "contributingPrs": [
+        100
+      ],
       "externalDependencies": [],
       "externalPrerequisites": []
     },
@@ -1634,7 +1636,9 @@
       "verification": [
         "Single digest links to evidence and does not confuse model claims with observed GitHub facts."
       ],
-      "contributingPrs": [],
+      "contributingPrs": [
+        100
+      ],
       "externalDependencies": [],
       "externalPrerequisites": []
     },
@@ -1657,7 +1661,9 @@
       "verification": [
         "Independent overlapping scheduled arrivals cooperate under repository leases and owner can audit real sessions."
       ],
-      "contributingPrs": [],
+      "contributingPrs": [
+        100
+      ],
       "externalDependencies": [],
       "externalPrerequisites": []
     },
@@ -1925,7 +1931,9 @@
       "verification": [
         "Tests verify exact-case approved names, invalid names, repeated activations, impersonation attempts, and no secrets in public source."
       ],
-      "contributingPrs": [],
+      "contributingPrs": [
+        100
+      ],
       "externalDependencies": [],
       "externalPrerequisites": []
     }

@@ -1,6 +1,6 @@
 # October 16 five-agent launch implementation
 
-The private `/launch` screen now separates identity registration, unexpired OAuth
+[PR #100](https://github.com/neophilism/Boardroom/pull/100) adds a private `/launch` screen that separates identity registration, unexpired OAuth
 credentials, actual arrivals/assignments, verified imported plans and merge-policy
 coverage. One shared instruction is copied unchanged to every named connection.
 Native ChatGPT registration returns no unused bearer secret; owner consent and
