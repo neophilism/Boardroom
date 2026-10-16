@@ -21,6 +21,7 @@ export default async function BoardroomSystemPage(){
         <Link className="priority-nav" href="/owner-actions">Owner actions</Link>
         <Link className="priority-nav" href="/work-board">Work Board</Link>
         <Link className="priority-nav" href="/agents">Scheduled agents</Link>
+        <Link className="priority-nav" href="/launch">Five-agent launch</Link>
       </nav>
     </header>
     <p>These are live server-side connection checks. This page never displays credentials, private keys, or fake development activity. Green infrastructure checks do not imply that scheduled agents are working.</p>

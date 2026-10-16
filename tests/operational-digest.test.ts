@@ -17,6 +17,14 @@ test("PR receipts link to source and current checks without inventing check succ
     assert.ok(!JSON.stringify(entry).includes("checksPassed"));
   }
 });
+test("atomic multi-file commits appear in the morning report while no-ops do not",()=>{
+  const input={kind:"github.write.commit_files",repository,occurredAt,
+    details:{unitId:"CI-001",result:{commitSha:"b".repeat(40),changed:true}}};
+  const entry=recordedGitHubActivity(input);
+  assert.equal(entry?.kind,"COMMIT");
+  assert.equal(entry?.url,"https://github.com/ci/repo/commit/"+"b".repeat(40));
+  assert.equal(recordedGitHubActivity({...input,details:{result:{commitSha:"b".repeat(40),changed:false}}}),null);
+});
 test("malformed receipts and repository URLs cannot become report evidence",()=>{
   for(const input of [
     {kind:"github.write.upsert_file",repository,details:{result:{commitSha:"bad"}},occurredAt},

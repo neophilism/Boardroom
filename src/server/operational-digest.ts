@@ -11,7 +11,7 @@ export async function getOperationalDigest(db:Pool,env:NodeJS.ProcessEnv,observe
       `SELECT a.kind,r.full_name AS repository,a.details,a.occurred_at AS "occurredAt"
        FROM audit_events a LEFT JOIN repositories r ON r.repository_id=a.repository_id
        WHERE a.occurred_at>=$1 AND a.occurred_at<=$2 AND a.kind IN
-       ('github.write.upsert_file','github.write.open_draft_pr','github.write.ready_pr','github.pr.merged')
+       ('github.write.upsert_file','github.write.commit_files','github.write.open_draft_pr','github.write.ready_pr','github.pr.merged')
        ORDER BY a.occurred_at DESC,a.event_id DESC LIMIT 200`,[since,observedAt]),
     db.query<{state:string;count:number}>("SELECT state,COUNT(*)::integer AS count FROM agent_runs WHERE started_at>=$1 AND started_at<=$2 GROUP BY state ORDER BY state",[since,observedAt]),
     db.query<{actionId:string;title:string;type:string;status:string;createdAt:Date;affectedRepositories:number}>(

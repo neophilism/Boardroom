@@ -9,7 +9,8 @@ export function recordedGitHubActivity(row:{kind:string;repository:string|null;d
   const result=object(d.result);
   const base="https://github.com/"+row.repository;
   const common={repository:row.repository,unitId:typeof d.unitId==="string"?d.unitId:null,observedAt:row.occurredAt.toISOString()};
-  if(row.kind==="github.write.upsert_file"&&typeof result?.commitSha==="string"&&/^[a-f0-9]{40}$/i.test(result.commitSha))
+  if(["github.write.upsert_file","github.write.commit_files"].includes(row.kind)&&result?.changed!==false&&
+    typeof result?.commitSha==="string"&&/^[a-f0-9]{40}$/i.test(result.commitSha))
     return {...common,kind:"COMMIT",url:base+"/commit/"+result.commitSha,checksUrl:null};
   const number=row.kind==="github.pr.merged"?d.number:result?.number;
   if(!Number.isSafeInteger(number)||(number as number)<1)return null;

@@ -1,3 +1,17 @@
+# October 16 five-agent launch implementation
+
+[PR #100](https://github.com/neophilism/Boardroom/pull/100) adds a private `/launch` screen that separates identity registration, unexpired OAuth
+credentials, actual arrivals/assignments, verified imported plans and merge-policy
+coverage. One shared instruction is copied unchanged to every named connection.
+Native ChatGPT registration returns no unused bearer secret; owner consent and
+PKCE exchange remain mandatory. The overnight report includes real atomic
+multi-file commit receipts and excludes explicit no-op commits.
+
+This is contribution evidence for BR-069/080 and BR-068, not scheduled execution
+acceptance. Follow [FIVE_AGENT_LAUNCH.md](FIVE_AGENT_LAUNCH.md) for owner connection,
+merge policy, maintenance and live-trial steps. No agent, OAuth grant, schedule,
+paid worker or production policy is created by this source change.
+
 # October 16 Coffee privacy implementation checkpoint
 
 [PR #99](https://github.com/neophilism/Boardroom/pull/99), a BR-051 contribution, adds shared sensitive-data validation for discussion text

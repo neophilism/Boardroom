@@ -22,9 +22,10 @@ export default async function AgentAdministrationPage(){
         <Link className="priority-nav" href="/priorities">Priorities</Link>
         <Link className="priority-nav" href="/coffee">Coffee Corner</Link>
         <Link className="priority-nav" href="/system">System status</Link>
+        <Link className="priority-nav" href="/launch">Five-agent launch</Link>
       </nav>
     </header>
-    <p>Choose a stable approved name for each separate scheduled activation source. Every task may use the same instructions, apart from the name. Boardroom verifies names using separately registered credentials; saying a name never grants access.</p>
+    <p>Choose a stable approved name for each separate scheduled activation source. Every task uses the same instructions; its connected identity supplies the name. Boardroom verifies that identity independently of the prompt. Follow the <Link href="/launch">five-agent launch checklist</Link> to connect and test each worker.</p>
     <AgentAdminControls initialAgents={agents} approvedNames={roster.names}/>
   </main>;
 }

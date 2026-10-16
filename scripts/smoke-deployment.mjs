@@ -29,7 +29,7 @@ async function verify(){
   const setup=await request("/setup");
   assert.equal(setup.status,200,"Safe public setup screen should be available");
   assert.ok((await setup.text()).includes("Boardroom"),"Setup page should identify Boardroom");
-  for(const path of ["/owner-actions","/agents","/system"]){
+  for(const path of ["/owner-actions","/agents","/system","/launch"]){
     const protectedResponse=await request(path);
     assert.ok([302,303,307,308].includes(protectedResponse.status),path+" must redirect unauthorized visitors to login");
     const target=new URL(protectedResponse.headers.get("location")??"",base);
@@ -37,6 +37,8 @@ async function verify(){
   }
   const privateApi=await request("/api/v1/owner/agents");
   assert.equal(privateApi.status,401,"Unauthenticated agent registry API must reject");
+  const maintenance=await request("/api/v1/internal/tick",{method:"POST"});
+  assert.equal(maintenance.status,401,"Anonymous callers must not trigger maintenance");
   const connectionMode=await verifyAgentInterface(base,request);
   console.log("Observed MCP discovery and anonymous operational denial: passed");
   if(connectionMode==="ENABLED")console.log("Observed native OAuth discovery: ENABLED (owner connection/trial still required)");
