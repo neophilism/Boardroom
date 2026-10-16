@@ -1,0 +1,42 @@
+name: Cross-repository human-auditor gate audit
+on:
+  pull_request:
+    paths:
+      - scripts/audit-owner-human-review-gates.py
+      - tests/test_audit_owner_human_review_gates.py
+      - .github/workflows/cross-repo-review-gates.yml
+  push:
+    branches: [main]
+    paths:
+      - scripts/audit-owner-human-review-gates.py
+      - tests/test_audit_owner_human_review_gates.py
+      - .github/workflows/cross-repo-review-gates.yml
+  workflow_dispatch:
+  schedule:
+    - cron: '43 9 * * 1'
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      GITHUB_TOKEN: ${{ github.token }}
+      PYTHONUNBUFFERED: '1'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - name: Unit-test gate detection (no repos executed)
+        run: python3 -m unittest discover -s tests -p 'test_audit_owner_human_review_gates.py' -v
+      - name: Enumerate and inspect every covered public repository
+        run: python3 scripts/audit-owner-human-review-gates.py --output artifacts/human-audit-gates.json
+      - name: Preserve exact commit-bound audit findings
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cross-repo-human-auditor-gate-evidence
+          path: artifacts/human-audit-gates.json
+          if-no-files-found: warn
+          retention-days: 30
