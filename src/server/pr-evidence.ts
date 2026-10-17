@@ -58,6 +58,11 @@ export function completionEvidenceSufficient(assessment:CheckAssessment,unitStat
     typeof acceptanceCriteria==="string"&&acceptanceCriteria.trim().length>0;
 }
 
+/** GitHub merge timestamps accept the PR; this does not certify a larger work unit. */
+export function isAcceptedMergedPullRequest(mergedAt:unknown):boolean{
+  return evidenceTimestamp(mergedAt)!==null;
+}
+
 export function evidenceTimestamp(value:unknown):string|null{
   if(value instanceof Date&&Number.isFinite(value.getTime()))return value.toISOString();
   if(typeof value!=="string"||value.length===0)return null;
@@ -131,7 +136,7 @@ export async function readAssignedPrEvidence(db:Pool,runId:string,credentialId:s
     repository:scope.full_name,unitId:scope.unit_id,
     pullRequest:{number:pr.number,url:pr.html_url,draft:pr.draft,state:pr.state,
       createdAt:evidenceTimestamp(pr.created_at),updatedAt:evidenceTimestamp(pr.updated_at),
-      mergedAt:evidenceTimestamp(pr.merged_at),headSha:sha},
+      mergedAt:evidenceTimestamp(pr.merged_at),accepted:isAcceptedMergedPullRequest(pr.merged_at),headSha:sha},
     unitAcceptance:{title:scope.title,state:scope.state,criteria:scope.acceptance_criteria,
       verification:acceptanceVerification(scope.source_metadata),
       planObservedAt:evidenceTimestamp(scope.source_observed_at),satisfied:evidenceSufficient},
