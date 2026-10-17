@@ -25,7 +25,7 @@ export default async function AgentAdministrationPage(){
         <Link className="priority-nav" href="/launch">Five-agent launch</Link>
       </nav>
     </header>
-    <p>Choose a stable approved name for each separate scheduled activation source. Every task uses the same instructions; its connected identity supplies the name. Boardroom verifies that identity independently of the prompt. Follow the <Link href="/launch">five-agent launch checklist</Link> to connect and test each worker.</p>
+    <p>Choose a stable approved name and record the email of the ChatGPT/provider account where it runs. The email is private database metadata and can be edited without revoking the agent. Choose a stable approved name for each separate scheduled activation source. Every task uses the same instructions; its connected identity supplies the name. Boardroom verifies that identity independently of the prompt. Follow the <Link href="/launch">five-agent launch checklist</Link> to connect and test each worker.</p>
     <AgentAdminControls initialAgents={agents} approvedNames={roster.names}/>
   </main>;
 }

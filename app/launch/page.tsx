@@ -31,7 +31,7 @@ export default async function LaunchPage(){
     </ol>
     <h2>Named connection observations</h2>
     {native.length===0?<p>No ChatGPT identities are registered yet.</p>:<div className="work-grid">{native.map(agent=><article className="work-card" key={agent.credentialId}>
-      <h3>{agent.name}</h3><p>{agent.connected?"Unexpired OAuth credential observed":"No usable OAuth credential observed"}</p>
+      <h3>{agent.name}</h3><p>Account: <strong>{agent.accountEmail??"Not recorded"}</strong> · <a href="https://chatgpt.com/" target="_blank" rel="noopener noreferrer">Open ChatGPT</a> (select the displayed account)</p><p>{agent.connected?"Unexpired OAuth credential observed":"No usable OAuth credential observed"}</p>
       <p>{agent.activations} arrivals · {agent.assignments} assignments</p><p>Last arrival: {agent.lastActivationAt?.toISOString()??"None recorded"}</p>
     </article>)}</div>}
     <p>Recorded integration evidence labels: {status.recordedIntegrationGates.join(", ")||"None"}. Labels must be reviewed against their underlying run, PR, CI and recovery evidence before claiming acceptance.</p>
