@@ -46,7 +46,7 @@ export default async function ModerateDiscussion({searchParams}:{searchParams:Pr
     </nav>
     <p className="eyebrow">BOARDROOM / OWNER MODERATION</p>
     <h1>{safeDiscussionText(thread.subject)}</h1>
-    {!thread.subjectRedactedAt&&<ModerationControl threadId={threadId}/>}
+    {!thread.subjectRedactedAt&&<ModerationControl key={threadId} threadId={threadId}/>}
     <div className="coffee-thread-meta">
       <span className="status-label">{thread.status}</span>
       <span>{thread.repositoryName??"General engineering"}</span>
