@@ -45,7 +45,10 @@ function fromHeader(headers:Headers,name:string):string|undefined{
  * originates from another site. This is distinct from authentication failure.
  */
 export class OwnerOriginRejected extends UnauthorizedOwner {
-  constructor(){super();this.name="OwnerOriginRejected";}
+  readonly reason:"FETCH_SITE_REJECTED"|"NULL_ORIGIN"|"ORIGIN_MISMATCH"|"PROVENANCE_MISSING"|"UNSPECIFIED";
+  constructor(reason:OwnerOriginRejected["reason"]="UNSPECIFIED"){
+    super();this.name="OwnerOriginRejected";this.reason=reason;
+  }
 }
 
 /** Render/Next may expose an internal request URL behind a reverse proxy.
@@ -76,10 +79,10 @@ export function authorizeOwnerRequest(request:Request,mutation=false,serverCooki
     const site=request.headers.get("sec-fetch-site");
     // Always reject a contradictory browser Fetch Metadata signal.
     if(site!==null&&site!=="same-origin"&&site!=="none")
-      throw new OwnerOriginRejected();
+      throw new OwnerOriginRejected("FETCH_SITE_REJECTED");
     const expected=trustedOwnerOrigin();
     if(origin!==null){
-      if(origin!==expected)throw new OwnerOriginRejected();
+      if(origin!==expected)throw new OwnerOriginRejected(origin==="null"?"NULL_ORIGIN":"ORIGIN_MISMATCH");
     }else if(site!=="same-origin"){
       // Older/privacy-focused browsers may omit both Origin and Fetch Metadata.
       // An exact public-origin Referer is a defensible fallback; never trust
@@ -87,7 +90,7 @@ export function authorizeOwnerRequest(request:Request,mutation=false,serverCooki
       const referer=request.headers.get("referer");
       let refererOrigin:string|null=null;
       try{if(referer)refererOrigin=new URL(referer).origin;}catch{}
-      if(refererOrigin!==expected)throw new OwnerOriginRejected();
+      if(refererOrigin!==expected)throw new OwnerOriginRejected("PROVENANCE_MISSING");
     }
   }
 }

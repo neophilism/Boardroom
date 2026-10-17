@@ -23,10 +23,13 @@ export async function POST(request:Request){
       const code=await createOAuthCode(getDatabase(),form.get("credential_id")??"",a,process.env.BOARDROOM_TOKEN_PEPPER??"");
       location.searchParams.set("code",code);
     }else throw new OAuthFailure("invalid_request");
-    return NextResponse.redirect(location,{status:303,headers:{"Cache-Control":"no-store","Referrer-Policy":"no-referrer"}});
+    const headers={"Cache-Control":"no-store","Referrer-Policy":"no-referrer"};
+    if(request.headers.get("accept")==="application/json")
+      return NextResponse.json({redirectTo:location.href},{headers});
+    return NextResponse.redirect(location,{status:303,headers});
   }catch(error){
-    const {status,code,nextAction}=oauthConsentFailure(error);
-    return NextResponse.json({error:"Connection consent could not be completed",code,nextAction},
+    const {status,...diagnostic}=oauthConsentFailure(error);
+    return NextResponse.json({error:"Connection consent could not be completed",...diagnostic},
       {status,headers:{"Cache-Control":"no-store","Referrer-Policy":"no-referrer"}});
   }
 }
