@@ -6,10 +6,13 @@ import {isValidRunId,isValidGeneration,SessionConflict} from "./sessions.ts";
 export type CheckRun={
   id:number;name:string;status:string;conclusion:string|null;html_url?:string;
   started_at?:string|null;completed_at?:string|null;
+  check_suite?:{id:number}|null;app?:{id?:number;slug?:string}|null;
 };
 export type CheckSuite={
   id:number;status:string;conclusion:string|null;url?:string;
-  created_at?:string|null;updated_at?:string|null;app?:{name?:string|null}|null;
+  created_at?:string|null;updated_at?:string|null;
+  latest_check_runs_count?:number;
+  app?:{id?:number;slug?:string;name?:string|null}|null;
 };
 export type LegacyStatus={
   context:string;state:string;target_url?:string;
@@ -18,21 +21,33 @@ export type LegacyStatus={
 export type CheckAssessment="OBSERVED_PASS"|"FAILED"|"PENDING"|"REVIEW"|"NO_CHECKS"|"INCOMPLETE";
 const failedConclusions=["failure","cancelled","timed_out","startup_failure","action_required"];
 
+// GitHub automatically requests suites from installed apps. Render leaves an
+// empty queued suite on branches it does not deploy. It is not an executed check.
+// Recognize only that exact public app and complete, contradictory-free metadata;
+// all actual runs, other suites and configured required-check names still gate.
+export function isEmptyRenderSuite(suite:CheckSuite,checks:readonly CheckRun[]):boolean{
+  return suite.app?.id===14658&&suite.app.slug==="render"&&
+    suite.status==="queued"&&suite.conclusion===null&&suite.latest_check_runs_count===0&&
+    checks.every(c=>Number.isSafeInteger(c.check_suite?.id)&&
+      c.check_suite?.id!==suite.id&&Number.isSafeInteger(c.app?.id)&&c.app?.id!==14658);
+}
+
 export function assessObservedChecks(checks:readonly CheckRun[],total:number,
   legacy:readonly LegacyStatus[],suites:readonly CheckSuite[]=[],
   suiteTotal=suites.length):CheckAssessment{
   if(!Number.isSafeInteger(total)||total<0||total!==checks.length||
      !Number.isSafeInteger(suiteTotal)||suiteTotal<0||suiteTotal!==suites.length)
     return "INCOMPLETE";
-  if(checks.length===0&&suites.length===0&&legacy.length===0)return "NO_CHECKS";
+  const assessedSuites=suites.filter(s=>!isEmptyRenderSuite(s,checks));
+  if(checks.length===0&&assessedSuites.length===0&&legacy.length===0)return "NO_CHECKS";
   if(checks.some(c=>failedConclusions.includes(c.conclusion??""))||
-     suites.some(s=>failedConclusions.includes(s.conclusion??""))||
+     assessedSuites.some(s=>failedConclusions.includes(s.conclusion??""))||
      legacy.some(s=>["failure","error"].includes(s.state)))return "FAILED";
   if(checks.some(c=>c.status!=="completed"||c.conclusion===null)||
-     suites.some(s=>s.status!=="completed"||s.conclusion===null)||
+     assessedSuites.some(s=>s.status!=="completed"||s.conclusion===null)||
      legacy.some(s=>s.state==="pending"))return "PENDING";
   if(checks.some(c=>c.conclusion!=="success")||
-     suites.some(s=>s.conclusion!=="success")||
+     assessedSuites.some(s=>s.conclusion!=="success")||
      legacy.some(s=>s.state!=="success"))return "REVIEW";
   return "OBSERVED_PASS";
 }
@@ -123,7 +138,8 @@ export async function readAssignedPrEvidence(db:Pool,runId:string,credentialId:s
     checks:{assessment,total:checked.total_count,suiteTotal:suiteResult.total_count,observedAt:collectedAt,
       suites:suiteResult.check_suites.map(s=>({id:s.id,app:s.app?.name??null,
         status:s.status,conclusion:s.conclusion,createdAt:evidenceTimestamp(s.created_at),
-        updatedAt:evidenceTimestamp(s.updated_at),url:s.url??null})),
+        updatedAt:evidenceTimestamp(s.updated_at),url:s.url??null,
+        assessmentRole:isEmptyRenderSuite(s,checked.check_runs)?"EMPTY_PROVIDER_SUITE":"CHECK_SUITE"})),
       runs:checked.check_runs.map(c=>({id:c.id,name:c.name,status:c.status,conclusion:c.conclusion,
         startedAt:evidenceTimestamp(c.started_at),completedAt:evidenceTimestamp(c.completed_at),
         url:c.html_url??null})),
