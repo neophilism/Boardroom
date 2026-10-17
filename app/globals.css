@@ -1,5 +1,25 @@
 :root{font-family:Arial,Helvetica,sans-serif;color-scheme:dark;background:#0a1220;color:#eaf0f6}*{box-sizing:border-box}body{margin:0}.shell{max-width:920px;margin:0 auto;padding:72px 28px;min-height:100vh}.eyebrow{font-size:12px;letter-spacing:.16em;color:#9ec5d4;font-weight:700}h1{font-size:clamp(2.2rem,5vw,4rem);max-width:720px;letter-spacing:-.035em;line-height:1.1;margin:22px 0}p{line-height:1.65;color:#b9cbd9;font-size:17px;max-width:700px}.status{border:1px solid #304456;padding:28px;border-radius:18px;margin-top:40px;background:#102033}.status h2{font-size:20px;margin:0}footer{margin-top:64px;color:#93a8b9;font-size:13px}
 
+/* Shared owner workspace. The public login/setup/consent surfaces stay outside. */
+.boardroom-workspace{display:grid;grid-template-columns:236px minmax(0,1fr);grid-template-rows:auto 1fr;min-height:100dvh}
+.boardroom-topbar{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;padding:18px 28px;border-bottom:1px solid #2a4052;background:#0b1726}
+.boardroom-brand{display:flex;align-items:center;gap:12px;color:#eff8fd;text-decoration:none;font-size:21px;font-weight:700;letter-spacing:-.03em}
+.boardroom-mark{display:grid;place-items:center;width:40px;height:40px;border:1px solid #79b8c7;border-radius:11px;color:#b8ece8;background:#15323b;font-size:22px}
+.boardroom-brand small{display:block;margin-top:3px;color:#9eb6c8;font-size:11px;font-weight:400;letter-spacing:.06em;text-transform:uppercase}
+.boardroom-top-actions{display:flex;align-items:center;gap:18px}.boardroom-private{color:#b7cfdb;font-size:12px}.boardroom-private span{color:#8ed4c7;margin-right:5px}
+.boardroom-workspace button{font:inherit;font-size:13px;min-height:44px}.boardroom-top-actions .boardroom-menu{display:none}
+.boardroom-sidebar{border-right:1px solid #2a4052;background:#0c1929;padding:25px 14px 32px}
+.boardroom-nav-group{margin:0 0 24px}.boardroom-nav-label{font-size:10px;font-weight:700;letter-spacing:.13em;text-transform:uppercase;color:#8fa8bb;margin:0 13px 8px}
+.boardroom-nav-group ul{list-style:none;padding:0;margin:0;display:grid;gap:4px}.boardroom-nav-group a{display:flex;align-items:center;gap:12px;min-height:44px;padding:11px 13px;border:1px solid transparent;border-radius:8px;color:#bcd0df;text-decoration:none;font-size:13px;line-height:1.35}
+.boardroom-nav-group a:hover{background:#14283b;color:#f2faff}.boardroom-nav-group a[aria-current="page"]{background:#193c44;color:#c6f5ec;border-color:#386369;font-weight:700}
+.boardroom-nav-symbol{width:18px;text-align:center;font-size:18px;color:#91b4c3}.boardroom-nav-note{font-size:11px;line-height:1.6;color:#8ea7b9;margin:12px 13px;max-width:170px}
+.boardroom-content{min-width:0;overflow-wrap:anywhere;outline-offset:-3px}.boardroom-content>.owner-shell{max-width:1240px;padding:36px clamp(20px,3vw,48px);min-height:0}
+.boardroom-skip{position:fixed;left:18px;top:10px;z-index:100;background:#d0f2ed;color:#08212a;padding:12px 18px;border-radius:8px;transform:translateY(-200%);font-weight:700}.boardroom-skip:focus{transform:translateY(0)}
+.boardroom-workspace :is(a,button,input,select,summary):focus-visible{outline:3px solid #b0e5da;outline-offset:3px}
+.boardroom-signout-error{flex-basis:100%;margin:0;text-align:right}
+@media(max-width:900px){.boardroom-workspace{grid-template-columns:minmax(0,1fr)}.boardroom-topbar{padding:14px 18px;gap:10px}.boardroom-top-actions{gap:10px}.boardroom-top-actions .boardroom-menu{display:inline-flex;align-items:center}.boardroom-private{display:none}.boardroom-sidebar{grid-column:1;border-right:0;border-bottom:1px solid #2a4052;padding:18px;display:none}.boardroom-sidebar[data-open="true"]{display:block}.boardroom-sidebar nav{max-height:65dvh;overflow:auto}.boardroom-nav-group{margin-bottom:15px}.boardroom-nav-note{max-width:none}.boardroom-content>.owner-shell{padding:26px 18px}.boardroom-brand{font-size:18px}.boardroom-mark{width:34px;height:34px}.boardroom-signout-error{text-align:left}}
+@media(max-width:360px){.boardroom-topbar{padding:12px}.boardroom-brand{gap:7px;font-size:16px}.boardroom-brand small{font-size:9px}.boardroom-top-actions{gap:6px}.boardroom-top-actions button{padding:9px 10px}.boardroom-content>.owner-shell{padding:22px 14px}}
+
 
 .owner-shell{max-width:1140px;padding:48px 24px;margin:auto;min-height:100vh}
 .owner-header{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap}
@@ -31,6 +51,7 @@ button.outline{background:transparent;color:#bedbe8;border:1px solid #6f899a}
 @media(max-width:600px){.login-panel{margin:28px auto;padding:22px}.owner-shell{padding:24px 16px}}
 
 /* Owner repository-priority editor */
+.audit-events{list-style:none;margin:24px 0;padding:0;border:1px solid #30475b;border-radius:14px;overflow:hidden}.audit-event{display:flex;justify-content:space-between;gap:18px;padding:18px 22px;background:#102033}.audit-event+li{border-top:1px solid #30475b}.audit-event>div{min-width:0}.audit-event code{color:#d4ecef;overflow-wrap:anywhere}.audit-event p{font-size:13px;margin:6px 0 0}.audit-event time{font-size:12px;color:#a7c1d2;white-space:nowrap}.audit-caption{font-size:13px;color:#9eb6c8}.audit-pagination{display:flex;flex-wrap:wrap;gap:12px;margin:24px 0}@media(max-width:600px){.audit-event{flex-direction:column;gap:10px;padding:16px}.audit-event time{white-space:normal}}
 .priority-nav{display:inline-flex;align-items:center;color:#d0eaf4;border:1px solid #5f7f93;border-radius:8px;padding:10px 14px;text-decoration:none;font-weight:700}
 .priority-nav:hover,.priority-nav:focus-visible{background:#203b4a}
 .priority-panel{margin-top:28px}
