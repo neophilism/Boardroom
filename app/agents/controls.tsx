@@ -102,7 +102,7 @@ export default function AgentAdminControls({initialAgents,approvedNames,reservat
       <label htmlFor="agent-account-email">Account email (required)</label>
       <input id="agent-account-email" type="email" autoComplete="off" value={accountEmail}
         onChange={e=>setAccountEmail(e.target.value)} placeholder="user@example.com" disabled={busy||!!secret}/>
-      <p>Use the email of the account where this agent runs. Saved privately in Boardroom's database; this is not login verification.</p>
+      <p>Use the email of the account where this agent runs. Saved privately in Boardroom&apos;s database; this is not login verification.</p>
       <label htmlFor="agent-provider">AI provider</label>
       <select id="agent-provider" value={provider} disabled={busy||!!secret}
         onChange={e=>{const next=e.target.value as AgentProvider;setProvider(next);setAuthentication(next==="chatgpt"?"oauth":"bearer");}}>
