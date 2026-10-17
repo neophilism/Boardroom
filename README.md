@@ -16,3 +16,7 @@ The execution batch in [PR #42](https://github.com/neophilism/Boardroom/pull/42)
 - Approved scope: [80-unit canonical roadmap](registry/prs.json). Planned units are not completed PRs; GitHub's live metadata is authoritative for merges.
 
 Never commit credentials, private operational requests or personal data. Agents receive scoped, fenced capabilities, not unrestricted GitHub installation tokens. Hosted jobs remain opt-in; no CI result authorizes spending or establishes native ChatGPT scheduled-task compatibility.
+
+## Manual robot-to-project status
+
+Owner-only `/agent-status` presents each registered agent and reserved name, the provider account, current verified lease/project, work unit, heartbeat and last completed project. It queries Neon **only when the page is opened or its Refresh button is clicked** (no client polling or periodic worker activation). Reservations are stored privately in Neon and do not issue credentials or schedules. See `docs/AGENT_STATUS.md`.

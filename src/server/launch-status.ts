@@ -1,6 +1,6 @@
 import type {Pool} from "pg";
 
-export const NAMED_AGENT_LAUNCH_QUERY = `SELECT c.credential_id AS "credentialId",c.label AS name,c.provider,
+export const NAMED_AGENT_LAUNCH_QUERY = `SELECT c.credential_id AS "credentialId",c.label AS name,c.provider,c.account_email AS "accountEmail",
   EXISTS(SELECT 1 FROM oauth_grants g JOIN oauth_tokens t ON t.grant_id=g.grant_id
     WHERE g.credential_id=c.credential_id AND g.revoked_at IS NULL
       AND t.consumed_at IS NULL AND t.expires_at>now()) AS "connected",
@@ -10,7 +10,7 @@ export const NAMED_AGENT_LAUNCH_QUERY = `SELECT c.credential_id AS "credentialId
   (SELECT max(ar.started_at) FROM agent_runs ar WHERE ar.credential_id=c.credential_id) AS "lastActivationAt"
   FROM agent_credentials c WHERE c.enabled=TRUE AND c.revoked_at IS NULL ORDER BY c.label`;
 
-export type LaunchAgent={credentialId:string;name:string;provider:string;connected:boolean;
+export type LaunchAgent={credentialId:string;name:string;provider:string;accountEmail:string|null;connected:boolean;
   activations:number;assignments:number;lastActivationAt:Date|null};
 export type LaunchStatus={agents:LaunchAgent[];paused:boolean;lastMaintenanceAt:Date|null;verifiedPlanRepositories:number;
   automaticMergeRepositories:number;recordedIntegrationGates:string[];observedAt:string};
