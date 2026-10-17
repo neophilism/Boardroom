@@ -42,6 +42,47 @@ client document, exercises a denial callback, and verifies rejection of null,
 foreign and cross-site origins plus anonymous access. It creates no real grant
 and does not require database credentials. The CI verification job runs it.
 
+## Trial evidence and handoff
+
+Keep activation evidence in the private Boardroom checkpoint and session timeline.
+Do not put run IDs, assignment IDs, owner requests, OAuth details or private
+operational logs in this public repository. A source PR may contain the trial
+procedure and code fixes; it does not itself prove a scheduled activation.
+
+For each trial, record:
+
+- **Invocation:** manual or genuinely scheduled, actual start time, verified
+  profile name, and the supported tool connection. Do not infer scheduled origin
+  from a prompt, schedule creation, a heartbeat or a manually supplied label.
+- **Admission and assignment:** the actual arrival result, claimed repository,
+  approved unit and fencing generation. Retain the active session identifiers
+  privately. A busy response has no run ID and grants no work authority.
+- **Execution:** immutable source SHA, remote branch, commit and mapped PR URLs.
+  Distinguish a branch-only transport check from a useful source change.
+- **Verification:** actual checks for the current committed PR head, outstanding
+  checks and their real conclusions. Record platform approval prompts, unavailable
+  tools, runtime limits and refresh failures without secret values.
+- **Handoff:** remaining approved work and exact next action, followed by the
+  checkpoint response and truthful terminal outcome. Confirm assignment release.
+  If a write outcome is ambiguous, inspect remote state before retrying it.
+
+A first manual activation should also attempt another arrival while the original
+lease is healthy. Expect `shouldWork: false`, `runId: null` and
+`ALREADY_ACTIVE`; continue only under the original run and generation. This
+tests duplicate admission without transferring or releasing its authority.
+
+Schedule one connected identity only after the useful manual path is verified.
+Use the common instruction unchanged. The next activation must read the durable
+checkpoint, reconcile any existing PR at its current head, and resume that work
+rather than create a duplicate PR. Keep the first schedule as a trial until
+actual scheduled execution, useful GitHub work, safe release and later resume
+are observed. Record an approval-blocked run as blocked, not unattended.
+
+BR-004 requires a genuine scheduled invocation, assignment and reported result.
+BR-042 additionally requires a working code change, tests, mapped PR, checkpoint
+and release from the actual scheduled path. A successful manual connection,
+green setup CI, scheduled reminder or saved checklist cannot pass either gate.
+
 ## Protocol and security boundaries
 
 Only the published fixed OpenAI CIMD client and stable callback are supported in this first implementation. The server verifies that public metadata over HTTPS with redirects disabled. It advertises matching issuer/resource identifiers, S256 PKCE, `none` token-endpoint authentication, authorization-code and refresh grants, and the single `boardroom:agent` scope. Initialization/tool schemas are public; operational tools require a scoped token.
