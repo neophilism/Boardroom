@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {boundedRequestText,RequestBodyTooLarge} from "../src/server/request-body.ts";
+import {boundedRequestText,boundedRequestBytes,RequestBodyTooLarge} from "../src/server/request-body.ts";
 test("bounded readers count bytes, not characters",async()=>{
   assert.equal(await boundedRequestText(new Request("https://boardroom.example",{method:"POST",body:"é"}),2),"é");
   await assert.rejects(boundedRequestText(new Request("https://boardroom.example",{method:"POST",body:"é"}),1),RequestBodyTooLarge);
@@ -13,4 +13,9 @@ test("streaming without a content length stops and cancels at the boundary",asyn
   const stream=new ReadableStream<Uint8Array>({pull(controller){controller.enqueue(new Uint8Array(6));},cancel(){cancelled=true;}});
   const request=new Request("https://boardroom.example",{method:"POST",body:stream,duplex:"half"} as RequestInit);
   await assert.rejects(boundedRequestText(request,10),RequestBodyTooLarge);assert.equal(cancelled,true);
+});
+test("byte reader preserves BOM and invalid UTF-8 for signature verification",async()=>{
+  const bytes=Buffer.from([0xef,0xbb,0xbf,0xff]);
+  assert.deepEqual(Buffer.from(await boundedRequestBytes(new Request("https://boardroom.example",{method:"POST",body:bytes}),4)),bytes);
+  await assert.rejects(boundedRequestText(new Request("https://boardroom.example",{method:"POST",body:bytes}),4),TypeError);
 });

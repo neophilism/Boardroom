@@ -1,6 +1,7 @@
 import type {Pool,PoolClient} from "pg";
 import type {CanonicalPlan} from "./roadmap-import.ts";
 import type {GitHubRepository} from "./github-app.ts";
+import {currentRepositoryObservation} from "./repository-observation.ts";
 
 /** GitHub owns PR state. Local holds and in-progress work survive a refresh
  * which contains no newer PR evidence. An open follow-up revokes ACCEPTED. */
@@ -30,13 +31,16 @@ export async function reconcileRoadmapUnits(client:Pick<PoolClient,"query">,repo
 
 /** Preserve inventory and an actionable safe diagnosis when a GitHub/plan
  * fetch fails. Previously approved work becomes ineligible until reverified. */
-export async function recordReconciliationFailure(db:Pool,repository:GitHubRepository){
+export async function recordReconciliationFailure(db:Pool,repository:GitHubRepository,generation?:string){
   const client=await db.connect();
   try{
     await client.query("BEGIN");
+    if(generation!==undefined&&!await currentRepositoryObservation(client,repository.id,generation)){
+      await client.query("COMMIT");return false;
+    }
     await client.query(`INSERT INTO repositories(repository_id,full_name,description,archived,created_at,last_development_at)
       VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT(repository_id) DO UPDATE SET
-      full_name=excluded.full_name,description=excluded.description,archived=excluded.archived,updated_at=now()`,
+      updated_at=now()`,
       [repository.id,repository.full_name,repository.description,repository.archived,repository.created_at,repository.pushed_at]);
     await client.query("INSERT INTO repository_leases(repository_id) VALUES($1) ON CONFLICT DO NOTHING",[repository.id]);
     await client.query("UPDATE roadmap_units SET approved=FALSE WHERE repository_id=$1",[repository.id]);
@@ -44,5 +48,6 @@ export async function recordReconciliationFailure(db:Pool,repository:GitHubRepos
       VALUES($1,'ERROR','GITHUB_OR_ROADMAP_VERIFICATION_FAILED',now()) ON CONFLICT(repository_id) DO UPDATE SET
       plan_status='ERROR',last_error=excluded.last_error,last_attempt_at=now()`,[repository.id]);
     await client.query("COMMIT");
+    return true;
   }catch(error){await client.query("ROLLBACK");throw error;}finally{client.release();}
 }
