@@ -20,13 +20,27 @@ under `no-referrer` send `Origin: null`, which the owner CSRF guard correctly
 rejects. The page policy preserves same-origin provenance and suppresses
 cross-origin referrers; the authorization redirect still uses `no-referrer`.
 Do not fix this by accepting null origins or disabling the owner origin guard.
+Consent now submits through a fresh CORS-mode `fetch`, with same-origin cookies
+and an `Accept: application/json` response. This avoids native navigation origin
+handling and keeps any OAuth callback out of fetch redirect following. The
+client validates the fixed ChatGPT callback, issuer and state before navigating.
+Buttons remain disabled until the client handler is ready; ambiguous POSTs are
+never automatically retried. JavaScript is required for this consent UI.
 
 Consent failures return a stable `code` and `nextAction` without request values
-or exception text. `CONSENT_ORIGIN_REJECTED` requires a freshly loaded top-level
-consent page; `OWNER_SESSION_REQUIRED` requires owner sign-in and a new connection
+or exception text. `CONSENT_ORIGIN_REJECTED` also supplies a fixed `diagnostic`
+(`NULL_ORIGIN`, `ORIGIN_MISMATCH`, `FETCH_SITE_REJECTED`, or `PROVENANCE_MISSING`),
+without exposing raw request headers. `OWNER_SESSION_REQUIRED` requires owner sign-in and a new connection
 attempt. `CONSENT_TEMPORARILY_UNAVAILABLE` identifies client verification
 availability. A retry must still complete the real ChatGPT OAuth exchange;
 local tests do not establish native connection or scheduled-development acceptance.
+
+After `npm run build`, run
+`node --experimental-strip-types scripts/verify-consent-http.mjs` for the
+production HTTP transport regression. It uses only a fixture owner session and
+client document, exercises a denial callback, and verifies rejection of null,
+foreign and cross-site origins plus anonymous access. It creates no real grant
+and does not require database credentials. The CI verification job runs it.
 
 ## Protocol and security boundaries
 

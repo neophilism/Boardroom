@@ -1,10 +1,11 @@
 import Link from "next/link";
 import {cookies} from "next/headers";
 import {redirect,notFound} from "next/navigation";
-import {OWNER_COOKIE,validOwnerSession} from "../../../src/server/owner-session";
+import {OWNER_COOKIE,validOwnerSession,trustedOwnerOrigin} from "../../../src/server/owner-session";
 import {oauthEnabled,parseOAuthAuthorization,verifyOpenAIClient} from "../../../src/server/oauth-contract";
 import {listRegisteredAgents} from "../../../src/server/agent-registration";
 import {getDatabase} from "../../../src/server/db";
+import ConsentForm from "./consent-form";
 export const dynamic="force-dynamic";
 export default async function OAuthConsent({searchParams}:{searchParams:Promise<Record<string,string|string[]|undefined>>}){
   if(!oauthEnabled())notFound();
@@ -21,10 +22,6 @@ export default async function OAuthConsent({searchParams}:{searchParams:Promise<
     <p>Choose the existing named agent for this connection. ChatGPT can check in as that agent, receive one exclusive repository, read approved context, create fenced source changes and PRs, use Coffee Corner, and create private owner-action requests.</p>
     <p>This connection does not grant owner administration. Automatic merges remain subject to your repository policy, current checks and reviews.</p>
     {agents.length===0?<p><Link href="/agents">Register a named agent first</Link>, then restart this connection.</p>:
-      <form action="/api/v1/owner/oauth/authorize" method="post">
-        {Object.entries(fields).map(([name,value])=><input type="hidden" name={name} value={value} key={name}/>)}
-        <label htmlFor="oauth-agent">Named agent</label><select id="oauth-agent" name="credential_id" required>{agents.map(a=><option key={a.credentialId} value={a.credentialId}>{a.name} · {a.provider}</option>)}</select>
-        <button type="submit" name="decision" value="allow">Authorize this named agent</button><button type="submit" name="decision" value="deny" className="outline">Deny connection</button>
-      </form>}
+      <ConsentForm fields={fields} agents={agents} issuer={trustedOwnerOrigin()}/>}
   </section></main>;
 }
