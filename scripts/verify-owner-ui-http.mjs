@@ -17,7 +17,7 @@ try{
   const rsc=await fetch(fixture.base+'/audit',{headers:{RSC:'1','Next-Router-Prefetch':'1',authorization:'Bearer fixture-agent-not-owner'},redirect:'manual'});
   const rscBody=await rsc.text();assert.ok(!rscBody.includes('fixture/owner-workspace'));assert.ok([307,308].includes(rsc.status));
   assert.equal(fixture.readCount(),0,'Unauthenticated pages must not query the private DB');
-  for(const path of ['/work-board','/owner-actions','/coffee','/operations','/audit']){
+  for(const path of OWNER_NAVIGATION.map(item=>item.href)){
     const response=await fetch(fixture.base+path,{headers:{cookie:fixture.cookie}}),body=await response.text();
     assert.equal(response.status,200,path+' owner access');assert.match(response.headers.get('cache-control')??'',/no-store/);
     assert.ok(body.includes('Boardroom primary navigation'));assert.ok(body.includes('Skip to page content'));
@@ -29,6 +29,6 @@ try{
   assert.equal(foreign.status,403);assert.equal(foreign.headers.has('set-cookie'),false);
   const signedOut=await fetch(fixture.base+'/api/v1/owner/logout',{method:'POST',headers:{cookie:fixture.cookie,origin:fixtureOrigin,'sec-fetch-site':'same-origin'}});
   assert.equal(signedOut.status,200);assert.match(signedOut.headers.get('set-cookie')??'',/Max-Age=0/i);assert.match(signedOut.headers.get('set-cookie')??'',/HttpOnly/i);
-  console.log('Owner UI HTTP fixture passed: 13 private routes reject anonymous/agent/tampered/expired sessions before DB access; RSC prefetch denied; owner core views, audit paging, no-store and trusted-proxy logout verified.');
+  console.log('Owner UI HTTP fixture passed: 13 private routes reject anonymous/agent/tampered/expired sessions before DB access; RSC prefetch denied; all 11 owner sections, audit paging, no-store and trusted-proxy logout verified.');
   console.log('Read-only fake DB/session evidence only; no live deployment, private data or database mutation used.');
 }finally{await fixture.stop();}

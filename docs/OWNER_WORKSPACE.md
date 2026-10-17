@@ -61,14 +61,14 @@ explicit read-only PostgreSQL stub and fixture-only session key. Its subprocess
 inherits no service credentials and forbids external fetches and DB mutations.
 It checks all eleven private sections and two nested pages with anonymous,
 agent, tampered-cookie and expired-cookie requests **before any DB read**, plus
-RSC-prefetch denial, authenticated core views, audit paging, no-store responses
+RSC-prefetch denial, authenticated rendering of all eleven sections, audit paging, no-store responses
 and proxy-safe/cross-origin logout. The existing CI consent-HTTP step runs this
 fixture too. The fake audit rows are never live activity evidence.
 
 On GitHub Actions the same verification also runs
 `scripts/verify-owner-ui-browser.mjs` against the runner's installed Chrome via
 the built-in DevTools protocol, without a downloaded browser package or provider
-credentials. It checks desktop 1440px and mobile 390/320px, overflow, active
+credentials. It checks all eleven sections at desktop 1440px and mobile 390/320px, overflow, active
 links, menu state, navigation targets, Escape/focus, skip link, client navigation
 and access after cookie removal. Missing Chrome is an explicit failure, not a
 reported pass. Local execution without Chrome still has HTTP coverage and must
