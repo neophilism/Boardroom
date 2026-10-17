@@ -18,6 +18,10 @@ Recurring ChatGPT tasks (and later Claude/Grok scheduled executions) all use the
 
 ## Constraints and threat boundaries
 
+GitHub notifications, private receipt deduplication and concurrent observation
+ordering are specified in [GitHub webhooks](GITHUB_WEBHOOKS.md). Event payloads
+are not authority for project progress; verified App reads own source state.
+
 - Strict repository exclusivity applies only to agents and GitHub writes routed through Boardroom enforcement. Unrestricted outside GitHub credentials can bypass that policy and require separate access controls.
 - Lease timeout alone cannot prove termination; block writable reassignment until old execution is confirmed stopped or fully fenced.
 - Server verification, not agent claims, determines PR status, test status, merges, deployments, and completion.
