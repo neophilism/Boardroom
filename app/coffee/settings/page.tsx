@@ -16,6 +16,6 @@ export default async function CoffeeSettings(){
     <h1>Moderation and retention</h1>
     <p>Select Moderate discussion in Coffee Corner to permanently redact a message or subject.
       Accepted repository decision references remain available in the audit history.</p>
-    <RetentionControls initialEnabled={policy.enabled} initialDays={policy.retentionDays}/>
+    <RetentionControls key={policy.updatedAt.toISOString()} initialEnabled={policy.enabled} initialDays={policy.retentionDays}/>
   </main>;
 }

@@ -56,10 +56,10 @@ export function RetentionControls({initialEnabled,initialDays}:{initialEnabled:b
     <p>Automatic retention is {activeEnabled?"enabled":"disabled"}. Active questions remain available.
       Redaction permanently removes old discussion text and references while preserving accepted decisions and minimal audit records.</p>
     <form onSubmit={save}>
-      <label><input type="checkbox" checked={enabled} onChange={e=>setEnabled(e.target.checked)}/>
+      <label><input type="checkbox" checked={enabled} onChange={e=>{setEnabled(e.target.checked);setConfirmed(false);}}/>
         Automatically redact inactive resolved and closed discussions</label>
       <label>Days since the discussion was last updated <input type="number" min={30} max={3650}
-        value={days} required onChange={e=>setDays(Number(e.target.value))}/></label>
+        value={days} required onChange={e=>{setDays(Number(e.target.value));setConfirmed(false);}}/></label>
       {enabled&&<label><input type="checkbox" checked={confirmed} onChange={e=>setConfirmed(e.target.checked)}/>
         I confirm permanent redaction under this retention policy.</label>}
       <button type="submit" disabled={pending||(enabled&&!confirmed)}>Save retention policy</button>
