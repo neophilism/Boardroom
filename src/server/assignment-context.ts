@@ -3,6 +3,7 @@ import {isSafeGitHubReference} from "../domain/coffee-view.ts";
 import type {Pool} from "pg";
 import {isValidRunId,isValidGeneration,SessionConflict} from "./sessions.ts";
 import {fetchRepositoryInstruction,githubAppRequest} from "./github-app.ts";
+import {receiveAssignmentDispatch} from "./assignment-dispatch.ts";
 
 type CurrentAssignment={
   assignment_id:string;repository_id:string;full_name:string;unit_id:string;
@@ -80,7 +81,7 @@ export async function getAssignmentContext(db:Pool,runId:string,credentialId:str
   );
   if(current.rowCount!==1)throw new SessionConflict("Current authorized assignment or lease unavailable");
   const item=current.rows[0],api="/repos/"+item.full_name.split("/").map(encodeURIComponent).join("/");
-  const [checkpoint,instructions,discussions,units,decisions,resume,repository,branchResponse]=await Promise.all([
+  const [checkpoint,instructions,discussions,units,decisions,resume,repository,branchResponse,pendingOperations]=await Promise.all([
     db.query<Checkpoint>(`SELECT checkpoint_id::text,unit_id,branch,head_sha,state,created_at FROM checkpoints WHERE repository_id=$1 ORDER BY created_at DESC,checkpoint_id DESC LIMIT 25`,[item.repository_id]),
     fetchRepositoryInstruction(item.full_name,"AGENTS.md"),
     db.query(`SELECT t.thread_id,t.subject,t.status,
@@ -109,13 +110,24 @@ export async function getAssignmentContext(db:Pool,runId:string,credentialId:str
       FROM audit_events WHERE repository_id=$1 AND kind='coffee.answer.accepted_in_adr' AND details->>'unitId'=$2
       ORDER BY occurred_at DESC,event_id DESC LIMIT 1`,[item.repository_id,item.unit_id]),
     githubAppRequest("GET",api),
-    githubAppRequest("GET",api+"/branches?per_page=101")
+    githubAppRequest("GET",api+"/branches?per_page=101"),
+    db.query(`SELECT operation_id,idempotency_key,request_digest,request_metadata,state,created_at
+      FROM github_operations WHERE repository_id=$1 AND unit_id=$2 AND state IN ('INTENDED','UNCERTAIN')
+      ORDER BY created_at,operation_id LIMIT 50`,[item.repository_id,item.unit_id])
   ]);
   if(units.rows.length>1000)throw new Error("Approved work-unit inventory exceeds supported context limit");
   const repo=repository as {default_branch?:unknown};
   if(typeof repo.default_branch!=="string"||repo.default_branch.length<1||repo.default_branch.length>255)
     throw new Error("Invalid GitHub repository context");
   const branches=normalizeRepositoryBranches(branchResponse);
+  const deliveryClient=await db.connect();
+  let dispatchReceipt;
+  try{
+    await deliveryClient.query("BEGIN");
+    dispatchReceipt=await receiveAssignmentDispatch(deliveryClient,runId,credentialId,generation);
+    await deliveryClient.query("COMMIT");
+  }catch(error){await deliveryClient.query("ROLLBACK");throw error;}
+  finally{deliveryClient.release();}
   const approvedUnits=units.rows.map(unit=>({
     unitId:unit.unit_id,title:unit.title,state:unit.state,version:unit.version,dependsOn:unit.depends_on,
     acceptanceCriteria:unit.acceptance_criteria,pullRequests:unit.planned_prs,
@@ -134,6 +146,8 @@ export async function getAssignmentContext(db:Pool,runId:string,credentialId:str
       pullRequests:item.planned_prs,externalDependencies:item.external_dependencies,
       externalPrerequisites:item.external_prerequisites,source:item.source_metadata},
     approvedUnits,
+    dispatchReceipt,
+    pendingOperations:pendingOperations.rows,
     repositoryState:{defaultBranch:repo.default_branch,...branches},
     historicalDecisions:decisions.rows.map(row=>normalizeRepositoryDecision(item.full_name,row)).filter(x=>x!==null&&approvedIds.has(x.unitId)),
     resumeSignal:resume.rows[0]?normalizeCoffeeResumeSignal(item.full_name,item.unit_id,resume.rows[0]):null,

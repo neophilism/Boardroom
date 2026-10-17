@@ -1,4 +1,5 @@
 import type { Pool, PoolClient } from "pg";
+import {queueAssignmentDispatch} from "./assignment-dispatch.ts";
 
 export type ClaimedAssignment = {
   assignmentId: string;
@@ -152,6 +153,7 @@ export async function claimAssignment(db: Pool, runId: string, credentialId: str
        VALUES($1,$2,$3,$4) RETURNING assignment_id`,
       [repositoryId,runId,lease.generation,unitId]
     );
+    await queueAssignmentDispatch(client,assigned.rows[0].assignment_id,unitId);
     await client.query(
       "UPDATE agent_runs SET state='RUNNING', last_seen_at=now() WHERE run_id=$1",
       [runId]
