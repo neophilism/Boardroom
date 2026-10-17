@@ -1,10 +1,11 @@
 "use client";
 import {useState} from "react";
 import type {RegisteredAgent,AgentProvider} from "../../src/server/agent-registration";
+import type {ReservedAgentName} from "../../src/server/agent-activity";
 
 type Provisioned={name:string;provider:string;token:string};
-export default function AgentAdminControls({initialAgents,approvedNames}:{
-  initialAgents:RegisteredAgent[];approvedNames:string[]
+export default function AgentAdminControls({initialAgents,approvedNames,reservations}:{
+  initialAgents:RegisteredAgent[];approvedNames:string[];reservations:ReservedAgentName[]
 }){
   const [agents,setAgents]=useState(initialAgents);
   const [name,setName]=useState("");
@@ -77,6 +78,20 @@ export default function AgentAdminControls({initialAgents,approvedNames}:{
   return <section className="agent-admin">
     <div className="summary-strip"><strong>{agents.length}</strong> registered agent identities <span>·</span>
       <strong>{approvedNames.length}</strong> permitted names</div>
+    {reservations.length>0&&<section className="action-card">
+      <h2>Assigned names for additional accounts</h2>
+      <p>These are reserved labels, not registered connections. Select a name below to prefill the form, then enter the email address of the ChatGPT account that will use it. No credentials or OAuth grants exist until registration and consent.</p>
+      {[...new Set(reservations.map(r=>r.accountSlot))].map(slot=><div key={slot}>
+        <h3>Account {slot}</h3>
+        <p>{reservations.filter(r=>r.accountSlot===slot).map(r=>{
+          const registered=agents.some(a=>a.name===r.name);
+          return <button key={r.name} type="button" className="outline" disabled={busy||!!secret||registered}
+            onClick={()=>{setName(r.name);setProvider("chatgpt");setAuthentication("oauth");}}>
+            {r.name}{registered?" (registered)":""}
+          </button>;
+        })}</p>
+      </div>)}
+    </section>}
     <section className="action-card agent-provision">
       <h2>Register a named agent</h2>
       <p>Select an unused approved label and its provider. Native ChatGPT connects through owner-approved OAuth; no bearer credential needs to be copied. External workers can use a one-time credential stored in their protected secret manager. Never put credentials in scheduled instructions.</p>
