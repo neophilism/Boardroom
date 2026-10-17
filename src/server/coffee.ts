@@ -82,7 +82,7 @@ export async function openCoffeeThread(db:Pool,credentialId:string,input:ThreadI
       if(owned.rowCount!==1)throw new CoffeeError("Repository is not currently assigned to this session");
       repoId=Number(owned.rows[0].repository_id);
       unitId=owned.rows[0].unit_id;
-      await client.query("UPDATE roadmap_units SET state='BLOCKED' WHERE repository_id=$1 AND unit_id=$2 AND state IN ('PENDING','ACTIVE')",[repoId,unitId]);
+      await client.query("UPDATE roadmap_units SET state='BLOCKED' WHERE repository_id=$1 AND unit_id=$2 AND state IN ('PENDING','ACTIVE','OPEN_PR')",[repoId,unitId]);
     }
     const normalizedSubject=subject.replace(/\s+/g," ").toLowerCase();
     const normalizedQuestion=question.replace(/\s+/g," ").toLowerCase();
