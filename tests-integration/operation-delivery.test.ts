@@ -145,6 +145,9 @@ test("a durable GitHub intent exists before effects; lost success is reconciled 
   const confirmed=await db.query("SELECT state,result,request_digest FROM github_operations WHERE repository_id=$1",[f.repo]);
   assert.equal(confirmed.rowCount,1);assert.equal(confirmed.rows[0].state,"CONFIRMED");
   assert.ok(!JSON.stringify(confirmed.rows).includes(op.contentBase64));
+  remote=false; // An outside writer deletes the successfully created file.
+  await assert.rejects(performFencedGithubWrite(db,f.run,f.credential,f.grant.generation,op,transport),/Prior file intent needs source reconciliation/);
+  assert.equal(puts,1,"A prior intent must not recreate content after an outside deletion");
   await db.query("UPDATE agent_credentials SET enabled=FALSE,revoked_at=now() WHERE credential_id=$1",[f.credential]);
   const before=calls;
   await assert.rejects(performFencedGithubWrite(db,f.run,f.credential,f.grant.generation,op,transport),SessionConflict);
@@ -163,6 +166,18 @@ test("authority is checked again after the durable intent commit, before externa
   }finally{await db.query("DROP TRIGGER expire_intended_lease ON github_operations; DROP FUNCTION expire_intended_lease()");}
   assert.equal(calls,0);
   assert.equal((await db.query("SELECT state FROM github_operations WHERE repository_id=$1",[f.repo])).rows[0].state,"UNCERTAIN");
+});
+
+test("a lost PR response followed by closure cannot create a duplicate PR",async()=>{
+  const f=await assigned();let posts=0;
+  const transport:typeof githubAppRequest=async(method,path)=>{
+    if(path.endsWith("/git/ref/heads/main"))return {object:{sha:"a".repeat(40)}};
+    if(path.includes("/pulls?state=all"))return [{number:7,state:"closed",base:{ref:"main"}}];
+    if(method==="GET")return {default_branch:"main"};
+    posts++;throw new Error("No mutation expected");
+  };
+  await assert.rejects(performFencedGithubWrite(db,f.run,f.credential,f.grant.generation,{kind:"open_draft_pr",description:"Fixture request"},transport),/closed PR/);
+  assert.equal(posts,0);
 });
 
 test("inventory continuation and completion commit atomically even after a completion failure",async()=>{

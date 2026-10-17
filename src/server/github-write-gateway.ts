@@ -125,7 +125,7 @@ async function defaultBranch(path:string,transport=githubAppRequest):Promise<{ba
   if(!validSha(ref.object?.sha))throw new GitHubAppError(503);
   return {base,sha:ref.object.sha};
 }
-type ExistingPullRequest={number:number;html_url:string;draft:boolean;title:string;body:string|null;base:{ref:string}};
+type ExistingPullRequest={number:number;html_url:string;draft:boolean;title:string;body:string|null;base:{ref:string};state?:string};
 export function canonicalPullRequest(unitId:string,title:string,description:string){
   return {
     title:(unitId+": "+title).slice(0,220),
@@ -142,7 +142,7 @@ export function pullRequestChanges(existing:ExistingPullRequest,
   return changes;
 }
 
-async function doWrite(scope:RepoScope,op:GithubWrite,transport=githubAppRequest){
+async function doWrite(scope:RepoScope,op:GithubWrite,transport=githubAppRequest,reconcileOnly=false){
   const {owner,name}=repoParts(scope.full_name);
   const repoPath="/repos/"+encodeURIComponent(owner)+"/"+encodeURIComponent(name);
   const branch=safeWorkBranch(scope.unit_id);
@@ -192,6 +192,10 @@ async function doWrite(scope:RepoScope,op:GithubWrite,transport=githubAppRequest
       if(!(error instanceof GitHubAppError)||error.httpStatus!==404)throw error;
       if(op.expectedSha!==null)throw new GitHubAppError(409);
     }
+    // A successful creation may since have been deleted by an outside writer.
+    // An old intent cannot distinguish that from never having executed. Only
+    // exact content equality above proves safe replay; never recreate blindly.
+    if(reconcileOnly)throw new SessionConflict("Prior file intent needs source reconciliation; replay cannot rewrite missing or changed content");
     const body:Record<string,unknown>={
       message:op.message,branch,content:op.contentBase64,
     };
@@ -204,9 +208,11 @@ async function doWrite(scope:RepoScope,op:GithubWrite,transport=githubAppRequest
   }
   const {base}=await defaultBranch(repoPath,transport);
   const intended=canonicalPullRequest(scope.unit_id,scope.title,op.description);
-  const open=await transport("GET",
-    repoPath+"/pulls?state=open&head="+encodeURIComponent(owner+":"+branch)+"&per_page=5") as
+  const history=await transport("GET",
+    repoPath+"/pulls?state=all&head="+encodeURIComponent(owner+":"+branch)+"&per_page=5") as
     ExistingPullRequest[];
+  if(!Array.isArray(history)||history.some(pr=>!["open","closed"].includes(pr.state??"")))throw new GitHubAppError(503);
+  const open=history.filter(pr=>pr.state==="open");
   if(open.length){
     const onDefaultBase=open.filter(pr=>pr.base.ref===base);
     const existing=onDefaultBase.length===1?onDefaultBase[0]:open.length===1?open[0]:null;
@@ -218,6 +224,7 @@ async function doWrite(scope:RepoScope,op:GithubWrite,transport=githubAppRequest
     return {kind:"open_draft_pr",number:updated.number,url:updated.html_url,replay:true,
       updated:Object.keys(changes).length>0};
   }
+  if(history.length)throw new SessionConflict("Assigned branch has a closed PR; reconcile it before creating more work");
   const created=await transport("POST",repoPath+"/pulls",{
     head:branch,base,title:intended.title,body:intended.body,draft:true
   }) as {number:number;html_url:string};
@@ -270,8 +277,8 @@ export async function performFencedGithubWrite(db:Pool,runId:string,credentialId
     await client.query("SET LOCAL statement_timeout='25s'");
     const intendedScope=await authorizeWrite(client,runId,credentialId,generation);
     identity=githubWriteIdentity(intendedScope.unit_id,op);repositoryId=intendedScope.repository_id;
-    await client.query(`INSERT INTO github_operations(repository_id,unit_id,run_id,idempotency_key,request_digest,request_metadata)
-      VALUES($1,$2,$3,$4,$5,$6::jsonb) ON CONFLICT(repository_id,idempotency_key) DO NOTHING`,
+    const inserted=await client.query(`INSERT INTO github_operations(repository_id,unit_id,run_id,idempotency_key,request_digest,request_metadata)
+      VALUES($1,$2,$3,$4,$5,$6::jsonb) ON CONFLICT(repository_id,idempotency_key) DO NOTHING RETURNING operation_id`,
       [repositoryId,intendedScope.unit_id,runId,identity.key,identity.digest,JSON.stringify(githubWriteMetadata(op))]);
     await client.query("COMMIT");inTransaction=false;
     // Crash here loses no intent, but MUST NOT automatically execute a stale
@@ -284,7 +291,7 @@ export async function performFencedGithubWrite(db:Pool,runId:string,credentialId
     const recorded=await client.query<{request_digest:string}>(`SELECT request_digest FROM github_operations
       WHERE repository_id=$1 AND idempotency_key=$2 FOR UPDATE`,[repositoryId,identity.key]);
     if(recorded.rows[0]?.request_digest!==identity.digest)throw new SessionConflict("Write intent mismatch");
-    const result=await doWrite(scope,op,transport);
+    const result=await doWrite(scope,op,transport,inserted.rowCount!==1);
     await client.query(`UPDATE github_operations SET state='CONFIRMED',result=$3::jsonb,confirmed_at=now()
       WHERE repository_id=$1 AND idempotency_key=$2`,[repositoryId,identity.key,JSON.stringify(result)]);
     await client.query(
