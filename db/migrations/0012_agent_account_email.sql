@@ -1,4 +1,5 @@
--- Private account routing metadata; not a provider-authenticated assertion.
+-- Private account routing metadata for scheduled agents; never an authentication claim.
+-- Existing records remain nullable until their account is explicitly assigned.
 ALTER TABLE agent_credentials ADD COLUMN account_email TEXT;
 ALTER TABLE agent_credentials ADD CONSTRAINT agent_credentials_account_email_check
   CHECK (account_email IS NULL OR (
