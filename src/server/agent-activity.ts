@@ -71,12 +71,10 @@ export function classifyAgentActivity(row:AgentActivityRow,now=Date.now()):Agent
   if(!row.credentialId)return "NOT REGISTERED";
   if(row.activeRunId){
     if(!row.leaseMatches)return "UNKNOWN";
-    return classifyLease({runId:row.activeRunId,runState:row.activeRunState,
+    const status=classifyLease({runId:row.activeRunId,runState:row.activeRunState,
       leaseExpiresAt:row.leaseExpiresAt?.toISOString()??null,
-      lastHeartbeatAt:row.lastHeartbeatAt?.toISOString()??null},now)==="UNASSIGNED"?"UNKNOWN":
-      classifyLease({runId:row.activeRunId,runState:row.activeRunState,
-        leaseExpiresAt:row.leaseExpiresAt?.toISOString()??null,
-        lastHeartbeatAt:row.lastHeartbeatAt?.toISOString()??null},now);
+      lastHeartbeatAt:row.lastHeartbeatAt?.toISOString()??null},now);
+    return status==="UNASSIGNED"?"UNKNOWN":status;
   }
   if(row.lastRunState==="ADMITTED")return "ARRIVED";
   if(row.lastRunState==="RECOVERING"||row.lastRunState==="UNKNOWN")return "UNKNOWN";
