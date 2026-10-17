@@ -83,6 +83,27 @@ BR-042 additionally requires a working code change, tests, mapped PR, checkpoint
 and release from the actual scheduled path. A successful manual connection,
 green setup CI, scheduled reminder or saved checklist cannot pass either gate.
 
+## Check-suite metadata during the trial
+
+GitHub's automatic app flow can leave a queued Render suite with zero check
+runs on a branch that Render does not deploy. This is a provider placeholder,
+not evidence that a test ran. The collector keeps it visible with assessment
+role `EMPTY_PROVIDER_SUITE` only when GitHub identifies the exact Render app
+(ID 14658, slug `render`), the suite is queued without a conclusion, its
+reported run count is exactly zero, and every observed run has complete app
+and suite identifiers that do not contradict that count.
+
+A placeholder alone yields `NO_CHECKS`. Missing or contradictory metadata,
+unknown apps, actual Render runs, failed suites, incomplete pages, and all
+real pending or skipped checks retain their existing blocking behavior.
+Every configured required check must still have its own successful execution,
+GitHub merge requirements must pass, and Boardroom changes still require the
+owner's review at the current head.
+
+The automatic suite/request flow is documented in
+https://docs.github.com/en/rest/guides/using-the-rest-api-to-interact-with-checks .
+The narrow Render case does not authorize ignoring arbitrary queued suites.
+
 ## Protocol and security boundaries
 
 Only the published fixed OpenAI CIMD client and stable callback are supported in this first implementation. The server verifies that public metadata over HTTPS with redirects disabled. It advertises matching issuer/resource identifiers, S256 PKCE, `none` token-endpoint authentication, authorization-code and refresh grants, and the single `boardroom:agent` scope. Initialization/tool schemas are public; operational tools require a scoped token.
