@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   acceptanceVerification,assessObservedChecks,completionEvidenceSufficient,evidenceTimestamp,isEmptyRenderSuite,
-  type CheckRun,type CheckSuite,type LegacyStatus
+  isAcceptedMergedPullRequest,type CheckRun,type CheckSuite,type LegacyStatus
 } from "../src/server/pr-evidence.ts";
 const one:CheckRun={id:1,name:"verify",status:"completed",conclusion:"success"};
 const suite:CheckSuite={id:2,status:"completed",conclusion:"success",app:{name:"Actions"}};
@@ -82,4 +82,14 @@ test("only bounded source-owned verification statements become acceptance eviden
     ["test passes"]);
   assert.deepEqual(acceptanceVerification(null),[]);
   assert.equal(acceptanceVerification({verification:Array.from({length:120},(_,i)=>"v"+i)}).length,100);
+});
+
+
+test('GitHub merger immediately accepts the PR without pretending a whole work package is complete',()=>{
+ assert.equal(isAcceptedMergedPullRequest('2026-10-17T13:00:00Z'),true);
+ assert.equal(isAcceptedMergedPullRequest(null),false);
+ assert.equal(isAcceptedMergedPullRequest(undefined),false);
+ assert.equal(isAcceptedMergedPullRequest('not a timestamp'),false);
+ // A completed PR remains accepted even when a later package still needs work.
+ assert.equal(completionEvidenceSufficient('OBSERVED_PASS','MERGED','Whole-package criteria'),false);
 });
