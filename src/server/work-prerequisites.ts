@@ -4,7 +4,7 @@ import {TECHNICAL_RECOVERY_ELIGIBLE_SQL} from "./work-recovery.ts";
 
 /** Recheck under the caller's assignment lease lock immediately before a
  * privileged write or merge. Admission-time eligibility can become stale. */
-export async function assertWorkPrerequisites(db:Pool|PoolClient,repositoryId:string,unitId:string){
+export async function assertWorkPrerequisites(db:Pool|PoolClient,repositoryId:string,unitId:string,requireResolvedQuestions=false){
   const result=await db.query<{dependencies_pending:boolean;compatibility_pending:boolean;owner_pending:boolean;registry_pending:boolean;technical_pending:boolean}>(`
     SELECT NOT registry_prerequisites_satisfied(w.repository_id,w.unit_id) AS registry_pending, EXISTS(
       SELECT 1 FROM jsonb_array_elements_text(w.depends_on) d(id)
@@ -22,8 +22,12 @@ export async function assertWorkPrerequisites(db:Pool|PoolClient,repositoryId:st
       WHERE d.repository_id=w.repository_id AND (d.unit_id IS NULL OR d.unit_id=w.unit_id)
         AND a.status NOT IN ('VERIFIED','CANCELLED')
     ) AS owner_pending,
-    NOT ${TECHNICAL_RECOVERY_ELIGIBLE_SQL} AS technical_pending
-    FROM roadmap_units w WHERE w.repository_id=$1 AND w.unit_id=$2 AND w.approved=TRUE`,[repositoryId,unitId]);
+    (NOT ${TECHNICAL_RECOVERY_ELIGIBLE_SQL} OR ($3::boolean AND EXISTS(
+      SELECT 1 FROM coffee_threads unresolved
+      WHERE unresolved.repository_id=w.repository_id AND unresolved.unit_id=w.unit_id
+        AND unresolved.status IN ('OPEN','ANSWERED')
+    ))) AS technical_pending
+    FROM roadmap_units w WHERE w.repository_id=$1 AND w.unit_id=$2 AND w.approved=TRUE`,[repositoryId,unitId,requireResolvedQuestions]);
   const status=result.rows[0];
   if(!status)throw new SessionConflict("Approved work unit unavailable");
   if(status.registry_pending)throw new SessionConflict("Registry external prerequisite unresolved");

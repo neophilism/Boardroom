@@ -19,7 +19,8 @@ A question's deadline is not permission to retry without evidence.
 
 Answer evidence permits investigation and approved source changes, not acceptance.
 The worker must verify the answer and use the existing immutable-ADR resolution
-flow. Owner actions, source prerequisites, CI, review and fencing remain gates.
+flow. Merges require every scoped question to be resolved or closed, even when
+fresh answer evidence permits investigation writes. Owner actions, source prerequisites, CI, review and fencing remain gates.
 A BLOCKED unit with no actionable question remains excluded; do not clear it
 by inventing an answer or changing its source status locally.
 

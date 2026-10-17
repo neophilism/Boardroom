@@ -53,6 +53,8 @@ test("an answer without evidence does not recover work; a source-backed answer p
   assert.equal(await selected(technical),fallback);
   await answer(firstThread,evidence,"now()-interval '2 minutes'");
   assert.equal(await selected(technical),technical);
+  await assertWorkPrerequisites(db,technical,"REC-001");
+  await assert.rejects(assertWorkPrerequisites(db,technical,"REC-001",true),/Technical question prerequisite unresolved/);
 });
 test("a blocked retry consumes old answers instead of reassigning the same unrecoverable work",async()=>{
   const run=await db.query<{run_id:string}>("INSERT INTO agent_runs(provider,state,started_at,ended_at) VALUES('test','BLOCKED',now()-interval '1 minute',now()) RETURNING run_id");
@@ -73,6 +75,7 @@ test("every unresolved question must have fresh evidence; another old answer can
   await db.query("UPDATE coffee_threads SET status='RESOLVED' WHERE thread_id=ANY($1::uuid[])",[[firstThread,secondThread]]);
   await db.query("UPDATE roadmap_units SET state='ACTIVE' WHERE repository_id=$1",[technical]);
   assert.equal(await selected(technical),technical);
+  await assertWorkPrerequisites(db,technical,"REC-001",true);
 });
 test("owner acknowledgement or claimed fulfillment is insufficient; verified resolution re-enables work",async()=>{
   const row=await db.query<{action_id:string}>("INSERT INTO owner_actions(action_key,title,action_type,instructions) VALUES('ci:br020:owner','Recovery owner fixture','CREDENTIAL','Fixture instructions') RETURNING action_id");
