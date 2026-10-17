@@ -1,8 +1,9 @@
-import type {Pool} from "pg";
+import type {Pool,PoolClient} from "pg";
 import {SessionConflict,isValidGeneration,isValidRunId} from "./sessions.ts";
 import {githubAppRequest,GitHubAppError} from "./github-app.ts";
 import {commitAssignedFiles} from "./github-atomic-commit.ts";
 import {assertWorkPrerequisites} from "./work-prerequisites.ts";
+import {githubWriteIdentity,githubWriteMetadata} from "./github-write-ledger.ts";
 
 type RepoScope={repository_id:string;full_name:string;unit_id:string;title:string};
 export type GithubWrite=
@@ -116,11 +117,11 @@ function repoParts(repo:string):{owner:string;name:string}{
     throw new GithubWriteValidation("Invalid repository identity");
   return {owner:parts[0],name:parts[1]};
 }
-async function defaultBranch(path:string):Promise<{base:string;sha:string}>{
-  const info=await githubAppRequest("GET",path) as {default_branch?:string};
+async function defaultBranch(path:string,transport=githubAppRequest):Promise<{base:string;sha:string}>{
+  const info=await transport("GET",path) as {default_branch?:string};
   const base=info.default_branch;
   if(!base||!/^[a-zA-Z0-9._/-]{1,100}$/.test(base))throw new GitHubAppError(503);
-  const ref=await githubAppRequest("GET",path+"/git/ref/heads/"+base) as {object?:{sha?:string}};
+  const ref=await transport("GET",path+"/git/ref/heads/"+base) as {object?:{sha?:string}};
   if(!validSha(ref.object?.sha))throw new GitHubAppError(503);
   return {base,sha:ref.object.sha};
 }
@@ -141,37 +142,37 @@ export function pullRequestChanges(existing:ExistingPullRequest,
   return changes;
 }
 
-async function doWrite(scope:RepoScope,op:GithubWrite){
+async function doWrite(scope:RepoScope,op:GithubWrite,transport=githubAppRequest){
   const {owner,name}=repoParts(scope.full_name);
   const repoPath="/repos/"+encodeURIComponent(owner)+"/"+encodeURIComponent(name);
   const branch=safeWorkBranch(scope.unit_id);
-  if(op.kind==="commit_files")return commitAssignedFiles(repoPath,branch,op);
+  if(op.kind==="commit_files")return commitAssignedFiles(repoPath,branch,op,transport);
   if(op.kind==="ready_pr"){
-    const pr=await githubAppRequest("GET",repoPath+"/pulls/"+op.number) as {node_id:string;draft:boolean;head:{ref:string;repo:{id:number}}};
+    const pr=await transport("GET",repoPath+"/pulls/"+op.number) as {node_id:string;draft:boolean;head:{ref:string;repo:{id:number}}};
     if(pr.head.ref!==branch||String(pr.head.repo.id)!==scope.repository_id)
       throw new SessionConflict("PR is outside the assigned work branch");
     if(!pr.draft)return {kind:"ready_pr",number:op.number,replay:true};
-    const result=await githubAppRequest("POST","/graphql",{
+    const result=await transport("POST","/graphql",{
       query:"mutation($id:ID!){markPullRequestReadyForReview(input:{pullRequestId:$id}){pullRequest{number isDraft}}}",
       variables:{id:pr.node_id}}) as {errors?:unknown[]};
     if(result.errors?.length)throw new GitHubAppError(409);
     return {kind:"ready_pr",number:op.number,replay:false};
   }
   if(op.kind==="ensure_branch"){
-    const {sha}=await defaultBranch(repoPath);
+    const {sha}=await defaultBranch(repoPath,transport);
     try{
-      const existing=await githubAppRequest("GET",repoPath+"/git/ref/heads/"+branch) as {object?:{sha?:string}};
+      const existing=await transport("GET",repoPath+"/git/ref/heads/"+branch) as {object?:{sha?:string}};
       return {kind:"ensure_branch",branch,headSha:existing.object?.sha??null,created:false};
     }catch(error){
       if(!(error instanceof GitHubAppError)||error.httpStatus!==404)throw error;
     }
     try{
-      const created=await githubAppRequest("POST",repoPath+"/git/refs",
+      const created=await transport("POST",repoPath+"/git/refs",
         {ref:"refs/heads/"+branch,sha}) as {object?:{sha?:string}};
       return {kind:"ensure_branch",branch,headSha:created.object?.sha??sha,created:true};
     }catch(error){
       if(!(error instanceof GitHubAppError)||error.httpStatus!==422)throw error;
-      const existing=await githubAppRequest("GET",repoPath+"/git/ref/heads/"+branch) as {object?:{sha?:string}};
+      const existing=await transport("GET",repoPath+"/git/ref/heads/"+branch) as {object?:{sha?:string}};
       return {kind:"ensure_branch",branch,headSha:existing.object?.sha??null,created:false};
     }
   }
@@ -179,11 +180,11 @@ async function doWrite(scope:RepoScope,op:GithubWrite){
     // An interrupted success is reconciled from GitHub before attempting PUT.
     // Content equality prevents duplicate commits on a retried file write.
     try{
-      const existing=await githubAppRequest("GET",repoPath+"/contents/"+
+      const existing=await transport("GET",repoPath+"/contents/"+
         op.path.split("/").map(encodeURIComponent).join("/")+"?ref="+encodeURIComponent(branch)) as
         {content?:string;sha?:string;encoding?:string};
       if(existing.encoding==="base64"&&existing.content?.replace(/\s/g,"")===op.contentBase64){
-        const ref=await githubAppRequest("GET",repoPath+"/git/ref/heads/"+branch) as {object:{sha:string}};
+        const ref=await transport("GET",repoPath+"/git/ref/heads/"+branch) as {object:{sha:string}};
         return {kind:"upsert_file",branch,path:op.path,blobSha:existing.sha,commitSha:ref.object.sha,replay:true};
       }
       if(existing.sha!==op.expectedSha)throw new GitHubAppError(409);
@@ -195,15 +196,15 @@ async function doWrite(scope:RepoScope,op:GithubWrite){
       message:op.message,branch,content:op.contentBase64,
     };
     if(op.expectedSha)body.sha=op.expectedSha;
-    const result=await githubAppRequest("PUT",repoPath+"/contents/"+
+    const result=await transport("PUT",repoPath+"/contents/"+
       op.path.split("/").map(encodeURIComponent).join("/"),body) as
       {content?:{sha?:string};commit?:{sha?:string}};
     return {kind:"upsert_file",branch,path:op.path,
       blobSha:result.content?.sha??null,commitSha:result.commit?.sha??null};
   }
-  const {base}=await defaultBranch(repoPath);
+  const {base}=await defaultBranch(repoPath,transport);
   const intended=canonicalPullRequest(scope.unit_id,scope.title,op.description);
-  const open=await githubAppRequest("GET",
+  const open=await transport("GET",
     repoPath+"/pulls?state=open&head="+encodeURIComponent(owner+":"+branch)+"&per_page=5") as
     ExistingPullRequest[];
   if(open.length){
@@ -212,30 +213,18 @@ async function doWrite(scope:RepoScope,op:GithubWrite){
     if(!existing)throw new SessionConflict("Multiple open PRs exist for the assigned work branch");
     const changes=pullRequestChanges(existing,intended,base);
     const updated=Object.keys(changes).length>0
-      ?await githubAppRequest("PATCH",repoPath+"/pulls/"+existing.number,changes) as ExistingPullRequest
+      ?await transport("PATCH",repoPath+"/pulls/"+existing.number,changes) as ExistingPullRequest
       :existing;
     return {kind:"open_draft_pr",number:updated.number,url:updated.html_url,replay:true,
       updated:Object.keys(changes).length>0};
   }
-  const created=await githubAppRequest("POST",repoPath+"/pulls",{
+  const created=await transport("POST",repoPath+"/pulls",{
     head:branch,base,title:intended.title,body:intended.body,draft:true
   }) as {number:number;html_url:string};
   return {kind:"open_draft_pr",number:created.number,url:created.html_url,replay:false};
 }
 
-/** Hold the repository lease-row lock through the external GitHub write.
- * Recovery, finish and other writers must serialize on that row. Do not
- * implement a lease-timeout-only takeover or issue raw installation tokens to agents.
- */
-export async function performFencedGithubWrite(db:Pool,runId:string,credentialId:string,
-  generation:string,op:GithubWrite){
-  if(!isValidRunId(runId)||!isValidGeneration(generation))
-    throw new GithubWriteValidation("Invalid run identity");
-  const client=await db.connect();
-  let committed=false;
-  try{
-    await client.query("BEGIN");
-    await client.query("SET LOCAL statement_timeout='25s'");
+async function authorizeWrite(client:PoolClient,runId:string,credentialId:string,generation:string){
     const grant=await client.query<RepoScope>(
       `SELECT r.repository_id::text AS repository_id,r.full_name,a.unit_id,w.title
        FROM agent_runs ar
@@ -259,7 +248,45 @@ export async function performFencedGithubWrite(db:Pool,runId:string,credentialId
     if(pause.rows[0]?.paused)throw new SessionConflict("Owner paused execution");
     const scope=grant.rows[0];
     await assertWorkPrerequisites(client,scope.repository_id,scope.unit_id);
-    const result=await doWrite(scope,op);
+    return scope;
+}
+
+/** Persist intent before the external effect, then reacquire and revalidate the
+ * lease. A ledger row is evidence, NEVER authority. Hold its lease lock through
+ * GitHub reconciliation/write and confirmation. Interrupted operations retain
+ * durable intent; retries reconcile GitHub through the idempotent adapters.
+ */
+export async function performFencedGithubWrite(db:Pool,runId:string,credentialId:string,
+  generation:string,op:GithubWrite,transport=githubAppRequest){
+  if(!isValidRunId(runId)||!isValidGeneration(generation))
+    throw new GithubWriteValidation("Invalid run identity");
+  // Also validate calls from internal consumers, not only HTTP/tool parsing.
+  op=parseGithubWrite(op);
+  const client=await db.connect();
+  let identity:ReturnType<typeof githubWriteIdentity>|undefined,repositoryId:string|undefined;
+  let inTransaction=false;
+  try{
+    await client.query("BEGIN");inTransaction=true;
+    await client.query("SET LOCAL statement_timeout='25s'");
+    const intendedScope=await authorizeWrite(client,runId,credentialId,generation);
+    identity=githubWriteIdentity(intendedScope.unit_id,op);repositoryId=intendedScope.repository_id;
+    await client.query(`INSERT INTO github_operations(repository_id,unit_id,run_id,idempotency_key,request_digest,request_metadata)
+      VALUES($1,$2,$3,$4,$5,$6::jsonb) ON CONFLICT(repository_id,idempotency_key) DO NOTHING`,
+      [repositoryId,intendedScope.unit_id,runId,identity.key,identity.digest,JSON.stringify(githubWriteMetadata(op))]);
+    await client.query("COMMIT");inTransaction=false;
+    // Crash here loses no intent, but MUST NOT automatically execute a stale
+    // operation. A current authorized caller supplies the validated request again.
+    await client.query("BEGIN");inTransaction=true;
+    await client.query("SET LOCAL statement_timeout='25s'");
+    const scope=await authorizeWrite(client,runId,credentialId,generation);
+    if(scope.repository_id!==repositoryId||scope.unit_id!==intendedScope.unit_id)
+      throw new SessionConflict("Assignment changed after write intent");
+    const recorded=await client.query<{request_digest:string}>(`SELECT request_digest FROM github_operations
+      WHERE repository_id=$1 AND idempotency_key=$2 FOR UPDATE`,[repositoryId,identity.key]);
+    if(recorded.rows[0]?.request_digest!==identity.digest)throw new SessionConflict("Write intent mismatch");
+    const result=await doWrite(scope,op,transport);
+    await client.query(`UPDATE github_operations SET state='CONFIRMED',result=$3::jsonb,confirmed_at=now()
+      WHERE repository_id=$1 AND idempotency_key=$2`,[repositoryId,identity.key,JSON.stringify(result)]);
     await client.query(
       "INSERT INTO audit_events(run_id,repository_id,kind,details) VALUES($1,$2,$3,$4::jsonb)",
       [runId,scope.repository_id,"github.write."+op.kind,
@@ -268,10 +295,17 @@ export async function performFencedGithubWrite(db:Pool,runId:string,credentialId
           paths:op.kind==="commit_files"?op.files.map(f=>f.path):undefined,
           result})]
     );
-    await client.query("COMMIT");committed=true;
+    await client.query("COMMIT");inTransaction=false;
     return {repository:scope.full_name,unitId:scope.unit_id,operation:result};
   }catch(error){
-    if(!committed)await client.query("ROLLBACK");
+    if(inTransaction)await client.query("ROLLBACK");
+    if(identity&&repositoryId){
+      // Never downgrade a confirmed receipt after an ambiguous COMMIT. Only a
+      // fixed state is stored; remote error bodies/source are not persisted.
+      try{await client.query(`UPDATE github_operations SET state='UNCERTAIN'
+        WHERE repository_id=$1 AND idempotency_key=$2 AND state<>'CONFIRMED'`,[repositoryId,identity.key]);}
+      catch{/* A disconnected DB leaves the already committed INTENDED row. */}
+    }
     throw error;
   }finally{client.release();}
 }

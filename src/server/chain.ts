@@ -1,6 +1,7 @@
 import type {Pool} from "pg";
 import {assignedScope} from "./assignment-scope.ts";
 import {SessionConflict} from "./sessions.ts";
+import {queueAssignmentDispatch} from "./assignment-dispatch.ts";
 
 /** Advance within the current repository. Never release the repo between PRs. */
 export async function advanceAssignedWork(db:Pool,runId:string,credentialId:string,generation:string){
@@ -27,6 +28,7 @@ export async function advanceAssignedWork(db:Pool,runId:string,credentialId:stri
     if(!next.rowCount){await client.query("COMMIT");return {status:"EXHAUSTED",repository:scope.full_name};}
     const id=next.rows[0].unit_id;
     await client.query("UPDATE work_assignments SET unit_id=$1 WHERE assignment_id=$2",[id,scope.assignment_id]);
+    await queueAssignmentDispatch(client,scope.assignment_id,id);
     await client.query("UPDATE roadmap_units SET state='ACTIVE' WHERE repository_id=$1 AND unit_id=$2 AND state='PENDING'",[scope.repository_id,id]);
     await client.query("INSERT INTO audit_events(run_id,repository_id,kind,details) VALUES($1,$2,'agent.work.advanced',$3::jsonb)",
       [runId,scope.repository_id,JSON.stringify({from:scope.unit_id,to:id,generation})]);
