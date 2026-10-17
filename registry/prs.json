@@ -121,7 +121,9 @@
       "verification": [
         "At least one supported unattended execution route invokes the API and is demonstrably usable; unsupported routes remain disabled."
       ],
-      "contributingPrs": [],
+      "contributingPrs": [
+        103
+      ],
       "externalDependencies": [],
       "externalPrerequisites": []
     },

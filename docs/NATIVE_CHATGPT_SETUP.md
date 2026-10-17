@@ -13,6 +13,21 @@ Boardroom now has an opt-in OAuth authorization-code flow for ChatGPT's authenti
 7. Only after that manual prompt works, schedule one activation using the common instructions in `SCHEDULED_AGENT_PROTOCOL.md`. Record the actual scheduled run, assignment, PR/head/CI, checkpoint and terminal outcome privately. Capture any platform approval pauses; do not describe an approval-blocked run as unattended.
 8. Expand to further named connections/accounts only after exclusivity, recovery and the first useful loop pass. The server retains one live session per named credential and one writable repository assignment per run.
 
+## Consent submission troubleshooting
+
+The consent document uses `Referrer-Policy: same-origin`. Native HTML form POSTs
+under `no-referrer` send `Origin: null`, which the owner CSRF guard correctly
+rejects. The page policy preserves same-origin provenance and suppresses
+cross-origin referrers; the authorization redirect still uses `no-referrer`.
+Do not fix this by accepting null origins or disabling the owner origin guard.
+
+Consent failures return a stable `code` and `nextAction` without request values
+or exception text. `CONSENT_ORIGIN_REJECTED` requires a freshly loaded top-level
+consent page; `OWNER_SESSION_REQUIRED` requires owner sign-in and a new connection
+attempt. `CONSENT_TEMPORARILY_UNAVAILABLE` identifies client verification
+availability. A retry must still complete the real ChatGPT OAuth exchange;
+local tests do not establish native connection or scheduled-development acceptance.
+
 ## Protocol and security boundaries
 
 Only the published fixed OpenAI CIMD client and stable callback are supported in this first implementation. The server verifies that public metadata over HTTPS with redirects disabled. It advertises matching issuer/resource identifiers, S256 PKCE, `none` token-endpoint authentication, authorization-code and refresh grants, and the single `boardroom:agent` scope. Initialization/tool schemas are public; operational tools require a scoped token.

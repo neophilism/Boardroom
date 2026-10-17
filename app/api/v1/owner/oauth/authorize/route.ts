@@ -1,11 +1,11 @@
 import {cookies} from "next/headers";
 import {NextResponse} from "next/server";
-import {authorizeOwnerRequest,OWNER_COOKIE,OwnerOriginRejected,trustedOwnerOrigin} from "../../../../../../src/server/owner-session";
-import {UnauthorizedOwner} from "../../../../../../src/server/owner-auth";
+import {authorizeOwnerRequest,OWNER_COOKIE,trustedOwnerOrigin} from "../../../../../../src/server/owner-session";
 import {oauthEnabled,parseOAuthAuthorization,verifyOpenAIClient,OAuthFailure} from "../../../../../../src/server/oauth-contract";
 import {createOAuthCode} from "../../../../../../src/server/oauth";
 import {getDatabase} from "../../../../../../src/server/db";
-import {boundedRequestText,RequestBodyTooLarge} from "../../../../../../src/server/request-body";
+import {boundedRequestText} from "../../../../../../src/server/request-body";
+import {oauthConsentFailure} from "../../../../../../src/server/oauth-consent-failure";
 export const dynamic="force-dynamic";
 export async function POST(request:Request){
   if(!oauthEnabled())return new NextResponse(null,{status:404});
@@ -25,7 +25,8 @@ export async function POST(request:Request){
     }else throw new OAuthFailure("invalid_request");
     return NextResponse.redirect(location,{status:303,headers:{"Cache-Control":"no-store","Referrer-Policy":"no-referrer"}});
   }catch(error){
-    const status=error instanceof RequestBodyTooLarge?413:error instanceof OwnerOriginRejected?403:error instanceof UnauthorizedOwner?401:error instanceof OAuthFailure?400:503;
-    return NextResponse.json({error:"Connection consent could not be completed"},{status,headers:{"Cache-Control":"no-store"}});
+    const {status,code,nextAction}=oauthConsentFailure(error);
+    return NextResponse.json({error:"Connection consent could not be completed",code,nextAction},
+      {status,headers:{"Cache-Control":"no-store","Referrer-Policy":"no-referrer"}});
   }
 }
