@@ -34,5 +34,8 @@ test("a late technical blocker stops fenced source writes and merges before netw
   await assert.rejects(performFencedGithubWrite(db,id,"credential","1",{kind:"ensure_branch"}),/Technical question prerequisite unresolved/);
   await assert.rejects(mergeAssignedPullRequest(db,id,"credential","1",1,"a".repeat(40)),/Technical question prerequisite unresolved/);
   assert.equal(networkCalls,0);
-  assert.equal(agentToolFailure(new SessionConflict("Technical question prerequisite unresolved or retry evidence consumed")).structuredContent.error.code,"PREREQUISITE_BLOCKED");
+  const failure=agentToolFailure(new SessionConflict("Technical question prerequisite unresolved or retry evidence consumed")).structuredContent.error;
+  assert.equal(failure.code,"PREREQUISITE_BLOCKED");
+  assert.equal(failure.retryable,false);
+  assert.match(failure.nextAction,/Coffee Corner/);
 });
