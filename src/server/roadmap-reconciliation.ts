@@ -3,7 +3,7 @@ import type {CanonicalPlan} from "./roadmap-import.ts";
 import type {GitHubRepository} from "./github-app.ts";
 
 /** GitHub owns PR state. Local holds and in-progress work survive a refresh
- * which contains no newer PR evidence. An open follow-up revokes ACCEPTED. */
+ * which contains no newer PR evidence. An open follow-up can reopen an accepted *work unit*; it never revokes acceptance of a previously merged PR. */
 export const UPSERT_ROADMAP_UNIT_SQL=`INSERT INTO roadmap_units(repository_id,unit_id,title,version,approved,state,depends_on,planned_prs,acceptance_criteria,external_dependencies,external_prerequisites,source_metadata,source_observed_at)
   VALUES($1,$2,$3,$4,TRUE,$5,$6::jsonb,$7::jsonb,$8,$9::jsonb,$10::jsonb,$11::jsonb,now())
   ON CONFLICT(repository_id,unit_id) DO UPDATE SET title=excluded.title,version=excluded.version,approved=TRUE,
