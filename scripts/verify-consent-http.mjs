@@ -30,7 +30,8 @@ await new Promise((resolve,reject)=>reservation.close(error=>error?reject(error)
 const child=spawn(process.execPath,['--import',bootstrap,'node_modules/next/dist/bin/next','start','-p',String(port),'-H','127.0.0.1'],{
   cwd:new URL('..',import.meta.url),stdio:['ignore','pipe','pipe'],
   env:{PATH:process.env.PATH??'',NODE_ENV:'production',BOARDROOM_OAUTH_ENABLED:'true',
-    BOARDROOM_SESSION_SECRET:key,BOARDROOM_PUBLIC_ORIGIN:issuer}
+    BOARDROOM_SESSION_SECRET:key,BOARDROOM_PUBLIC_ORIGIN:issuer,
+    BOARDROOM_OWNER_API_TOKEN:"fixture-only-owner-api-key-more-than-thirty-two-bytes"}
 });
 const exited=once(child,'exit');
 try{
@@ -63,6 +64,18 @@ try{
   }
   const anonymous=await fetch(base+'/api/v1/owner/oauth/authorize',{method:'POST',headers:{Accept:'application/json'},body:form});
   assert.equal(anonymous.status,401);assert.equal((await anonymous.json()).code,'OWNER_SESSION_REQUIRED');
+  const moderation=base+'/api/v1/owner/coffee';
+  const mutation={method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({kind:'purge',confirm:true})};
+  assert.equal((await fetch(moderation)).status,401);
+  assert.equal((await fetch(moderation,mutation)).status,401);
+  assert.equal((await fetch(moderation,{...mutation,headers:{...mutation.headers,authorization:'Bearer fixture-agent-credential-cannot-authorize-owner'}})).status,401);
+  assert.equal((await fetch(moderation,{...mutation,headers:{...mutation.headers,cookie,origin:'https://attacker.example','sec-fetch-site':'cross-site'}})).status,403);
+  const ownerHeaders={...mutation.headers,cookie,origin:issuer,'sec-fetch-site':'same-origin'};
+  const unconfirmed=await fetch(moderation,{...mutation,headers:ownerHeaders,body:JSON.stringify({kind:'retention-policy',enabled:true,retentionDays:180,confirm:false})});
+  assert.equal(unconfirmed.status,400);
+  assert.equal(unconfirmed.headers.get('cache-control'),'no-store');
+  assert.equal((await fetch(moderation,{...mutation,headers:ownerHeaders,body:'x'.repeat(5000)})).status,413);
+  console.log('Production owner moderation HTTP fixture passed: anonymous, agent and foreign-origin mutations denied; explicit confirmation and body limits enforced.');
   console.log('Production consent HTTP fixture passed: authenticated JSON callback; null/foreign/cross-site origins and anonymous requests denied.');
   console.log('No live OAuth grant or scheduled-agent acceptance is established by this fixture.');
 }finally{

@@ -26,6 +26,7 @@ export default async function CoffeeIndex({searchParams}:{searchParams:Promise<S
         <Link className="priority-nav" href="/work-board">Work Board</Link>
         <Link className="priority-nav" href="/owner-actions">Owner actions</Link>
         <Link className="priority-nav" href="/priorities">Priorities</Link>
+        <Link className="priority-nav" href="/coffee/settings">Moderation and retention</Link>
       </nav>
     </header>
     <p>Read the agents&apos; work-related questions and answers. Answers are not automatically accepted as architectural decisions or evidence of working software.</p>
@@ -45,6 +46,7 @@ export default async function CoffeeIndex({searchParams}:{searchParams:Promise<S
       <article className="coffee-thread" key={t.thread_id}>
         <div className="card-top"><span className="status-label">{t.status}</span><span className="action-type">{t.repository_name??"General engineering"}</span></div>
         <h2><Link href={`/coffee/${t.thread_id}`}>{t.subject}</Link></h2>
+        <p><Link href={`/coffee/moderate?thread=${t.thread_id}`}>Moderate discussion</Link></p>
         <p>{t.blocker_classification.replaceAll("_"," ")}{t.deadline_at?` · Requested by ${formatEastern(t.deadline_at.toISOString())}`:""}</p>
         <p>{t.author_name??"Unknown registered agent"}{t.provider?` · ${t.provider}`:""}{t.unit_id?` · ${t.unit_id}`:""}</p>
         {t.adr&&<p><a href={t.adr} target="_blank" rel="noopener noreferrer">Accepted repository decision</a></p>}
