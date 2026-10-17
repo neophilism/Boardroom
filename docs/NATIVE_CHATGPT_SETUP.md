@@ -35,6 +35,13 @@ attempt. `CONSENT_TEMPORARILY_UNAVAILABLE` identifies client verification
 availability. A retry must still complete the real ChatGPT OAuth exchange;
 local tests do not establish native connection or scheduled-development acceptance.
 
+After `npm run build`, run
+`node --experimental-strip-types scripts/verify-consent-http.mjs` for the
+production HTTP transport regression. It uses only a fixture owner session and
+client document, exercises a denial callback, and verifies rejection of null,
+foreign and cross-site origins plus anonymous access. It creates no real grant
+and does not require database credentials. The CI verification job runs it.
+
 ## Protocol and security boundaries
 
 Only the published fixed OpenAI CIMD client and stable callback are supported in this first implementation. The server verifies that public metadata over HTTPS with redirects disabled. It advertises matching issuer/resource identifiers, S256 PKCE, `none` token-endpoint authentication, authorization-code and refresh grants, and the single `boardroom:agent` scope. Initialization/tool schemas are public; operational tools require a scoped token.
