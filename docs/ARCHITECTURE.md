@@ -18,6 +18,10 @@ Recurring ChatGPT tasks (and later Claude/Grok scheduled executions) all use the
 
 ## Constraints and threat boundaries
 
+The authenticated responsive shell, read-only audit view and authorization/
+browser fixtures are specified in [Owner workspace](OWNER_WORKSPACE.md).
+Layout authentication is defense in depth; pages and APIs retain their guards.
+
 - Strict repository exclusivity applies only to agents and GitHub writes routed through Boardroom enforcement. Unrestricted outside GitHub credentials can bypass that policy and require separate access controls.
 - Lease timeout alone cannot prove termination; block writable reassignment until old execution is confirmed stopped or fully fenced.
 - Server verification, not agent claims, determines PR status, test status, merges, deployments, and completion.

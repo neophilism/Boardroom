@@ -15,7 +15,7 @@ type Row={
 
 export default async function RepositoryPrioritiesPage(){
   const jar=await cookies();
-  if(!validOwnerSession(jar.get(OWNER_COOKIE)?.value))redirect("/login");
+  if(!validOwnerSession(jar.get(OWNER_COOKIE)?.value))redirect("/login?next=%2Fpriorities");
   const result=await getDatabase().query<Row>(
     `SELECT r.repository_id::text AS "repositoryId",r.full_name AS "fullName",r.description AS "description",
       p.position AS "position",r.last_development_at AS "lastDevelopmentAt",r.created_at AS "createdAt"

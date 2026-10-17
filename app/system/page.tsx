@@ -12,17 +12,12 @@ export const runtime="nodejs";
 export const dynamic="force-dynamic";
 export default async function BoardroomSystemPage(){
   const jar=await cookies();
-  if(!validOwnerSession(jar.get(OWNER_COOKIE)?.value))redirect("/login");
+  if(!validOwnerSession(jar.get(OWNER_COOKIE)?.value))redirect("/login?next=%2Fsystem");
   const system=await getSystemStatus(getDatabase(),process.env);
   return <main className="owner-shell">
     <header className="owner-header">
       <div><p className="eyebrow">BOARDROOM / OPERATIONAL STATUS</p><h1>System connections</h1></div>
-      <nav className="work-nav" aria-label="Boardroom owner views">
-        <Link className="priority-nav" href="/owner-actions">Owner actions</Link>
-        <Link className="priority-nav" href="/work-board">Work Board</Link>
-        <Link className="priority-nav" href="/agents">Scheduled agents</Link>
-        <Link className="priority-nav" href="/launch">Five-agent launch</Link>
-      </nav>
+
     </header>
     <p>These are live server-side connection checks. This page never displays credentials, private keys, or fake development activity. Green infrastructure checks do not imply that scheduled agents are working.</p>
     <div className="work-grid">

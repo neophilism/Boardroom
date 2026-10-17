@@ -9,6 +9,11 @@ import {createServer} from 'node:net';
 import {once} from 'node:events';
 import {issueOwnerCookie,OWNER_COOKIE} from '../src/server/owner-session.ts';
 import {submitOAuthConsent} from '../src/sdk/oauth-consent-client.ts';
+// Also exercise the shared owner shell using a separate isolated read-only fixture.
+import './verify-owner-ui-http.mjs';
+// GitHub's browser-equipped runner exercises real desktop/mobile interaction.
+// Local runs without a browser retain HTTP coverage and report no browser pass.
+if(process.env.GITHUB_ACTIONS==='true')await import('./verify-owner-ui-browser.mjs');
 
 const issuer='https://boardroom.example';
 const key='fixture-only-consent-session-key-more-than-thirty-two-bytes';

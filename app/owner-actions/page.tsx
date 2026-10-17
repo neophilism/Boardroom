@@ -20,7 +20,7 @@ const filterOptions=[
 const sortOptions=[["OLDEST","Oldest first"],["NEWEST","Newest first"],["STATUS","Status"],["TITLE","Title"]] as const;
 export default async function OwnerActionsPage({searchParams}:{searchParams:Promise<Record<string,string|string[]|undefined>>}){
   const jar=await cookies();
-  if(!validOwnerSession(jar.get(OWNER_COOKIE)?.value))redirect("/login");
+  if(!validOwnerSession(jar.get(OWNER_COOKIE)?.value))redirect("/login?next=%2Fowner-actions");
   const view=parseOwnerActionInboxView(await searchParams);
   const results=await getDatabase().query<ActionRow>(
     "SELECT a.action_id,a.action_key,a.title,a.action_type,a.instructions,a.requested_permissions,a.secure_entry_location,a.price_estimate_cents,a.status,a.created_at,COALESCE(json_agg(json_build_object('repositoryId',d.repository_id::text,'fullName',r.full_name,'unitId',d.unit_id) ORDER BY r.full_name,d.repository_id,d.unit_id) FILTER (WHERE d.repository_id IS NOT NULL),'[]'::json) AS affected FROM owner_actions a LEFT JOIN owner_action_dependents d ON d.action_id=a.action_id LEFT JOIN repositories r ON r.repository_id=d.repository_id GROUP BY a.action_id LIMIT 250"
@@ -31,12 +31,6 @@ export default async function OwnerActionsPage({searchParams}:{searchParams:Prom
   return <main className="owner-shell">
     <header className="owner-header">
       <div><p className="eyebrow">BOARDROOM / OWNER ACTION BOARD</p><h1>Needs your attention</h1></div>
-      <Link className="priority-nav" href="/priorities">Repository priorities</Link>
-      <Link className="priority-nav" href="/work-board">Live Work Board</Link>
-      <Link className="priority-nav" href="/coffee">Coffee Corner</Link>
-      <Link className="priority-nav" href="/agents">Scheduled agents</Link>
-      <Link className="priority-nav" href="/system">System status</Link>
-      <form action="/api/v1/owner/logout" method="post"><button type="submit" className="outline">Sign out</button></form>
     </header>
     <p>Agent-submitted requests requiring an account, permission, purchase, or decision. Enter credentials only in the designated external service&apos;s secure configuration.</p>
     <div className="summary-strip"><strong>{open.length}</strong> blocking or awaiting verification <span>·</span> <strong>{allActions.length}</strong> total recorded</div>

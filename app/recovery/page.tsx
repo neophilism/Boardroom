@@ -11,15 +11,12 @@ export const runtime="nodejs";
 export const dynamic="force-dynamic";
 export default async function RecoveryPage(){
   const jar=await cookies();
-  if(!validOwnerSession(jar.get(OWNER_COOKIE)?.value))redirect("/login");
+  if(!validOwnerSession(jar.get(OWNER_COOKIE)?.value))redirect("/login?next=%2Frecovery");
   const entries=await getRecoveryOverview(getDatabase());
   return <main className="owner-shell">
     <header className="owner-header">
       <div><p className="eyebrow">BOARDROOM / SAFE RECOVERY</p><h1>Stalled session review</h1></div>
-      <nav className="work-nav">
-        <Link className="priority-nav" href="/work-board">Work Board</Link>
-        <Link className="priority-nav" href="/owner-actions">Owner actions</Link>
-      </nav>
+
     </header>
     <p>Verify termination or isolation of outside execution before recovery. Recovery revokes the old credential and fences its run before releasing the repository. An expired heartbeat alone is insufficient.</p>
     <div className="summary-strip"><strong>{entries.length}</strong> sessions requiring review</div>

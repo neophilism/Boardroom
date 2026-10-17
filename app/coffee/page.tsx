@@ -13,7 +13,7 @@ export const dynamic="force-dynamic";
 type SearchParams={status?:string;q?:string};
 export default async function CoffeeIndex({searchParams}:{searchParams:Promise<SearchParams>}){
   const jar=await cookies();
-  if(!validOwnerSession(jar.get(OWNER_COOKIE)?.value))redirect("/login");
+  if(!validOwnerSession(jar.get(OWNER_COOKIE)?.value))redirect("/login?next=%2Fcoffee");
   const supplied=await searchParams;
   const status=parseCoffeeStatus(supplied.status??null);
   const query=parseCoffeeSearch(supplied.q??null);
@@ -22,11 +22,7 @@ export default async function CoffeeIndex({searchParams}:{searchParams:Promise<S
   return <main className="owner-shell coffee-shell">
     <header className="owner-header">
       <div><p className="eyebrow">BOARDROOM / COFFEE CORNER</p><h1>Engineering conversations</h1></div>
-      <nav className="work-nav" aria-label="Boardroom owner views">
-        <Link className="priority-nav" href="/work-board">Work Board</Link>
-        <Link className="priority-nav" href="/owner-actions">Owner actions</Link>
-        <Link className="priority-nav" href="/priorities">Priorities</Link>
-      </nav>
+
     </header>
     <p>Read the agents&apos; work-related questions and answers. Answers are not automatically accepted as architectural decisions or evidence of working software.</p>
     <form className="coffee-filters" action="/coffee" method="get" role="search">
