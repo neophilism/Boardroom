@@ -8,6 +8,19 @@ const facts:MergeFacts={draft:false,state:"open",headSha:"a".repeat(40),expected
   checkTotal:1,suites:[suite],
   suiteTotal:1,statuses:[],reviews:[]};
 const policy={auto_merge:true,required_checks:["verify"],minimum_reviews:0};
+test("an empty Render suite cannot satisfy a required check or remove current-head review gates",()=>{
+  const checks=[{...facts.checks[0],check_suite:{id:2},app:{id:15368,slug:"github-actions"}}];
+  const suites=[suite,{id:3,status:"queued",conclusion:null,latest_check_runs_count:0,
+    app:{id:14658,slug:"render"}}];
+  const observed={...facts,checks,suites,suiteTotal:2};
+  assert.deepEqual(mergeBlockers(policy,observed),[]);
+  assert.ok(mergeBlockers({...policy,required_checks:["verify","Render"]},observed)
+    .includes("REQUIRED_CHECK_MISSING"));
+  assert.ok(mergeBlockers(policy,{...observed,requiredReviewerLogin:"owner"})
+    .includes("CONTROL_PLANE_OWNER_REVIEW_REQUIRED"));
+  assert.ok(mergeBlockers(policy,{...observed,mergeStateStatus:"BLOCKED"})
+    .includes("GITHUB_MERGE_REQUIREMENTS_UNSATISFIED"));
+});
 test("only owner-enabled, current-head, correctly scoped green PRs are eligible",()=>{
   assert.deepEqual(mergeBlockers(policy,facts),[]);
   for(const patch of [{auto_merge:false},{required_checks:[]},{required_checks:["security"]},{minimum_reviews:1}])
