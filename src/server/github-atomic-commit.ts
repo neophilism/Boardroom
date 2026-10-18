@@ -10,7 +10,7 @@ const validSha=(s:unknown):s is string=>typeof s==="string"&&/^[a-f0-9]{40}$/i.t
 /** Internal only: invoke with validated input while holding the assignment's
  * repository lease lock. Git objects are staged first; only the final non-force
  * ref update makes the entire change visible to the branch and CI. */
-export async function commitAssignedFiles(api:string,branch:string,op:CommitFiles,transport=githubAppRequest){
+export async function commitAssignedFiles(api:string,branch:string,op:CommitFiles,transport=githubAppRequest,reconcileOnly=false){
   const refPath=api+"/git/refs/heads/"+branch;
   const readHead=async()=>{
     const ref=await transport("GET",api+"/git/ref/heads/"+branch) as {object?:{sha?:string}};
@@ -20,6 +20,10 @@ export async function commitAssignedFiles(api:string,branch:string,op:CommitFile
   const head=await readHead();
   const current=await transport("GET",api+"/git/commits/"+head) as Commit;
   const replay=head!==op.expectedHeadSha;
+  // A prior intent plus the original head cannot distinguish a never-executed
+  // write from a successful commit that an outside actor later reverted.
+  if(reconcileOnly&&!replay)
+    throw new SessionConflict("Prior commit intent needs source reconciliation; replay cannot republish a reverted branch");
   if(replay&&(!Array.isArray(current.parents)||current.parents.length!==1||
     current.parents[0].sha!==op.expectedHeadSha||current.message!==op.message))throw new GitHubAppError(409);
   const base=replay?await transport("GET",api+"/git/commits/"+op.expectedHeadSha) as Commit:current;
