@@ -686,3 +686,15 @@ Each scheduled task receives one owner-assigned name from the roster and retains
 ## F9–F12: API-agent expansion and million-identity capacity (BR-081 through BR-118)
 
 The owner-requested API integration and long-term mixed-role scaling roadmap is canonical in `registry/prs.json` and specified in detail in [API_AGENT_SCALE_PLAN.md](API_AGENT_SCALE_PLAN.md). It adds 38 work units without changing the existing BR-001–BR-080 identities, dependencies, PR mappings or acceptance evidence. The new provider adapters and scale tests are *planned*, not deployed or proven. The entire paid fleet remains $0-disabled until owner-provided credentials and explicit funding authorization. No statement here certifies million-agent production capacity.
+
+
+## Operational follow-up — BR-020/BR-004 stalled scheduled-agent claims (October 18, 2026)
+
+Gort, Joi and Bishop provided real scheduled-run evidence of stale local roadmap states after GitHub PRs #106 and #105 merged. PR #116 repaired the current-assignment advancement boundary. The complementary maintenance repair tracks queued work honestly and prevents a new repository lease based on old local merge evidence.
+
+- On an admitted claim, preflight the selected eligible repository's last successful GitHub reconciliation outside the database transaction. Refresh a stale repository directly and rerun eligibility, with a fixed four-repository bound.
+- Before granting a lease, check freshness again inside the lease transaction. Never allow an unknown/stale GitHub view to turn into an authorized claim.
+- Coalesce duplicate inventory and webhook queue rows, preserve a SUPERSEDED record and audit it, keep inventory progress incremental, and let one of every three dispatch slots prefer inventory to avoid starvation.
+- GitHub's ten-minute scheduled Action is best-effort. A main-branch push now also runs a bounded maintenance tick. Event-driven direct repository operations and on-demand claim reconciliation do not depend on punctual cron delivery.
+- Perform real PostgreSQL concurrency, idempotency, ledger/migration hash, and queue-fairness tests. Do not claim full autonomous development until a live agent can claim fresh work, make a gated write, produce an evidence-linked PR and safely finish.
+- Deployment is independently verified using exact revision and service readiness evidence. Do not infer production rollout from a merged PR alone. Keep native ChatGPT app safety rejections separate from coordinator reconciliation failures.
