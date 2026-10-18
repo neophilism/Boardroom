@@ -65,9 +65,10 @@ export function normalizeGeminiInteraction(source:unknown,allowedTools:ReadonlyS
     status:source.status as "completed"|"requires_action"};
 }
 export class GeminiTransportFailure extends Error{
-  constructor(readonly status:number){
+  readonly status:number;
+  constructor(status:number){
     super("Gemini transport returned HTTP "+status);
-    this.name="GeminiTransportFailure";
+    this.name="GeminiTransportFailure";this.status=status;
   }
 }
 export class GeminiStatelessSession{
