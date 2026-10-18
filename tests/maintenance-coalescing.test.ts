@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import type {Pool,PoolClient} from "pg";
 import {queueInventoryRefresh,queueRepositoryRefresh,preferredMaintenanceKind} from "../src/server/outbox.ts";
-import {claimAssignment,reconciliationExpired,REPOSITORY_CLAIM_QUERY,REPOSITORY_CONTINUATION_CLAIM_QUERY,AssignmentConflict} from "../src/server/assignment.ts";
+import {claimAssignment,reconciliationExpired,REPOSITORY_CLAIM_QUERY,REPOSITORY_CONTINUATION_CLAIM_QUERY,FRESH_REPOSITORY_CLAIM_QUERY,REPOSITORY_REFRESH_CANDIDATE_QUERY,AssignmentRefreshPending} from "../src/server/assignment.ts";
 
 type Recorded={sql:string;params:unknown[]};
 function mockInventory(queued:number,running=false){
@@ -94,7 +94,7 @@ test("fresh GitHub reconciliation removes merged work before a lease can be allo
   const db={
     query:async(sql:string)=>{
       if(sql.includes("SELECT state FROM agent_runs"))return {rows:[{state:"ADMITTED"}],rowCount:1};
-      if(sql.includes("WITH RECURSIVE dependency_edges")){
+      if(sql===REPOSITORY_REFRESH_CANDIDATE_QUERY){
         assert.doesNotMatch(sql,/FOR UPDATE/);
         selections++;
         return selections===1?{rows:[{repository_id:"1415596507",last_success_at:new Date(0)}],rowCount:1}
@@ -110,19 +110,24 @@ test("fresh GitHub reconciliation removes merged work before a lease can be allo
   assert.equal(refreshes,1);
   assert.equal(leaseWrites,0);
 });
-test("GitHub preclaim outage fails closed before acquiring a lease",async()=>{
-  let connected=false;
-  const db={
-    query:async(sql:string)=>{
-      if(sql.includes("SELECT state FROM agent_runs"))return {rows:[{state:"ADMITTED"}],rowCount:1};
-      if(sql.includes("WITH RECURSIVE dependency_edges")){
-        assert.doesNotMatch(sql,/FOR UPDATE/);
-        return {rows:[{repository_id:"1415596507",last_success_at:new Date(0)}],rowCount:1};
-      }
-      throw new Error("Unexpected SQL read");
-    },connect:async()=>{connected=true;throw new Error("Should not acquire a lease");}
-  } as unknown as Pool;
+test("GitHub preclaim outage reports recoverable synchronization, never false IDLE",async()=>{
+  let leaseWrites=0;
+  const stale={repository_id:"1415596507",last_success_at:new Date(0)};
+  const client={query:async(sql:string)=>{
+    if(sql.includes(" AS within_budget "))return {rows:[{within_budget:true}],rowCount:1};
+    if(sql.includes("SELECT run_id, state FROM agent_runs"))return {rows:[{state:"ADMITTED"}],rowCount:1};
+    if(sql===REPOSITORY_CONTINUATION_CLAIM_QUERY)return {rows:[stale],rowCount:1};
+    if(sql.includes("UPDATE repository_leases"))leaseWrites++;
+    return {rows:[],rowCount:0};
+  },release:()=>{}};
+  const db={query:async(sql:string,params:unknown[])=>{
+    if(sql.includes("SELECT state FROM agent_runs"))return {rows:[{state:"ADMITTED"}],rowCount:1};
+    if(sql===REPOSITORY_REFRESH_CANDIDATE_QUERY)return (params[1] as string[]).length?{rows:[],rowCount:0}:{rows:[stale],rowCount:1};
+    if(sql.includes("INSERT INTO audit_events"))return {rows:[],rowCount:1};
+    throw new Error("Unexpected SQL read");
+  },connect:async()=>client} as unknown as Pool;
   await assert.rejects(claimAssignment(db,"00000000-0000-4000-8000-000000000001","00000000-0000-4000-8000-000000000002",
-    async()=>{throw new Error("GitHub outage");}),AssignmentConflict);
-  assert.equal(connected,false);
+    async()=>{throw new Error("GitHub outage");}),AssignmentRefreshPending);
+  assert.equal(leaseWrites,0);
+  assert.match(FRESH_REPOSITORY_CLAIM_QUERY,/sync.last_success_at>=now\(\)-interval '60 seconds'/);
 });

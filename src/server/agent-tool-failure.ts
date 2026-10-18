@@ -1,6 +1,6 @@
 import {WorkMappingConflict} from "./work-branch.ts";
 import {SessionConflict,ContinuationRequired,ReleaseReconciliationRequired} from "./sessions.ts";
-import {AssignmentConflict} from "./assignment.ts";
+import {AssignmentConflict,AssignmentRefreshPending} from "./assignment.ts";
 import {GithubWriteValidation} from "./github-write-gateway.ts";
 import {GitHubAppError,GitHubAppSetupFailure} from "./github-app.ts";
 import {CoffeeError,CoffeeRateLimit} from "./coffee.ts";
@@ -13,7 +13,9 @@ type Failure={code:string;message:string;nextAction:string;retryable:boolean};
 export function agentToolFailure(error:unknown){
   let failure:Failure={code:"SERVICE_UNAVAILABLE",message:"Boardroom could not complete the operation.",
     nextAction:"Reconcile the current assignment, source or PR before a bounded retry. If the service remains unavailable, report the blocker; do not assume the write failed or release succeeded.",retryable:true};
-  if(error instanceof ReleaseReconciliationRequired)failure={code:"RELEASE_RECONCILIATION_REQUIRED",message:error.message,
+  if(error instanceof AssignmentRefreshPending)failure={code:"ASSIGNMENT_REFRESH_PENDING",message:error.message,
+    nextAction:"No repository lease was granted. Keep the same admitted runId and retry boardroom_claim with bounded backoff (at most three retries). Do not call arrive again or classify this as IDLE. If synchronization remains unavailable, report the exact error and use an evidenced capability stop; preserve the recurring schedule.",retryable:true};
+  else if(error instanceof ReleaseReconciliationRequired)failure={code:"RELEASE_RECONCILIATION_REQUIRED",message:error.message,
     nextAction:"Stop this activation now. Boardroom fenced this run and retained its assignment because a remote GitHub effect remains unresolved. Do not continue work, renew the heartbeat, repeat the mutation or claim a release. Report the operation identifier and requested stop outcome; maintenance must reconcile the remote result before safe release. Preserve the recurring schedule.",retryable:false};
   else if(error instanceof GithubOperationUncertain)failure={code:"GITHUB_OPERATION_UNCERTAIN",message:error.message,
     nextAction:"The remote mutation may have succeeded. Read boardroom_source or boardroom_pr_evidence for the current assigned branch/PR and preserve the observed references in a checkpoint. Boardroom must reconcile the saved intent against source-bound evidence before another mutation. Do not repeat the mutation, claim it failed, switch connectors or assume the assignment was released. Continue only under the current live run and generation; if stopping, call finish and respect any retained reconciliation hold.",retryable:false};
