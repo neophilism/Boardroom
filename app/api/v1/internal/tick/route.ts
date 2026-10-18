@@ -12,7 +12,7 @@ export async function POST(request:Request){
   if(!principal)return NextResponse.json({error:"Unauthorized"},{status:401,headers});
   try{
     const db=getDatabase();const watchdog=await scanStaleSessions(db);
-    await queueInventoryRefresh(db);const outbox=await dispatchOutbox(db,3);
+    await queueInventoryRefresh(db);const outbox=await dispatchOutbox(db,4);
     const approvals=await reconcilePrApprovalActions(db);
     await db.query("INSERT INTO audit_events(kind,details) VALUES('maintenance.tick.completed',$1::jsonb)",
       [JSON.stringify({watchdog,outbox,approvals,automaticLeaseRelease:false,principal})]);

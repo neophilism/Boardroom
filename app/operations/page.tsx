@@ -12,6 +12,20 @@ export default async function OperationsPage(){
   return <main className="owner-shell"><header className="owner-header"><div><p className="eyebrow">BOARDROOM / OPERATIONS</p><h1>Execution controls</h1></div>
     <nav className="work-nav"><Link href="/work-board">Work board</Link><Link href="/owner-actions">Owner actions</Link><Link href="/recovery">Recovery</Link><Link href="/reports">Daily report</Link><Link href="/observatory">Usage observatory</Link><Link href="/system">System status</Link></nav></header>
     <OperationsControls paused={info.paused} repositories={info.repositories}/>
+    <h2>Maintenance queue</h2>
+    <p>Server-observed queue operations, including coalesced requests. SUPERSEDED means deliberately skipped as redundant, not completed.</p>
+    {info.outbox.length===0?<p>No maintenance operations are recorded.</p>:<div className="work-grid">{info.outbox.map((item,index)=><article className="action-card" key={index}>
+      <h3>{item.operationType}</h3>
+      <p>{item.state}: <strong>{item.count}</strong></p>
+      <p>Oldest request: {item.oldestCreatedAt?new Date(item.oldestCreatedAt).toISOString():"Unavailable"}</p>
+    </article>)}</div>}
+    <h2>Repository synchronization</h2>
+    <p>GitHub reconciliation timestamps, not agent self-reports. A repository without a successful sync cannot be assumed current.</p>
+    {info.repositoryFreshness.length===0?<p>No enabled repositories recorded.</p>:<div className="work-grid">{info.repositoryFreshness.map(r=><article className="action-card" key={r.fullName}>
+      <h3>{r.fullName}</h3><p>Plan status: {r.planStatus??"UNVERIFIED"}</p>
+      <p>Last successful sync: {r.lastSuccessAt?new Date(r.lastSuccessAt).toISOString():"Never"}</p>
+      {r.lastError&&<p>Last error: {r.lastError}</p>}
+    </article>)}</div>}
     <h2>Sessions</h2>
     {info.runs.length===0?<p>No sessions have run.</p>:<div className="work-grid">{info.runs.map(r=><article className="action-card" key={r.run_id}>
       <h3>{r.label}</h3><p>{r.state} · {r.provider}</p><p>{r.full_name??"No active assignment"} {r.unit_id??""}</p><p>Last seen: {new Date(r.last_seen_at).toISOString()}</p>

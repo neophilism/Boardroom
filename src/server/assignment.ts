@@ -1,5 +1,6 @@
 import type { Pool, PoolClient } from "pg";
 import {TECHNICAL_RECOVERY_ELIGIBLE_SQL} from "./work-recovery.ts";
+import {synchronizeRepositoryById} from "./repository-sync.ts";
 
 export type ClaimedAssignment = {
   assignmentId: string;
@@ -14,7 +15,7 @@ export type ClaimedAssignment = {
 export class AssignmentConflict extends Error { constructor(message: string) { super(message); this.name = "AssignmentConflict"; } }
 
 type Session = { run_id: string; state: string };
-type Eligible = { repository_id: string; full_name: string; unit_id: string; unit_state:string };
+type Eligible = { repository_id: string; full_name: string; unit_id: string; unit_state:string; last_success_at:Date|null };
 type Lease = { generation: string; expires_at: Date };
 type Existing = { assignment_id: string; repository_id: string; full_name: string; unit_id: string; generation: string; expires_at: Date };
 
@@ -42,9 +43,10 @@ export const REPOSITORY_CLAIM_QUERY = String.raw`
   ), effective_priority AS (
     SELECT repository_id,MIN(position) AS position FROM inherited_priority GROUP BY repository_id
   )
-  SELECT r.repository_id, r.full_name, chosen.unit_id, chosen.unit_state
+  SELECT r.repository_id, r.full_name, chosen.unit_id, chosen.unit_state, sync.last_success_at
   FROM repositories r
   JOIN repository_leases l ON l.repository_id = r.repository_id
+  LEFT JOIN repository_sync_status sync ON sync.repository_id=r.repository_id
   LEFT JOIN effective_priority p ON p.repository_id = r.repository_id
   JOIN LATERAL (
     SELECT w.unit_id,w.state AS unit_state
@@ -110,7 +112,29 @@ async function existingAssignment(client: PoolClient, runId: string): Promise<Cl
   };
 }
 
-export async function claimAssignment(db: Pool, runId: string, credentialId: string): Promise<ClaimedAssignment | null> {
+/** A recently verified plan can be assigned; a stale one must be re-read
+ * from GitHub before granting an exclusive lease. No stale row is admitted. */
+export function reconciliationExpired(value:Date|string|null|undefined,now=Date.now()):boolean{
+  if(!value)return true;
+  const when=value instanceof Date?value.getTime():Date.parse(value);
+  return !Number.isFinite(when)||when>now+60000||now-when>60000;
+}
+
+export async function claimAssignment(db: Pool, runId: string, credentialId: string,
+  refreshRepository:(repositoryId:string)=>Promise<unknown>=synchronizeRepositoryById): Promise<ClaimedAssignment | null> {
+  // Network I/O happens outside the lease transaction. Only a server-admitted
+  // principal may provoke repository reconciliation; do not permit untrusted
+  // requests to turn this endpoint into an unauthenticated GitHub poller.
+  const admission=await db.query<{state:string}>(
+    "SELECT state FROM agent_runs WHERE run_id=$1 AND credential_id=$2",[runId,credentialId]);
+  if(admission.rows[0]?.state==="ADMITTED"){
+    for(let attempt=0;attempt<4;attempt++){
+      const candidate=(await db.query<Eligible>(REPOSITORY_CLAIM_QUERY)).rows[0];
+      if(!candidate||!reconciliationExpired(candidate.last_success_at))break;
+      try{await refreshRepository(String(candidate.repository_id));}
+      catch{throw new AssignmentConflict("Authoritative repository reconciliation unavailable; no stale work assigned");}
+    }
+  }
   const client = await db.connect();
   let committed = false;
   try {
@@ -136,6 +160,8 @@ export async function claimAssignment(db: Pool, runId: string, credentialId: str
       committed = true;
       return null;
     }
+    if(reconciliationExpired(choice.rows[0].last_success_at))
+      throw new AssignmentConflict("Repository state is stale; retry after authoritative GitHub synchronization");
     const { repository_id: repositoryId, full_name: fullName, unit_id: unitId } = choice.rows[0];
     const changed = await client.query<Lease>(
       `UPDATE repository_leases SET

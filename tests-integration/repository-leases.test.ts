@@ -39,6 +39,7 @@ before(async()=>{
     "($2,'CI-002','Priority fixture',1,TRUE,'PENDING')",
     repoIds
   );
+  await db.query("INSERT INTO repository_sync_status(repository_id,last_success_at,plan_status) VALUES($1,now(),'VERIFIED'),($2,now(),'VERIFIED')",repoIds);
   for(const [i,name] of ["Smith","Eve","Gort","C-3PO"].entries()){
     const key=String(i+1).repeat(64);
     const result=await db.query<{credential_id:string}>(
@@ -184,6 +185,7 @@ test("500 named activations contend for 50 repos without duplicate ownership",as
     await db.query("INSERT INTO repositories(repository_id,full_name,created_at) VALUES($1,$2,now())",[id,"ci/stress-"+i]);
     await db.query("INSERT INTO repository_leases(repository_id) VALUES($1)",[id]);
     await db.query("INSERT INTO roadmap_units(repository_id,unit_id,title,version,approved) VALUES($1,'STRESS-001','Concurrency fixture',1,TRUE)",[id]);
+    await db.query("INSERT INTO repository_sync_status(repository_id,last_success_at,plan_status) VALUES($1,now(),'VERIFIED')",[id]);
   }
   const identities:{id:string;run:string}[]=[];
   for(const [i,name] of names.entries()){
