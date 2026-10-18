@@ -39,3 +39,32 @@ test("reject invalid scan limits without connecting",async()=>{
   await assert.rejects(scanStaleSessions(x.db,101));
   assert.equal(x.statements.length,0);
 });
+
+test("native recovery refuses invalid limits",async()=>{
+  const x=fake([]);
+  const {recoverFencedOAuthSessions}=await import("../src/server/watchdog.ts");
+  await assert.rejects(recoverFencedOAuthSessions(x.db,0));
+  await assert.rejects(recoverFencedOAuthSessions(x.db,101));
+});
+test("native recovery preserves OAuth credentials and fences the old generation",async()=>{
+  const {recoverFencedOAuthSessions}=await import("../src/server/watchdog.ts");
+  const x=fake([{}, {rows:[{run_id:"run",repository_id:"123",generation:"2",expires_at:new Date(0)}]},
+    {rows:[{run_id:"run",generation:"2",expires_at:new Date(0)}]},
+    {rows:[{assignment_id:"assigned",lease_generation:"2"}]},
+    {rows:[]},{count:1},{count:1},{count:1},{count:1},{count:1},{count:1},{count:1},{}]);
+  const result=await recoverFencedOAuthSessions(x.db);
+  assert.equal(result.released,1);
+  assert.ok(x.statements.some(s=>s.includes("generation=generation+1")));
+  assert.ok(!x.statements.some(s=>s.startsWith("UPDATE agent_credentials")));
+  assert.ok(x.statements.some(s=>s.includes("agent.run.oauth_fenced_and_released")));
+});
+test("native recovery holds uncertain GitHub effects and does not release a lease",async()=>{
+  const {recoverFencedOAuthSessions}=await import("../src/server/watchdog.ts");
+  const x=fake([{}, {rows:[{run_id:"run",repository_id:"123",generation:"2",expires_at:new Date(0)}]},
+    {rows:[{run_id:"run",generation:"2",expires_at:new Date(0)}]},
+    {rows:[{assignment_id:"assigned",lease_generation:"2"}]},{rows:[{exists:1}]},{}]);
+  const result=await recoverFencedOAuthSessions(x.db);
+  assert.equal(result.released,0);
+  assert.equal(result.heldForAmbiguousWrites,1);
+  assert.ok(!x.statements.some(s=>s.startsWith("UPDATE repository_leases")));
+});
