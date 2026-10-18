@@ -69,6 +69,7 @@ export default async function WorkBoardPage(){
         <Link className="priority-nav" href="/system">System status</Link>
         <Link className="priority-nav" href="/recovery">Recovery queue</Link>
         <Link className="priority-nav" href="/operations">Operations</Link>
+        <Link className="priority-nav" href="/observatory">Usage observatory</Link>
         <Link className="priority-nav" href="/reports">Daily report</Link>
       </nav>
     </header>

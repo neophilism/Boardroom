@@ -10,7 +10,7 @@ export default async function OperationsPage(){
   if(!validOwnerSession((await cookies()).get(OWNER_COOKIE)?.value))redirect("/login");
   const info=await operationsOverview(getDatabase());
   return <main className="owner-shell"><header className="owner-header"><div><p className="eyebrow">BOARDROOM / OPERATIONS</p><h1>Execution controls</h1></div>
-    <nav className="work-nav"><Link href="/work-board">Work board</Link><Link href="/owner-actions">Owner actions</Link><Link href="/recovery">Recovery</Link><Link href="/reports">Daily report</Link><Link href="/system">System status</Link></nav></header>
+    <nav className="work-nav"><Link href="/work-board">Work board</Link><Link href="/owner-actions">Owner actions</Link><Link href="/recovery">Recovery</Link><Link href="/reports">Daily report</Link><Link href="/observatory">Usage observatory</Link><Link href="/system">System status</Link></nav></header>
     <OperationsControls paused={info.paused} repositories={info.repositories}/>
     <h2>Sessions</h2>
     {info.runs.length===0?<p>No sessions have run.</p>:<div className="work-grid">{info.runs.map(r=><article className="action-card" key={r.run_id}>

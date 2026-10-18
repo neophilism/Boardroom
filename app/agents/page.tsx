@@ -21,6 +21,7 @@ export default async function AgentAdministrationPage(){
         <Link className="priority-nav" href="/work-board">Work Board</Link>
         <Link className="priority-nav" href="/priorities">Priorities</Link>
         <Link className="priority-nav" href="/coffee">Coffee Corner</Link>
+        <Link className="priority-nav" href="/observatory">Usage observatory</Link>
         <Link className="priority-nav" href="/system">System status</Link>
         <Link className="priority-nav" href="/launch">Five-agent launch</Link>
       </nav>

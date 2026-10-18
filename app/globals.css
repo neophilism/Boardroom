@@ -123,3 +123,34 @@ button.outline{background:transparent;color:#bedbe8;border:1px solid #6f899a}
 .action-detail-grid a{color:#9ddff1;overflow-wrap:anywhere}
 .detail-instructions{white-space:pre-wrap;color:#e5eef5}
 @media(max-width:640px){.action-detail-grid{grid-template-columns:1fr}}
+
+/* Private agent usage observatory; no client-side polling or paid provider calls. */
+.usage-observatory{display:grid;gap:20px;padding:18px 0 40px}
+.usage-observatory .action-card h2{margin:0 0 14px;font-size:20px}
+.usage-observatory .action-card p{font-size:14px;max-width:none}
+.usage-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(185px,100%),1fr));gap:12px}
+.usage-kpis article{display:flex;flex-direction:column;gap:12px;min-height:117px;padding:18px;border:1px solid #30475b;border-radius:12px;background:#102033}
+.usage-kpis small{font-size:12px;line-height:1.4;color:#afc8d7}
+.usage-kpis strong{font-size:27px;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.usage-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(225px,100%),1fr));gap:12px}
+.usage-stats>div{padding:12px;border:1px solid #30475b;border-radius:8px;min-width:0}
+.usage-stats dt{color:#acc3d2;font-size:12px;margin-bottom:7px}
+.usage-stats dd{margin:0;overflow-wrap:anywhere;font-size:14px;font-variant-numeric:tabular-nums}
+.usage-days{display:grid;gap:8px;margin-top:18px}
+.usage-day{display:grid;grid-template-columns:52px minmax(40px,1fr) 105px minmax(135px,180px);align-items:center;gap:9px;font-size:13px}
+.usage-day strong,.usage-day small{font-variant-numeric:tabular-nums}
+.usage-day small{color:#b9cbd9;text-align:right}
+.usage-meter{height:8px;border-radius:20px;overflow:hidden;background:#273b4d;min-width:40px}
+.usage-meter span{display:block;height:100%;background:#86cada;border-radius:20px;transition:width .12s}
+.usage-filters{display:flex;flex-wrap:wrap;align-items:flex-end;gap:14px;margin:18px 0}
+.usage-filters label{display:grid;gap:6px;color:#dcebf5;font-size:13px}
+.usage-filters input,.usage-filters select{background:#0a1525;border:1px solid #68889a;border-radius:8px;padding:9px;color:#fff;font:inherit;max-width:100%}
+.usage-table-wrap{overflow-x:auto;max-width:100%;border:1px solid #30475b;border-radius:10px}
+.usage-table{border-collapse:collapse;width:100%;min-width:835px;font-variant-numeric:tabular-nums;text-align:left}
+.usage-table th,.usage-table td{padding:12px 10px;border-bottom:1px solid #30475b;vertical-align:middle;font-size:13px}
+.usage-table thead th{position:sticky;top:0;background:#1a3044;color:#dfeef6;font-size:12px}
+.usage-table tbody th small{display:block;margin-top:5px;font-weight:normal;color:#a7c0d1}
+.usage-table tbody th button{padding:6px 9px}
+.usage-table td strong{font-size:12px;white-space:nowrap}
+.usage-table td .usage-meter{min-width:80px;margin-top:8px}
+@media(max-width:600px){.usage-day{grid-template-columns:45px minmax(60px,1fr) 90px}.usage-day small{grid-column:2 / 4;text-align:left}.usage-kpis strong{font-size:23px}}
