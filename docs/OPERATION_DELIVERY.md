@@ -53,8 +53,10 @@ ready-state reads, and an observed merged PR bound to the expected head. A
 confirmed receipt is **not** blindly replayed as a current branch snapshot.
 Repeated single-file requests are read-only unless exact content equality proves
 the prior result; an outside deletion cannot cause an old intent to recreate a
-file. PR discovery includes closed history, so a lost response followed by PR
-closure cannot create a duplicate PR for the same branch.
+file. A prior branch, multi-file commit, ready-state or PR-metadata intent also
+fails closed after an outside deletion, reset, re-draft or edit; it never restores
+that superseded state. PR discovery includes closed history, so a lost response
+followed by PR closure cannot create a duplicate PR for the same branch.
 Successful reconciliation/write and its CONFIRMED receipt/audit commit together.
 An error leaves UNCERTAIN (or the previously committed INTENDED row if the DB is
 unreachable); an ambiguous database commit never downgrades CONFIRMED.
