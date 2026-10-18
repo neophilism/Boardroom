@@ -94,7 +94,8 @@ test("fresh GitHub reconciliation removes merged work before a lease can be allo
   const db={
     query:async(sql:string)=>{
       if(sql.includes("SELECT state FROM agent_runs"))return {rows:[{state:"ADMITTED"}],rowCount:1};
-      if(sql===REPOSITORY_CONTINUATION_CLAIM_QUERY){
+      if(sql.includes("WITH RECURSIVE dependency_edges")){
+        assert.doesNotMatch(sql,/FOR UPDATE/);
         selections++;
         return selections===1?{rows:[{repository_id:"1415596507",last_success_at:new Date(0)}],rowCount:1}
           :{rows:[],rowCount:0};
@@ -114,7 +115,10 @@ test("GitHub preclaim outage fails closed before acquiring a lease",async()=>{
   const db={
     query:async(sql:string)=>{
       if(sql.includes("SELECT state FROM agent_runs"))return {rows:[{state:"ADMITTED"}],rowCount:1};
-      if(sql===REPOSITORY_CONTINUATION_CLAIM_QUERY)return {rows:[{repository_id:"1415596507",last_success_at:new Date(0)}],rowCount:1};
+      if(sql.includes("WITH RECURSIVE dependency_edges")){
+        assert.doesNotMatch(sql,/FOR UPDATE/);
+        return {rows:[{repository_id:"1415596507",last_success_at:new Date(0)}],rowCount:1};
+      }
       throw new Error("Unexpected SQL read");
     },connect:async()=>{connected=true;throw new Error("Should not acquire a lease");}
   } as unknown as Pool;

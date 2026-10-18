@@ -23,7 +23,7 @@ type Existing = { assignment_id: string; repository_id: string; full_name: strin
  * Priority position takes precedence; otherwise sort by last actual GitHub development event.
  * Expired but still assigned leases are excluded until explicit fenced recovery.
  */
-function buildRepositoryClaimQuery(excludePreviouslyAttempted:boolean):string { return String.raw`
+function buildRepositoryClaimQuery(excludePreviouslyAttempted:boolean,lockLease=true):string { return String.raw`
   WITH RECURSIVE dependency_edges AS (
     SELECT repository_id,unit_id,prerequisite_repository_id,prerequisite_unit_id FROM compatibility_dependencies
     UNION
@@ -97,11 +97,12 @@ function buildRepositoryClaimQuery(excludePreviouslyAttempted:boolean):string { 
     p.position ASC NULLS LAST,
     COALESCE(r.last_development_at, r.created_at) ASC,
     r.repository_id ASC
-  FOR UPDATE OF l SKIP LOCKED
+  ${lockLease?"FOR UPDATE OF l SKIP LOCKED":""}
   LIMIT 1
 `; }
 export const REPOSITORY_CLAIM_QUERY=buildRepositoryClaimQuery(false);
 export const REPOSITORY_CONTINUATION_CLAIM_QUERY=buildRepositoryClaimQuery(true);
+const REPOSITORY_CONTINUATION_PREFLIGHT_QUERY=buildRepositoryClaimQuery(true,false);
 
 async function existingAssignment(client: PoolClient, runId: string): Promise<ClaimedAssignment | null> {
   const current = await client.query<Existing>(
@@ -141,7 +142,10 @@ export async function claimAssignment(db: Pool, runId: string, credentialId: str
     "SELECT state FROM agent_runs WHERE run_id=$1 AND credential_id=$2",[runId,credentialId]);
   if(admission.rows[0]?.state==="ADMITTED"){
     for(let attempt=0;attempt<4;attempt++){
-      const candidate=(await db.query<Eligible>(REPOSITORY_CONTINUATION_CLAIM_QUERY,[runId])).rows[0];
+      // A freshness preview must not reserve a free lease before taking the
+      // run lock: it could hide the only candidate from a concurrent replay.
+      // Eligibility and freshness are checked again by the locked claim below.
+      const candidate=(await db.query<Eligible>(REPOSITORY_CONTINUATION_PREFLIGHT_QUERY,[runId])).rows[0];
       if(!candidate||!reconciliationExpired(candidate.last_success_at))break;
       try{await refreshRepository(String(candidate.repository_id));}
       catch{throw new AssignmentConflict("Authoritative repository reconciliation unavailable; no stale work assigned");}

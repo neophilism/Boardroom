@@ -1,6 +1,6 @@
 import type {Pool} from "pg";
 import {githubAppRequest,GitHubAppError} from "./github-app.ts";
-import {assignedPrNumbers,assertAssignedPull,type WorkPull} from "./work-branch.ts";
+import {assignedPrNumbers,assertAssignedEvidencePull,type WorkPull} from "./work-branch.ts";
 import {isValidRunId,isValidGeneration,SessionConflict} from "./sessions.ts";
 
 export type CheckRun={
@@ -83,7 +83,7 @@ type Scope={
   acceptance_criteria:string|null;source_observed_at:Date|string|null;source_metadata:unknown;
 };
 export async function readAssignedPrEvidence(db:Pool,runId:string,credentialId:string,
-  generation:string,prNumber:number){
+  generation:string,prNumber:number,request:typeof githubAppRequest=githubAppRequest){
   if(!isValidRunId(runId)||!isValidGeneration(generation)||
      !Number.isSafeInteger(prNumber)||prNumber<=0)
     throw new SessionConflict("Invalid run, lease generation, or PR number");
@@ -106,33 +106,33 @@ export async function readAssignedPrEvidence(db:Pool,runId:string,credentialId:s
     throw new Error("Invalid registered repository identity");
   const url="/repos/"+parts.map(encodeURIComponent).join("/");
   const pullPath=url+"/pulls/"+prNumber;
-  const pr=await githubAppRequest("GET",pullPath) as {
+  const pr=await request("GET",pullPath) as {
     number:number;html_url:string;state:string;draft:boolean;merged_at:string|null;
     created_at?:string|null;updated_at?:string|null;
     head?:{sha?:string;ref?:string;repo?:{id?:number}};
     base?:{ref?:string;repo?:{id?:number}};
   };
-  const branch=assertAssignedPull(scope,prNumber,await assignedPrNumbers(db,scope),pr as WorkPull);
+  const {branch,relationship}=assertAssignedEvidencePull(scope,prNumber,await assignedPrNumbers(db,scope),pr as WorkPull);
   const sha=pr.head!.sha as string;
   const checkPath=url+"/commits/"+sha+"/check-runs?per_page=100";
-  const checked=await githubAppRequest("GET",checkPath) as
+  const checked=await request("GET",checkPath) as
     {total_count:number;check_runs:CheckRun[]};
   if(!Array.isArray(checked.check_runs))throw new GitHubAppError(503);
   const suitePath=url+"/commits/"+sha+"/check-suites?per_page=100";
-  const suiteResult=await githubAppRequest("GET",suitePath) as
+  const suiteResult=await request("GET",suitePath) as
     {total_count:number;check_suites:CheckSuite[]};
   if(!Array.isArray(suiteResult.check_suites))throw new GitHubAppError(503);
   const statusPath=url+"/commits/"+sha+"/status";
-  const legacy=await githubAppRequest("GET",statusPath) as {statuses?:LegacyStatus[]};
+  const legacy=await request("GET",statusPath) as {statuses?:LegacyStatus[]};
   const contexts=Array.isArray(legacy.statuses)?legacy.statuses:[];
   const assessment=assessObservedChecks(checked.check_runs,checked.total_count,contexts,
     suiteResult.check_suites,suiteResult.total_count);
   const collectedAt=new Date().toISOString();
-  const evidenceSufficient=completionEvidenceSufficient(
+  const evidenceSufficient=relationship==="ASSIGNED_WORK"&&completionEvidenceSufficient(
     assessment,scope.state,scope.acceptance_criteria);
   return {
     repository:scope.full_name,unitId:scope.unit_id,
-    pullRequest:{number:pr.number,url:pr.html_url,draft:pr.draft,state:pr.state,
+    pullRequest:{number:pr.number,url:pr.html_url,draft:pr.draft,state:pr.state,relationship,
       createdAt:evidenceTimestamp(pr.created_at),updatedAt:evidenceTimestamp(pr.updated_at),
       mergedAt:evidenceTimestamp(pr.merged_at),accepted:isAcceptedMergedPullRequest(pr.merged_at),headSha:sha,branch},
     unitAcceptance:{title:scope.title,state:scope.state,criteria:scope.acceptance_criteria,

@@ -936,11 +936,11 @@
         "BR-038"
       ],
       "scope": [
-        "After a verified unit finishes, pick the next approved eligible unit in the same claimed repo without user prompting."
+        "Continue approved eligible work within the same activation, preferring the current repository and using checkpointed fenced handoffs when work must wait or the repository is exhausted."
       ],
-      "acceptanceCriteria": "One session may complete successive PR units while never taking a second repository.",
+      "acceptanceCriteria": "One activation may complete successive PR units and, after checkpoint and fenced release, move to another repository while holding at most one lease at a time.",
       "verification": [
-        "One session may complete successive PR units while never taking a second repository."
+        "One activation may complete successive PR units and, after checkpoint and fenced release, move to another repository while holding at most one lease at a time."
       ],
       "contributingPrs": [],
       "externalDependencies": [],

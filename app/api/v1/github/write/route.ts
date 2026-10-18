@@ -5,6 +5,7 @@ import {parseGithubWriteRequest,performFencedGithubWrite,GithubWriteValidation}
   from "../../../../../src/server/github-write-gateway";
 import {GitHubAppError} from "../../../../../src/server/github-app";
 import {SessionConflict} from "../../../../../src/server/sessions";
+import {GithubOperationUncertain} from "../../../../../src/server/github-operation-ledger";
 import {boundedRequestText,RequestBodyTooLarge} from "../../../../../src/server/request-body";
 
 export const runtime="nodejs";
@@ -26,6 +27,8 @@ export async function POST(request:Request){
       return NextResponse.json({error:"Unauthorized"},{status:401,headers});
     if(error instanceof GithubWriteValidation)
       return NextResponse.json({error:error.message},{status:400,headers});
+    if(error instanceof GithubOperationUncertain)
+      return NextResponse.json({error:error.message,code:"GITHUB_OPERATION_UNCERTAIN"},{status:409,headers});
     if(error instanceof SessionConflict)
       return NextResponse.json({error:error.message},{status:409,headers});
     if(error instanceof GitHubAppError){

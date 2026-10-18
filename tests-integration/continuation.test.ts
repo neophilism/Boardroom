@@ -41,7 +41,39 @@ test("pending CI hands off same-project then cross-project, replay is safe, anot
     const replay=await yieldAndClaim(db,worker.run_id,worker.cred,first!.generation,'YIELDED');
     assert.equal(replay.assignment?.assignmentId,same.assignment?.assignmentId);
     await saveCheckpoint(db,worker.run_id,worker.cred,same.assignment!.generation,{state:{nextAction:'Resume independent implementation'}});
-    const concurrent=await Promise.all([yieldAndClaim(db,worker.run_id,worker.cred,same.assignment!.generation,'YIELDED'),yieldAndClaim(db,worker.run_id,worker.cred,same.assignment!.generation,'YIELDED')]);
+    // Keep one freshness preview open while the duplicate handoff claims. A
+    // preview must not reserve the only available lease or make its sibling
+    // report IDLE. The real claim still serializes on the shared run row.
+    const previewClient=await db.connect();
+    let signalPreview!:()=>void,releasePreview!:()=>void;
+    const previewStarted=new Promise<void>(resolve=>{signalPreview=resolve;});
+    const previewReleased=new Promise<void>(resolve=>{releasePreview=resolve;});
+    let previewHeld=false;
+    const heldPreviewDb={
+      connect:()=>db!.connect(),
+      query:async(sql:string,parameters?:unknown[])=>{
+        if(!previewHeld&&sql.includes('WITH RECURSIVE dependency_edges')){
+          previewHeld=true;
+          await previewClient.query('BEGIN');
+          try{
+            const result=await previewClient.query(sql,parameters);
+            signalPreview();await previewReleased;
+            await previewClient.query('COMMIT');return result;
+          }catch(error){await previewClient.query('ROLLBACK');throw error;}
+        }
+        return db!.query(sql,parameters);
+      }
+    } as unknown as Pool;
+    const delayed=yieldAndClaim(heldPreviewDb,worker.run_id,worker.cred,same.assignment!.generation,'YIELDED');
+    let duplicate:Awaited<ReturnType<typeof yieldAndClaim>>|undefined;
+    try{
+      await Promise.race([previewStarted,delayed.then(()=>{throw new Error('Handoff bypassed its freshness preview');})]);
+      duplicate=await yieldAndClaim(db,worker.run_id,worker.cred,same.assignment!.generation,'YIELDED');
+    }finally{
+      releasePreview();await delayed.catch(()=>undefined);previewClient.release();
+    }
+    const concurrent=[await delayed,duplicate!];
+    assert.equal(concurrent[0].status,'ASSIGNED');assert.equal(concurrent[1].status,'ASSIGNED');
     const other=concurrent[0].assignment!;
     assert.equal(other.repositoryId,'2');assert.equal(other.unitId,'OTHER-001');
     assert.equal(concurrent[1].assignment?.assignmentId,other.assignmentId);
@@ -59,7 +91,7 @@ test("pending CI hands off same-project then cross-project, replay is safe, anot
     await db.query("UPDATE agent_runs SET started_at=now()-interval '56 minutes' WHERE run_id=$1",[worker.run_id]);
     await assert.rejects(heartbeatRun(db,worker.run_id,worker.cred,other.generation),/time budget exhausted/);
     await finishRun(db,worker.run_id,worker.cred,other.generation,'YIELDED');
-    await finishRun(db,later.run_id,later.cred,resumed!.generation,'YIELDED');
+    await finishRun(db,later.run_id,later.cred,resumed!.generation,'CANCELLED');
     const empty=await principal('Empty fixture');
     await db.query("UPDATE repositories SET enabled=FALSE");
     assert.equal(await claimAssignment(db,empty.run_id,empty.cred),null);

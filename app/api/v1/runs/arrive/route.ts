@@ -25,7 +25,8 @@ export async function POST(request: Request): Promise<NextResponse> {
     const admitted = await admitAgentRun(db, agent, digest);
     const publicIdentity = {agentName:agent.label,provider:agent.provider};
     if(admitted.kind === "BUSY") {
-      return NextResponse.json({...publicIdentity,runId:null,state:admitted.state,shouldWork:false,replay:false}, {
+      return NextResponse.json({...publicIdentity,runId:null,state:admitted.state,shouldWork:false,replay:false,
+        activeSession:admitted.activeSession}, {
         status:200,headers:{"Cache-Control":"no-store"}
       });
     }

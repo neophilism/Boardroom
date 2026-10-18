@@ -1,11 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {agentToolFailure} from "../src/server/agent-tool-failure.ts";
-import {SessionConflict} from "../src/server/sessions.ts";
+import {SessionConflict,ContinuationRequired,ReleaseReconciliationRequired} from "../src/server/sessions.ts";
 import {AssignmentConflict} from "../src/server/assignment.ts";
 import {GitHubAppError,GitHubAppSetupFailure} from "../src/server/github-app.ts";
 import {GithubWriteValidation} from "../src/server/github-write-gateway.ts";
 import {RunnerBudgetBlocked} from "../src/server/budget-errors.ts";
+import {GithubOperationUncertain} from "../src/server/github-operation-ledger.ts";
 
 test("agents receive exact merge blockers and a useful recovery action",()=>{
   const result=agentToolFailure(new SessionConflict("Merge blocked: OWNER_MERGE_POLICY_REQUIRED, CURRENT_HEAD_APPROVAL_REQUIRED"));
@@ -46,4 +47,34 @@ test("mapping failures direct a unit handoff without ending the activation",asyn
   assert.equal(result.code,"PR_MAPPING_CONFLICT");assert.equal(result.retryable,false);
   assert.match(result.nextAction,/boardroom_yield_and_claim/);
   assert.match(result.nextAction,/boardroom_advance/);
+});
+
+test("premature finish is a workflow continuation, not an authority failure",()=>{
+  const result=agentToolFailure(new ContinuationRequired()).structuredContent.error;
+  assert.equal(result.code,"CONTINUATION_REQUIRED");assert.equal(result.retryable,false);
+  assert.match(result.nextAction,/assignment was not released/);
+  assert.match(result.nextAction,/Continue useful implementation, testing or CI repair/);
+  assert.match(result.nextAction,/boardroom_advance/);
+  assert.match(result.nextAction,/activationStop/);
+  assert.match(result.nextAction,/USER_STOP/);
+  assert.doesNotMatch(result.nextAction,/request.*owner.*approval/i);
+});
+
+test("an ambiguous remote effect stops execution and retains a hold rather than demanding continuation",()=>{
+  const operationId="26741e83-9694-4fb3-8174-783b2f9bf61c";
+  const result=agentToolFailure(new ReleaseReconciliationRequired(operationId)).structuredContent.error;
+  assert.equal(result.code,"RELEASE_RECONCILIATION_REQUIRED");assert.equal(result.retryable,false);
+  assert.match(result.message,new RegExp(operationId));
+  assert.match(result.nextAction,/Stop this activation now/);
+  assert.match(result.nextAction,/Do not continue work, renew the heartbeat, repeat the mutation/);
+  assert.doesNotMatch(result.nextAction,/boardroom_advance|CONTINUATION_REQUIRED/);
+});
+
+test("an uncertain mutation is distinguished from a fenced release hold",()=>{
+  const result=agentToolFailure(new GithubOperationUncertain("26741e83-9694-4fb3-8174-783b2f9bf61c")).structuredContent.error;
+  assert.equal(result.code,"GITHUB_OPERATION_UNCERTAIN");assert.equal(result.retryable,false);
+  assert.match(result.nextAction,/mutation may have succeeded/);
+  assert.match(result.nextAction,/boardroom_source or boardroom_pr_evidence/);
+  assert.match(result.nextAction,/Do not repeat the mutation/);
+  assert.doesNotMatch(result.nextAction,/Boardroom fenced|Stop this activation now/);
 });

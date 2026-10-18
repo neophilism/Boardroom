@@ -157,6 +157,7 @@ test("expired but still assigned repo stays unavailable to other scheduled agent
 
 test("fenced owner completes and releases, then a distinct activation becomes eligible",async()=>{
   for(let i=0;i<2;i++){
+    await db.query("UPDATE agent_runs SET started_at=now()-interval '50 minutes' WHERE run_id=$1",[runs[i]]);
     const result=await finishRun(db,runs[i],credentials[i],assigned[i].generation,"COMPLETED");
     assert.equal(result.state,"COMPLETED");
     assert.equal(result.replay,false);
@@ -234,6 +235,7 @@ test("real budget reservations retain uncertain charges and serialize competing 
     assert.equal(competing.filter(r=>r.status==="fulfilled").length,1);
     assert.equal((await db.query("SELECT SUM(COALESCE(charged_microusd,reserved_microusd))::text AS total FROM runner_budget_reservations WHERE run_id=$1",[runId])).rows[0].total,"950");
     await assert.rejects(recordRunnerUsage(db,runId,credentialId,"1",{operationKey:"model-0",inputTokens:0,outputTokens:0,costMicroUsd:0}),SessionConflict);
+    await saveCheckpoint(db,runId,credentialId,"1",{state:{activationStop:{reason:"USER_STOP",detail:"The isolated budget fixture explicitly requested this activation stop after verification."}}});
     await finishRun(db,runId,credentialId,"1","YIELDED");
   }finally{
     if(prior===undefined)delete process.env.BOARDROOM_DAILY_COST_CAP_MICROUSD;else process.env.BOARDROOM_DAILY_COST_CAP_MICROUSD=prior;
@@ -300,5 +302,6 @@ test("verified completion advances only within the held repository lease",async(
     [repositoryId]);
   assert.deepEqual(await advanceAssignedWork(db,runId,credentialId,"1"),
     {status:"EXHAUSTED",repository:"ci/chain-primary"});
+  await db.query("UPDATE agent_runs SET started_at=now()-interval '50 minutes' WHERE run_id=$1",[runId]);
   await finishRun(db,runId,credentialId,"1","COMPLETED");
 });
