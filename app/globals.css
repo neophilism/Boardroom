@@ -154,3 +154,16 @@ button.outline{background:transparent;color:#bedbe8;border:1px solid #6f899a}
 .usage-table td strong{font-size:12px;white-space:nowrap}
 .usage-table td .usage-meter{min-width:80px;margin-top:8px}
 @media(max-width:600px){.usage-day{grid-template-columns:45px minmax(60px,1fr) 90px}.usage-day small{grid-column:2 / 4;text-align:left}.usage-kpis strong{font-size:23px}}
+
+/* Owner-only dormant logical agent inventory. Manual pagination, no provider calls. */
+.logical-inventory{display:grid;gap:18px;margin:20px 0 42px}
+.logical-inventory .action-card p{max-width:none;font-size:14px}
+.logical-inventory h2{font-size:20px;margin:0 0 14px}
+.logical-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(215px,100%),1fr));gap:12px;margin:18px 0}
+.logical-fields label{display:grid;gap:6px;font-size:13px;font-weight:700}
+.logical-fields input,.logical-fields select{border:1px solid #59758a;background:#091526;color:#eaf2f9;padding:11px;border-radius:8px;min-width:0;font:inherit}
+.logical-list{display:grid;gap:8px}
+.logical-row{display:grid;grid-template-columns:2fr 1fr 1fr;gap:12px;align-items:center;padding:13px;border:1px solid #30475b;border-radius:8px}
+.logical-row small{display:block;margin-top:5px;color:#9eb7c6;font-size:12px;overflow-wrap:anywhere}
+.logical-row span{font-size:14px;text-transform:capitalize}
+@media(max-width:600px){.logical-row{grid-template-columns:1fr 1fr}.logical-row>div:first-child{grid-column:1 / -1}}
