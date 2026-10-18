@@ -7,3 +7,9 @@ Assigned context supplies the server's current caps and absolute deadline. The h
 GitHub's hosted workflow now forwards the optional duration/tool variables. Empty optional settings retain bounded defaults. The shared daily cost cap remains a separate owner-managed setting; changing token/time limits does not authorize a paid worker or an increased financial cap.
 
 Hosted token/tool counts come from the controlled runner. External provider runtimes must obey their own supported execution/spending controls; this interface does not obtain independent provider billing evidence. Production multi-provider conformance still requires real configured activations.
+
+The default session cap is now 3,300 seconds (55 minutes) to support a
+3,000-second useful-work target and checkpoint/release time. Migration 0017
+updates the old 1,800-second default policies; customized caps and every
+monetary/token/tool limit remain unchanged. Context exposes server-clock start,
+work target and hard deadline. Project changes never restart that clock.

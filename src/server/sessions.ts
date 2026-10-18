@@ -61,7 +61,7 @@ export async function heartbeatRun(db: Pool, runId: string, credentialId: string
     if (run.state !== "RUNNING") throw new SessionConflict("Run is not active");
     const assignment = await lockedAssignment(client,runId,generation);
     await lockedLease(client,assignment,runId,generation,true);
-    const budget=await client.query<{within_budget:boolean}>(`SELECT ar.started_at>now()-make_interval(secs=>COALESCE(p.max_session_seconds,1800)) AS within_budget
+    const budget=await client.query<{within_budget:boolean}>(`SELECT ar.started_at>now()-make_interval(secs=>COALESCE(p.max_session_seconds,3300)) AS within_budget
       FROM agent_runs ar LEFT JOIN repository_execution_policy p ON p.repository_id=$2 WHERE ar.run_id=$1`,[runId,assignment.repository_id]);
     if(budget.rows[0]?.within_budget!==true)throw new SessionConflict("Session time budget exhausted; checkpoint and finish");
     const result = await client.query<{expires_at:Date}>(

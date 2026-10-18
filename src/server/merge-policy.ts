@@ -2,7 +2,7 @@ import type {Pool} from "pg";
 import {assignedScope,repositoryApiPath} from "./assignment-scope.ts";
 import {githubAppRequest,GitHubAppError,fetchPullRequests,type GitHubPull} from "./github-app.ts";
 import {titleWorkUnitIds} from "./roadmap-import.ts";
-import {safeWorkBranch} from "./github-write-gateway.ts";
+import {assignedPrNumbers,assertAssignedPull,type WorkPull} from "./work-branch.ts";
 import {assessObservedChecks,type CheckRun,type CheckSuite,type LegacyStatus} from "./pr-evidence.ts";
 import {SessionConflict} from "./sessions.ts";
 import {assertWorkPrerequisites} from "./work-prerequisites.ts";
@@ -65,13 +65,11 @@ export async function mergeAssignedPullRequest(db:Pool,runId:string,credentialId
       await client.query("UPDATE roadmap_units SET state=CASE WHEN state='ACCEPTED' THEN state ELSE $3 END,source_observed_at=now() WHERE repository_id=$1 AND unit_id=$2",[scope.repository_id,scope.unit_id,observed]);
       return observed;
     }
-    const pr=await githubAppRequest("GET",api+"/pulls/"+number) as {
+    const pr=await githubAppRequest("GET",api+"/pulls/"+number) as WorkPull & {
       state:string;draft:boolean;merged:boolean;head:{sha:string;ref:string;repo:{id:number}};html_url:string;
     };
-    const prScopeMatches=pr.head.ref===safeWorkBranch(scope.unit_id)&&
-      String(pr.head.repo.id)===scope.repository_id;
+    const workBranch=assertAssignedPull(scope,number,await assignedPrNumbers(client,scope),pr);
     if(pr.merged){
-      if(!prScopeMatches)throw new SessionConflict("PR is outside the assigned work branch");
       const unitState=await reconcileMergedUnit();await client.query("COMMIT");transactionOpen=false;
       return {merged:true,replay:true,url:pr.html_url,unitState};
     }
@@ -89,7 +87,7 @@ export async function mergeAssignedPullRequest(db:Pool,runId:string,credentialId
       throw new SessionConflict("Authoritative check evidence unavailable");
     if(statuses.total_count>100)throw new SessionConflict("Check status pagination incomplete");
     const reasons=mergeBlockers(policy,{draft:pr.draft,state:pr.state,headSha:pr.head.sha,expectedSha,
-      branch:pr.head.ref,expectedBranch:safeWorkBranch(scope.unit_id),repositoryId:String(pr.head.repo.id),
+      branch:pr.head.ref,expectedBranch:workBranch,repositoryId:String(pr.head.repo.id),
       expectedRepositoryId:scope.repository_id,...graph,checks:checked.check_runs,checkTotal:checked.total_count,
       suites:suiteResult.check_suites,suiteTotal:suiteResult.total_count,
       statuses:statuses.statuses});

@@ -1,4 +1,4 @@
-export const DEFAULT_EXECUTION_LIMITS={maxSessionSeconds:1800,maxToolCalls:100,maxTokens:100000} as const;
+export const DEFAULT_EXECUTION_LIMITS={maxSessionSeconds:3300,maxToolCalls:100,maxTokens:100000} as const;
 export type ExecutionLimits={maxSessionSeconds:number;maxToolCalls:number;maxTokens:number};
 export function boundedWorkerLimits(config:ExecutionLimits,evidence:unknown):ExecutionLimits{
   if(evidence===undefined||evidence===null)evidence=DEFAULT_EXECUTION_LIMITS;

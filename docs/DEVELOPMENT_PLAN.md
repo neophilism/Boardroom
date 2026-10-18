@@ -6,7 +6,7 @@
 
 **Core rule:** One authorized active development session per GitHub repository. Each recurring ChatGPT scheduled task can use exactly the same prompt; arrivals are anonymous to one another at the prompt layer and receive unique server-generated session IDs. Provider-account/schedule metadata is optional and is never used as a false account-wide concurrency lock. Repository claims are atomic and privileged writes are fenced.
 
-**Selection:** Pick the first available repository in the owner's ordered priority list. If none is eligible, select the eligible nonpriority repository with the oldest independently verified development update. If none is eligible, check outstanding peer questions and end. Inside an assigned repo, first resume incomplete approved work before choosing the next eligible unit.
+**Selection:** Pick the first available repository in the owner's ordered priority list. If none is eligible, select the eligible nonpriority repository with the oldest independently verified development update. If none is eligible, make a bounded source-backed Coffee pass, recheck once when new evidence is available, and finish idle truthfully. Inside an assigned repo, first resume incomplete approved work before choosing the next eligible unit.
 
 **End of session:** Push/checkpoint actual work, report verified outcome, make one bounded evidence-based Coffee Corner answer pass, release repository assignment, and terminate. If a technical question would otherwise block progress, search/ask Coffee Corner; if only the owner can act, post a specific request on the private Owner Action Board. Never request secrets in chat or a public GitHub issue.
 
@@ -340,7 +340,7 @@
 
 **Scope:** After a verified unit finishes, pick the next approved eligible unit in the same claimed repo without user prompting.
 
-**Acceptance:** One session may complete successive PR units while never taking a second repository.
+**Acceptance:** One activation may complete successive PR units and, after checkpoint and fenced release, move to another repository while holding at most one lease at a time.
 
 **Dependencies:** BR-011, BR-038
 
@@ -703,3 +703,31 @@ Gort, Joi and Bishop provided real scheduled-run evidence of stale local roadmap
 ### Follow-up to October 18 maintenance recovery: partial import failures
 
 Live Neon review after PR #124 confirmed that the Boardroom work units had become MERGED with the correct PR numbers and duplicate inventory work was superseded, but two other repositories returned source-verification errors. A failed repository must remain ERROR and unapproved; however, it must not force all later inventory pages to retry indefinitely. The importer now persists partial-page audit evidence and completes the current page while preserving the numeric continuation cursor; next sweeps revisit the failed repositories. Tests assert that a partial failure produces the next-page cursor, and invalid importer reports still fail closed. Independently review and repair the affected repositories' source registries before calling them eligible.
+
+
+
+## October 18 operational repair — BR-017/018/036/039/040/041
+
+The owner authorizes 50-minute useful work sessions across approved projects. This
+repair retains the canonical registry IDs and counts; it does not claim full
+work-unit acceptance or native 50-minute execution before live observation.
+
+- Reuse existing approved mapped PR branches consistently for source snapshots,
+  edits, readiness and merge. Verify numeric repository identity, approved numeric
+  PR links and live head/base metadata; reject forks, unrelated PRs, protected/default
+  branch writes and ambiguous multiple open branches. No client-selected repository
+  or arbitrary branch can grant authority.
+- Publish one identical 50-minute instruction from the server profile, launch
+  page and protocol. Checkpoint and continue another independent unit or project
+  while CI runs. Preserve the original clock, all prerequisites and green-check gates.
+- Raise the old default 30-minute limit to 55 minutes with an additive fingerprinted
+  migration. Preserve custom limits, token/tool caps and monetary budgets.
+- Make handoff generations unique within each run across repositories, require
+  a checkpoint for the current unit, and safely reconcile lost handoff responses.
+  Prefer independent same-project work, then use the normal portfolio selection.
+- Support older installed connections through the existing advance signature.
+  Verify source/mapping adversarial cases and PostgreSQL handoff races, stale
+  authority rejection, pending-CI resume, migrated limits and clock continuity.
+- Merge only after current-head checks; deploy the existing service and verify
+  its exact revision, readiness, served instructions and authenticated tool contract.
+  Native scheduled duration remains separately observable, never inferred from code.
