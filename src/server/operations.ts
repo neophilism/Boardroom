@@ -10,15 +10,17 @@ export function parseExecutionPolicy(input:unknown){
      p.requiredChecks.some(c=>typeof c!=="string"||c.length<1||c.length>180))throw new SessionConflict("Invalid required check names");
   const requiredChecks=[...new Set(p.requiredChecks as string[])];
   if(p.autoMerge&&!requiredChecks.length)throw new SessionConflict("Automatic merge requires explicit check names");
-  const reviews=p.minimumReviews??0;
-  if(!Number.isSafeInteger(reviews)||(reviews as number)<0||(reviews as number)>10)throw new SessionConflict("Invalid minimum reviews");
+  // Legacy clients cannot reintroduce human review as a Boardroom-only gate.
+  // Required GitHub reviews remain enforceable through GitHub mergeability.
+  if(p.minimumReviews!==undefined&&p.minimumReviews!==0)
+    throw new SessionConflict("Independent review counts are not a Boardroom merge requirement");
   const limits={} as Record<"maxSessionSeconds"|"maxToolCalls"|"maxTokens",number|null>;
   for(const [name,min,max] of [["maxSessionSeconds",60,14400],["maxToolCalls",1,1000],["maxTokens",1,10000000]] as const){
     const value=p[name];
     if(value!==undefined&&(!Number.isSafeInteger(value)||(value as number)<min||(value as number)>max))throw new SessionConflict("Invalid repository execution limit");
     limits[name]=value===undefined?null:value as number;
   }
-  return {repositoryId:p.repositoryId,autoMerge:p.autoMerge,requiredChecks,minimumReviews:reviews as number,...limits};
+  return {repositoryId:p.repositoryId,autoMerge:p.autoMerge,requiredChecks,minimumReviews:0,...limits};
 }
 export async function setExecutionPolicy(db:Pool,input:unknown){
   const p=parseExecutionPolicy(input);
@@ -82,7 +84,7 @@ export async function operationsOverview(db:Pool){
   const [control,repositories,runs,audit,usage,outbox,repositoryFreshness]=await Promise.all([
     db.query<{paused:boolean}>("SELECT paused FROM execution_controls WHERE singleton=TRUE"),
     db.query(`SELECT r.repository_id::text AS "repositoryId",r.full_name AS "fullName",COALESCE(p.auto_merge,FALSE) AS "autoMerge",
-      COALESCE(p.required_checks,'[]'::jsonb) AS "requiredChecks",COALESCE(p.minimum_reviews,0) AS "minimumReviews",
+      COALESCE(p.required_checks,'[]'::jsonb) AS "requiredChecks",
       COALESCE(p.max_session_seconds,1800) AS "maxSessionSeconds",COALESCE(p.max_tool_calls,100) AS "maxToolCalls",COALESCE(p.max_tokens,100000) AS "maxTokens"
       FROM repositories r LEFT JOIN repository_execution_policy p ON p.repository_id=r.repository_id ORDER BY r.full_name`),
     db.query(`SELECT ar.run_id,ar.state,c.label,ar.provider,ar.started_at,ar.last_seen_at,ar.ended_at,

@@ -6,9 +6,8 @@ import {safeWorkBranch} from "./github-write-gateway.ts";
 import {assessObservedChecks,type CheckRun,type CheckSuite,type LegacyStatus} from "./pr-evidence.ts";
 import {SessionConflict} from "./sessions.ts";
 import {assertWorkPrerequisites} from "./work-prerequisites.ts";
-import {classifyChangedFiles,type ChangedFile,type ChangedFileRisk} from "./change-review.ts";
 
-export type MergePolicy={auto_merge:boolean;required_checks:string[];minimum_reviews:number};
+export type MergePolicy={auto_merge:boolean;required_checks:string[]};
 export function aggregateLinkedPrState(unitId:string,linked:number[],pulls:readonly GitHubPull[],confirmedMerged:number):"MERGED"|"OPEN_PR"|"UNKNOWN"{
   const numbers=[...new Set([...linked,confirmedMerged,...pulls.filter(p=>titleWorkUnitIds(p.title).includes(unitId)).map(p=>p.number)])];
   const remaining=numbers.filter(n=>n!==confirmedMerged).map(n=>pulls.find(p=>p.number===n));
@@ -18,35 +17,25 @@ export function aggregateLinkedPrState(unitId:string,linked:number[],pulls:reado
 }
 export type MergeFacts={
   draft:boolean;state:string;headSha:string;expectedSha:string;branch:string;expectedBranch:string;
-  repositoryId:string;expectedRepositoryId:string;mergeStateStatus:string;reviewDecision:string|null;
+  repositoryId:string;expectedRepositoryId:string;mergeable:string;mergeStateStatus:string;
   checks:CheckRun[];checkTotal:number;suites:CheckSuite[];suiteTotal:number;statuses:LegacyStatus[];
-  reviews:{login:string;state:string;commitId:string}[];
-  requiredReviewerLogin?:string;
-  changedFileRisk:ChangedFileRisk;
 };
 export function mergeBlockers(policy:MergePolicy,facts:MergeFacts):string[]{
   const blocked:string[]=[];
   if(!policy.auto_merge)blocked.push("OWNER_MERGE_POLICY_REQUIRED");
-  if(facts.changedFileRisk==="UNVERIFIED")blocked.push("CHANGE_SCOPE_UNVERIFIED");
-  if(facts.changedFileRisk==="REVIEW_REQUIRED"&&!facts.requiredReviewerLogin)blocked.push("SENSITIVE_REVIEWER_UNAVAILABLE");
   if(!Array.isArray(policy.required_checks)||!policy.required_checks.length)blocked.push("REQUIRED_CHECKS_NOT_CONFIGURED");
   if(facts.draft||facts.state!=="open")blocked.push("PR_NOT_READY");
   if(facts.headSha!==facts.expectedSha)blocked.push("HEAD_CHANGED");
   if(facts.branch!==facts.expectedBranch||facts.repositoryId!==facts.expectedRepositoryId)blocked.push("PR_SCOPE_MISMATCH");
-  if(facts.mergeStateStatus!=="CLEAN")blocked.push("GITHUB_MERGE_REQUIREMENTS_UNSATISFIED");
-  if(facts.reviewDecision!==null&&facts.reviewDecision!=="APPROVED")blocked.push("GITHUB_REVIEW_REQUIRED");
+  // GitHub owns review and branch-protection requirements. An owner-approved
+  // autonomous merge must not add an independent human-review prerequisite.
+  if(facts.mergeable!=="MERGEABLE"||facts.mergeStateStatus!=="CLEAN")
+    blocked.push("GITHUB_MERGE_REQUIREMENTS_UNSATISFIED");
   if(assessObservedChecks(facts.checks,facts.checkTotal,facts.statuses,
     facts.suites,facts.suiteTotal)!=="OBSERVED_PASS")blocked.push("CHECKS_NOT_PASSING");
   const observed=new Set([...facts.checks.filter(c=>c.status==="completed"&&c.conclusion==="success").map(c=>c.name),
     ...facts.statuses.filter(s=>s.state==="success").map(s=>s.context)]);
   if(policy.required_checks.some(name=>!observed.has(name)))blocked.push("REQUIRED_CHECK_MISSING");
-  const latest=new Map<string,MergeFacts["reviews"][number]>();
-  for(const review of facts.reviews)if(["APPROVED","CHANGES_REQUESTED","DISMISSED"].includes(review.state))latest.set(review.login,review);
-  if([...latest.values()].some(r=>r.state==="CHANGES_REQUESTED"))blocked.push("CHANGES_REQUESTED");
-  if([...latest.values()].filter(r=>r.state==="APPROVED"&&r.commitId===facts.headSha).length<policy.minimum_reviews)
-    blocked.push("CURRENT_HEAD_APPROVAL_REQUIRED");
-  if(facts.requiredReviewerLogin&&![...latest.values()].some(r=>r.login===facts.requiredReviewerLogin&&r.state==="APPROVED"&&r.commitId===facts.headSha))
-    blocked.push("CONTROL_PLANE_OWNER_REVIEW_REQUIRED");
   return blocked;
 }
 
@@ -62,8 +51,8 @@ export async function mergeAssignedPullRequest(db:Pool,runId:string,credentialId
     await client.query("BEGIN");transactionOpen=true;
     await client.query("SET LOCAL statement_timeout='25s'");
     const scope=await assignedScope(client,runId,credentialId,generation,true);
-    const policyResult=await client.query<MergePolicy>("SELECT auto_merge,required_checks,minimum_reviews FROM repository_execution_policy WHERE repository_id=$1",[scope.repository_id]);
-    const policy=policyResult.rows[0]??{auto_merge:false,required_checks:[],minimum_reviews:0};
+    const policyResult=await client.query<MergePolicy>("SELECT auto_merge,required_checks FROM repository_execution_policy WHERE repository_id=$1",[scope.repository_id]);
+    const policy=policyResult.rows[0]??{auto_merge:false,required_checks:[]};
     const controls=await client.query<{paused:boolean}>("SELECT paused FROM execution_controls WHERE singleton=TRUE");
     if(controls.rows[0]?.paused)throw new SessionConflict("Owner paused execution");
     await assertWorkPrerequisites(client,scope.repository_id,scope.unit_id,true);
@@ -77,7 +66,7 @@ export async function mergeAssignedPullRequest(db:Pool,runId:string,credentialId
       return observed;
     }
     const pr=await githubAppRequest("GET",api+"/pulls/"+number) as {
-      state:string;draft:boolean;merged:boolean;changed_files:number;head:{sha:string;ref:string;repo:{id:number}};html_url:string;
+      state:string;draft:boolean;merged:boolean;head:{sha:string;ref:string;repo:{id:number}};html_url:string;
     };
     const prScopeMatches=pr.head.ref===safeWorkBranch(scope.unit_id)&&
       String(pr.head.repo.id)===scope.repository_id;
@@ -86,16 +75,11 @@ export async function mergeAssignedPullRequest(db:Pool,runId:string,credentialId
       const unitState=await reconcileMergedUnit();await client.query("COMMIT");transactionOpen=false;
       return {merged:true,replay:true,url:pr.html_url,unitState};
     }
-    // Enumerate every changed file before permitting a routine merge.
-    // Renames inspect both old and new paths; incomplete/paginated lists fail closed.
-    const changed=await githubAppRequest("GET",api+"/pulls/"+number+"/files?per_page=100") as ChangedFile[];
-    const changedFileRisk=classifyChangedFiles(changed,pr.changed_files);
     const [owner,name]=scope.full_name.split("/");
-    const sensitiveReviewer=process.env.BOARDROOM_GITHUB_OWNER??"neophilism";
     const observed=await githubAppRequest("POST","/graphql",{
-      query:"query($owner:String!,$name:String!,$number:Int!){repository(owner:$owner,name:$name){pullRequest(number:$number){mergeStateStatus reviewDecision headRefOid}}}",
+      query:"query($owner:String!,$name:String!,$number:Int!){repository(owner:$owner,name:$name){pullRequest(number:$number){mergeable mergeStateStatus headRefOid}}}",
       variables:{owner,name,number}
-    }) as {data?:{repository?:{pullRequest?:{mergeStateStatus:string;reviewDecision:string|null;headRefOid:string}}};errors?:unknown[]};
+    }) as {data?:{repository?:{pullRequest?:{mergeable:string;mergeStateStatus:string;headRefOid:string}}};errors?:unknown[]};
     const graph=observed.data?.repository?.pullRequest;
     if(!graph||observed.errors?.length||graph.headRefOid!==pr.head.sha)throw new SessionConflict("Authoritative merge requirements unavailable or head changed");
     const checked=await githubAppRequest("GET",api+"/commits/"+pr.head.sha+"/check-runs?per_page=100") as {total_count:number;check_runs:CheckRun[]};
@@ -104,15 +88,11 @@ export async function mergeAssignedPullRequest(db:Pool,runId:string,credentialId
     if(!Array.isArray(checked.check_runs)||!Array.isArray(suiteResult.check_suites)||!Array.isArray(statuses.statuses))
       throw new SessionConflict("Authoritative check evidence unavailable");
     if(statuses.total_count>100)throw new SessionConflict("Check status pagination incomplete");
-    const reviews=await githubAppRequest("GET",api+"/pulls/"+number+"/reviews?per_page=100") as {user:{login:string};state:string;commit_id:string}[];
-    if(!Array.isArray(reviews)||reviews.length===100)throw new SessionConflict("Review evidence requires pagination");
     const reasons=mergeBlockers(policy,{draft:pr.draft,state:pr.state,headSha:pr.head.sha,expectedSha,
       branch:pr.head.ref,expectedBranch:safeWorkBranch(scope.unit_id),repositoryId:String(pr.head.repo.id),
       expectedRepositoryId:scope.repository_id,...graph,checks:checked.check_runs,checkTotal:checked.total_count,
       suites:suiteResult.check_suites,suiteTotal:suiteResult.total_count,
-      changedFileRisk,
-      requiredReviewerLogin:changedFileRisk==="REVIEW_REQUIRED"?sensitiveReviewer:undefined,
-      statuses:statuses.statuses,reviews:reviews.map(r=>({login:r.user.login,state:r.state,commitId:r.commit_id}))});
+      statuses:statuses.statuses});
     if(reasons.length){
       const details=mergeDenialAuditDetails(scope.unit_id,number,pr.head.sha,reasons);
       await client.query("INSERT INTO audit_events(run_id,repository_id,kind,details) VALUES($1,$2,'github.pr.merge_denied',$3::jsonb)",

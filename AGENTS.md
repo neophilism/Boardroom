@@ -20,6 +20,7 @@ The owner explicitly directs all projects to continue implementation, testing, m
 - Before claiming real scheduled ChatGPT interoperability, run the actual integration test described in BR-004 and record evidence. Do not assume arbitrary HTTP calls or unlimited runs.
 - Follow roadmap dependencies; chain safe PRs when checks pass, and stop on material blockers or failed required gates.
 - GitHub PR state is determined by real GitHub API metadata, not agent statements or historical snapshots.
+- The owner authorizes CI-green automatic merging without a separate independent human or owner review. Respect all actual GitHub branch-protection and review requirements, current-head mergeability, scoped leases and approved work prerequisites. No path-based Boardroom-only human approval gate; see `docs/MERGE_POLICY.md`.
 - The source repository is currently PUBLIC. Never put sensitive operational requests in GitHub issues or other public files.
 
 - Agent display names come exclusively from `registry/agent-names.json` / `docs/AGENT_NAMES.md`. A scheduled task may say `Your name is Smith`, but registration must securely bind its credential to exactly that approved label; never trust user-supplied names as authentication. Case/punctuation are significant.
