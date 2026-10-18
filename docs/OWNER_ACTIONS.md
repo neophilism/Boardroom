@@ -44,3 +44,9 @@ Risky adapters must call the server-side approval guard with the authenticated r
 Ordinary account, credential, purchase, and human-input tasks become VERIFIED only through `resolveVerifiedOwnerAction` with a supported verifier's positive bounded evidence. The resolver rejects owner approvals, unverified results, secret-shaped evidence identifiers, wrong lifecycle states, and duplicate finalization. It locks the action before updating it and writes one audit event containing the exact dependent repository/work-unit scopes that are re-enabled.
 
 Owner clarification returns an acknowledged or awaiting-verification request to OPEN and requires a secret-free explanation. Rejection requires an explanation, becomes final, and deliberately remains a prerequisite blocker. Neither path asks an agent to treat an unsupported owner assertion as verification.
+
+## GitHub PR approval-request reconciliation
+
+The authenticated, existing maintenance tick (not a model-run or paid scheduler) now checks a bounded set of **legacy PR-specific APPROVAL actions** against GitHub. A verified merged PR finalizes the old action; a closed-unmerged PR cancels it; and an approval referring to a superseded exact head is cancelled so it cannot masquerade as current approval. Each database transition and provenance audit are atomic. Unknown PRs, connection failures, ambiguous repository mappings, non-PR owner requests and all structured risk-intent approvals are untouched. Reconciliation never issues an approval or executes a merge.
+
+The agent merge policy now requires a verified GitHub owner review only for security, privilege, financial, or consequential deployment changes; routine green PRs proceed without an owner-action request. Do not create a generic PR-review owner action merely because the target repository is Boardroom. Real purchases, secrets/credentials, or consequential legal/personal decisions still require owner involvement.

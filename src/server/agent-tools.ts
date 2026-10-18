@@ -48,12 +48,12 @@ export const AGENT_TOOLS=[
     runId:string,threadId:string,answer:string,uncertainty:string,evidence:{type:"array",minItems:1,maxItems:12,items:string}},["runId","threadId","answer","uncertainty","evidence"]),
   tool("boardroom_coffee_resolve","Accept an evidenced technical answer only after verifying its durable ADR in your assigned repository.",{
     ...session,threadId:string,messageId:string,adr:string},["runId","generation","threadId","messageId","adr"]),
-  tool("boardroom_owner_action","Create one deduplicated private request for an owner-only prerequisite. Never include a credential value.",{
+  tool("boardroom_owner_action","Create a private request only for genuine owner-only prerequisites (spending, permissions/security, accounts, legal decisions). Ordinary CI-green PR merging is autonomous; never request routine owner PR approval. Never include a credential value.",{
     ...session,actionKey:string,title:string,type:{enum:["ACCOUNT","CREDENTIAL","PURCHASE","APPROVAL","HUMAN_INPUT","OTHER"]},
     condition:{enum:["OWNER_ACCOUNT_CREATION","OWNER_CREDENTIAL_PROVISION","OWNER_PURCHASE","OWNER_APPROVAL","OWNER_LEGAL_OR_PERSONAL_INPUT","OWNER_PRODUCTION_ACCESS","TECHNICAL_QUESTION","AUTONOMOUS_CODE_CHANGE","AUTONOMOUS_TEST_FAILURE","RETRYABLE_EXTERNAL_FAILURE"]},
     instructions:string,requestedPermissions:{type:"array",items:string},secureEntryLocation:{type:["string","null"]},priceEstimateCents:{type:["integer","null"],minimum:0}},
     ["runId","generation","actionKey","title","type","condition","instructions"]),
-  tool("boardroom_owner_action_from_template","Create a structured owner-only request with target, minimum permissions, prerequisites, expected expense, secure entry location, and verification method.",{
+  tool("boardroom_owner_action_from_template","Create a structured owner-only request for genuinely human-only work (not routine green PRs). Supply target, minimum permissions, prerequisites, expected expense, secure entry location, and verification method.",{
     ...session,actionKey:string,template:{enum:["ACCOUNT","CREDENTIAL","PURCHASE","APPROVAL"]},targetSystem:string,requestedAction:string,
     requestedPermissions:{type:"array",items:string},prerequisites:{type:"array",items:string},secureEntryLocation:{type:["string","null"]},
     priceEstimateCents:{type:["integer","null"],minimum:0},verificationMethod:string},
