@@ -56,36 +56,45 @@ export async function reconcilePrApprovalActions(db:Pool,source:Source=githubSou
     FROM owner_actions a
     WHERE a.action_type='APPROVAL' AND a.status IN ('OPEN','ACKNOWLEDGED','AWAITING_VERIFICATION')
       AND a.action_key NOT LIKE 'approval:%'
-    ORDER BY a.created_at ASC,a.action_id ASC LIMIT 50
+    ORDER BY a.created_at ASC,a.action_id ASC LIMIT 20
   `);
   let verified=0,cancelled=0,unavailable=0;
-  for(const a of pending.rows){
-    const ref=parsePrActionReference(a);
-    if(!ref)continue;
-    let pr:PrSnapshot;
-    try{pr=await source(ref.repository,ref.number);}
-    catch{unavailable++;continue;}
-    const next=prApprovalDisposition(pr,ref.number,ref.head);
-    if(!next)continue;
-    const client=await db.connect();
-    try{
-      await client.query("BEGIN");
-      const updated=await client.query(
-        "UPDATE owner_actions SET status=$2,updated_at=now(),resolved_at=now() "+
-        "WHERE action_id=$1 AND action_type='APPROVAL' AND status IN ('OPEN','ACKNOWLEDGED','AWAITING_VERIFICATION') "+
-        "RETURNING action_id",[a.actionId,next]);
-      if(updated.rowCount===1){
-        await client.query(
-          "INSERT INTO audit_events(kind,details) VALUES('owner_action.github_pr_reconciled',$1::jsonb)",
-          [JSON.stringify({actionId:a.actionId,repository:ref.repository,prNumber:ref.number,
-            evidence:"github_pr",outcome:next})]
-        );
-      }
-      await client.query("COMMIT");
-      if(updated.rowCount===1){if(next==="VERIFIED")verified++;else cancelled++;}
-    }catch{
-      await client.query("ROLLBACK");unavailable++;
-    }finally{client.release();}
+  const candidates=pending.rows.flatMap(action=>{
+    const ref=parsePrActionReference(action);
+    return ref?[{action,ref}]:[];
+  });
+  // Five concurrent reads bound the impact of slow GitHub requests during
+  // maintenance; database status changes remain sequential and audited.
+  for(let offset=0;offset<candidates.length;offset+=5){
+    const batch=await Promise.all(candidates.slice(offset,offset+5).map(async item=>{
+      try{return {...item,pr:await source(item.ref.repository,item.ref.number),failed:false as const};}
+      catch{return {...item,pr:null,failed:true as const};}
+    }));
+    for(const item of batch){
+      if(item.failed||!item.pr){unavailable++;continue;}
+      const {action,ref}=item;
+      const next=prApprovalDisposition(item.pr,ref.number,ref.head);
+      if(!next)continue;
+      const client=await db.connect();
+      try{
+        await client.query("BEGIN");
+        const updated=await client.query(
+          "UPDATE owner_actions SET status=$2,updated_at=now(),resolved_at=now() "+
+          "WHERE action_id=$1 AND action_type='APPROVAL' AND status IN ('OPEN','ACKNOWLEDGED','AWAITING_VERIFICATION') "+
+          "RETURNING action_id",[action.actionId,next]);
+        if(updated.rowCount===1){
+          await client.query(
+            "INSERT INTO audit_events(kind,details) VALUES('owner_action.github_pr_reconciled',$1::jsonb)",
+            [JSON.stringify({actionId:action.actionId,repository:ref.repository,prNumber:ref.number,
+              evidence:"github_pr",outcome:next})]
+          );
+        }
+        await client.query("COMMIT");
+        if(updated.rowCount===1){if(next==="VERIFIED")verified++;else cancelled++;}
+      }catch{
+        await client.query("ROLLBACK");unavailable++;
+      }finally{client.release();}
+    }
   }
   return {examined:pending.rows.length,verified,cancelled,unavailable};
 }
