@@ -72,7 +72,8 @@ test("normal self-updates do not require owner review when exact-head CI is gree
 test("security controls, migrations, workflows, releases and renames require owner review",()=>{
   for(const filename of ["src/server/merge-policy.ts","src/server/oauth.ts",
     ".github/workflows/ci.yml","db/migrations/0019_new.sql","render.yaml",
-    "src/server/risk-approval.ts","src/server/owner-session.ts","infra/main.tf"]){
+    "src/server/risk-approval.ts","src/server/owner-session.ts","src/server/agent-tools.ts",
+    "src/server/github-app.ts","app/api/v1/internal/tick/route.ts","infra/main.tf"]){
     assert.ok(isSensitivePath(filename),filename);
     assert.equal(classifyChangedFiles([{filename,status:"modified"}],1),"REVIEW_REQUIRED",filename);
   }

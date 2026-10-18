@@ -46,3 +46,23 @@ test("provider failures preserve approval and are reported, not assumed complete
   assert.equal(result.unavailable,1);
   assert.equal(result.verified,0);
 });
+
+test("a PR number in an unrelated project's request cannot resolve a different repository",()=>{
+  assert.equal(parsePrActionReference({...request,repository:"neophilism/FOIA_Aggregator"}),null);
+  assert.equal(parsePrActionReference({...request,title:"Record owner approval: Boardroom PR105 blocking FOIA_Aggregator",
+    repository:"neophilism/FOIA_Aggregator"}),null);
+  assert.equal(parsePrActionReference({...request,repositoryCount:0}),null);
+});
+test("legacy PR 105/106 merge evidence resolves requests without fabricating owner review",()=>{
+  const titles=[
+    "Record owner approval: GitHub neophilism/Boardroom pull request #105",
+    "Record owner approval: GitHub neophilism/Boardroom PR #106",
+    "Record owner approval: GitHub / neophilism/Boardroom PR110 — private workspace"
+  ];
+  const keys=["boardroom-pr-105-native-trial-collector","boardroom-pr-106-recovery-policy","br061-pr110-owner-approval"];
+  for(let i=0;i<titles.length;i++){
+    const result=parsePrActionReference({...request,title:titles[i],actionKey:keys[i]});
+    assert.equal(result?.number,[105,106,110][i]);
+    assert.equal(prApprovalDisposition({number:[105,106,110][i],state:"closed",merged:true},[105,106,110][i],null),"VERIFIED");
+  }
+});
