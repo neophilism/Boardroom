@@ -142,16 +142,18 @@ export function pullRequestChanges(existing:ExistingPullRequest,
   return changes;
 }
 
-async function doWrite(scope:RepoScope,op:GithubWrite,transport=githubAppRequest,reconcileOnly=false){
+export async function doWrite(scope:RepoScope,op:GithubWrite,transport=githubAppRequest,reconcileOnly=false){
   const {owner,name}=repoParts(scope.full_name);
   const repoPath="/repos/"+encodeURIComponent(owner)+"/"+encodeURIComponent(name);
   const branch=safeWorkBranch(scope.unit_id);
-  if(op.kind==="commit_files")return commitAssignedFiles(repoPath,branch,op,transport);
+  if(op.kind==="commit_files")return commitAssignedFiles(repoPath,branch,op,transport,reconcileOnly);
   if(op.kind==="ready_pr"){
     const pr=await transport("GET",repoPath+"/pulls/"+op.number) as {node_id:string;draft:boolean;head:{ref:string;repo:{id:number}}};
     if(pr.head.ref!==branch||String(pr.head.repo.id)!==scope.repository_id)
       throw new SessionConflict("PR is outside the assigned work branch");
     if(!pr.draft)return {kind:"ready_pr",number:op.number,replay:true};
+    if(reconcileOnly)
+      throw new SessionConflict("Prior ready intent needs pull-request reconciliation; replay cannot override draft state");
     const result=await transport("POST","/graphql",{
       query:"mutation($id:ID!){markPullRequestReadyForReview(input:{pullRequestId:$id}){pullRequest{number isDraft}}}",
       variables:{id:pr.node_id}}) as {errors?:unknown[]};
@@ -166,6 +168,8 @@ async function doWrite(scope:RepoScope,op:GithubWrite,transport=githubAppRequest
     }catch(error){
       if(!(error instanceof GitHubAppError)||error.httpStatus!==404)throw error;
     }
+    if(reconcileOnly)
+      throw new SessionConflict("Prior branch intent needs source reconciliation; replay cannot recreate a missing branch");
     try{
       const created=await transport("POST",repoPath+"/git/refs",
         {ref:"refs/heads/"+branch,sha}) as {object?:{sha?:string}};
@@ -218,6 +222,8 @@ async function doWrite(scope:RepoScope,op:GithubWrite,transport=githubAppRequest
     const existing=onDefaultBase.length===1?onDefaultBase[0]:open.length===1?open[0]:null;
     if(!existing)throw new SessionConflict("Multiple open PRs exist for the assigned work branch");
     const changes=pullRequestChanges(existing,intended,base);
+    if(reconcileOnly&&Object.keys(changes).length>0)
+      throw new SessionConflict("Prior pull-request intent needs reconciliation; replay cannot overwrite changed metadata");
     const updated=Object.keys(changes).length>0
       ?await transport("PATCH",repoPath+"/pulls/"+existing.number,changes) as ExistingPullRequest
       :existing;
