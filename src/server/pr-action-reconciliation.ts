@@ -13,6 +13,7 @@ export type PrApprovalDisposition="VERIFIED"|"CANCELLED"|null;
  * Generic risk-intent approvals, purchases, credentials, and unknown references are never auto-closed. */
 export function parsePrActionReference(action:PendingPrApproval):{repository:string;number:number;head:string|null}|null{
   if(action.repositoryCount!==1||!action.repository||!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(action.repository)||
+     !action.title.toLowerCase().includes(action.repository.toLowerCase())||
      action.actionKey.startsWith("approval:"))return null;
   const title=action.title.match(/\b(?:pull request|pr)\s*#?\s*([1-9]\d{0,8})\b/i);
   if(!title)return null;
