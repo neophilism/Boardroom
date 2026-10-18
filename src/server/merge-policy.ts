@@ -6,6 +6,7 @@ import {safeWorkBranch} from "./github-write-gateway.ts";
 import {assessObservedChecks,type CheckRun,type CheckSuite,type LegacyStatus} from "./pr-evidence.ts";
 import {SessionConflict} from "./sessions.ts";
 import {assertWorkPrerequisites} from "./work-prerequisites.ts";
+import {classifyChangedFiles,type ChangedFile,type ChangedFileRisk} from "./change-review.ts";
 
 export type MergePolicy={auto_merge:boolean;required_checks:string[];minimum_reviews:number};
 export function aggregateLinkedPrState(unitId:string,linked:number[],pulls:readonly GitHubPull[],confirmedMerged:number):"MERGED"|"OPEN_PR"|"UNKNOWN"{
@@ -21,10 +22,13 @@ export type MergeFacts={
   checks:CheckRun[];checkTotal:number;suites:CheckSuite[];suiteTotal:number;statuses:LegacyStatus[];
   reviews:{login:string;state:string;commitId:string}[];
   requiredReviewerLogin?:string;
+  changedFileRisk:ChangedFileRisk;
 };
 export function mergeBlockers(policy:MergePolicy,facts:MergeFacts):string[]{
   const blocked:string[]=[];
   if(!policy.auto_merge)blocked.push("OWNER_MERGE_POLICY_REQUIRED");
+  if(facts.changedFileRisk==="UNVERIFIED")blocked.push("CHANGE_SCOPE_UNVERIFIED");
+  if(facts.changedFileRisk==="REVIEW_REQUIRED"&&!facts.requiredReviewerLogin)blocked.push("SENSITIVE_REVIEWER_UNAVAILABLE");
   if(!Array.isArray(policy.required_checks)||!policy.required_checks.length)blocked.push("REQUIRED_CHECKS_NOT_CONFIGURED");
   if(facts.draft||facts.state!=="open")blocked.push("PR_NOT_READY");
   if(facts.headSha!==facts.expectedSha)blocked.push("HEAD_CHANGED");
@@ -73,7 +77,7 @@ export async function mergeAssignedPullRequest(db:Pool,runId:string,credentialId
       return observed;
     }
     const pr=await githubAppRequest("GET",api+"/pulls/"+number) as {
-      state:string;draft:boolean;merged:boolean;head:{sha:string;ref:string;repo:{id:number}};html_url:string;
+      state:string;draft:boolean;merged:boolean;changed_files:number;head:{sha:string;ref:string;repo:{id:number}};html_url:string;
     };
     const prScopeMatches=pr.head.ref===safeWorkBranch(scope.unit_id)&&
       String(pr.head.repo.id)===scope.repository_id;
@@ -82,8 +86,12 @@ export async function mergeAssignedPullRequest(db:Pool,runId:string,credentialId
       const unitState=await reconcileMergedUnit();await client.query("COMMIT");transactionOpen=false;
       return {merged:true,replay:true,url:pr.html_url,unitState};
     }
+    // Enumerate every changed file before permitting a routine merge.
+    // Renames inspect both old and new paths; incomplete/paginated lists fail closed.
+    const changed=await githubAppRequest("GET",api+"/pulls/"+number+"/files?per_page=100") as ChangedFile[];
+    const changedFileRisk=classifyChangedFiles(changed,pr.changed_files);
     const [owner,name]=scope.full_name.split("/");
-    const controlsItsOwnAuthority=scope.full_name.toLowerCase()===(process.env.BOARDROOM_GITHUB_OWNER??"neophilism").toLowerCase()+"/boardroom";
+    const sensitiveReviewer=process.env.BOARDROOM_GITHUB_OWNER??"neophilism";
     const observed=await githubAppRequest("POST","/graphql",{
       query:"query($owner:String!,$name:String!,$number:Int!){repository(owner:$owner,name:$name){pullRequest(number:$number){mergeStateStatus reviewDecision headRefOid}}}",
       variables:{owner,name,number}
@@ -102,7 +110,8 @@ export async function mergeAssignedPullRequest(db:Pool,runId:string,credentialId
       branch:pr.head.ref,expectedBranch:safeWorkBranch(scope.unit_id),repositoryId:String(pr.head.repo.id),
       expectedRepositoryId:scope.repository_id,...graph,checks:checked.check_runs,checkTotal:checked.total_count,
       suites:suiteResult.check_suites,suiteTotal:suiteResult.total_count,
-      requiredReviewerLogin:controlsItsOwnAuthority?owner:undefined,
+      changedFileRisk,
+      requiredReviewerLogin:changedFileRisk==="REVIEW_REQUIRED"?sensitiveReviewer:undefined,
       statuses:statuses.statuses,reviews:reviews.map(r=>({login:r.user.login,state:r.state,commitId:r.commit_id}))});
     if(reasons.length){
       const details=mergeDenialAuditDetails(scope.unit_id,number,pr.head.sha,reasons);
