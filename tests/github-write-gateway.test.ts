@@ -2,8 +2,9 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   safeRepositoryPath,safeWorkBranch,parseGithubWrite,parseGithubWriteRequest,
-  canonicalPullRequest,pullRequestChanges,GithubWriteValidation
+  canonicalPullRequest,pullRequestChanges,doWrite,GithubWriteValidation
 } from "../src/server/github-write-gateway.ts";
+import {GitHubAppError,type githubAppRequest} from "../src/server/github-app.ts";
 
 const runId="26741e83-9694-4fb3-8174-783b2f9bf61c";
 const b64=Buffer.from("export const answer = 42;\n","utf8").toString("base64");
@@ -62,4 +63,46 @@ test("work-unit PR metadata is canonical and existing PRs are updated in place",
   assert.deepEqual(pullRequestChanges({number:7,html_url:"https://example.test/7",draft:false,
     title:preserve.title,body:"maintainer notes",base:{ref:"main"}},preserve,"main"),{});
   assert.equal(canonicalPullRequest("BR-036","x".repeat(300),"").title.length,220);
+});
+
+
+test("ledger replay never restores branch or pull-request state changed outside Boardroom",async()=>{
+  const scope={repository_id:"123",full_name:"ci/repo",unit_id:"BR-055",title:"Transactional delivery"};
+  const sha="a".repeat(40);
+
+  const branchCalls:string[]=[];
+  const missingBranch:typeof githubAppRequest=async(method,path)=>{
+    branchCalls.push(method+" "+path);
+    if(path==="/repos/ci/repo")return {default_branch:"main"};
+    if(path.endsWith("/git/ref/heads/main"))return {object:{sha}};
+    if(path.endsWith("/git/ref/heads/boardroom/BR-055"))throw new GitHubAppError(404);
+    throw new Error("Unexpected branch fixture operation");
+  };
+  await assert.rejects(doWrite(scope,{kind:"ensure_branch"},missingBranch,true),/Prior branch intent needs source reconciliation/);
+  assert.ok(branchCalls.every(call=>!call.startsWith("POST ")));
+
+  const readyCalls:string[]=[];
+  const redrafted:typeof githubAppRequest=async(method,path)=>{
+    readyCalls.push(method+" "+path);
+    if(method==="GET"&&path.endsWith("/pulls/7"))return {
+      node_id:"PR_fixture",draft:true,head:{ref:"boardroom/BR-055",repo:{id:123}}
+    };
+    throw new Error("Unexpected ready fixture operation");
+  };
+  await assert.rejects(doWrite(scope,{kind:"ready_pr",number:7},redrafted,true),/Prior ready intent needs pull-request reconciliation/);
+  assert.ok(readyCalls.every(call=>!call.startsWith("POST ")));
+
+  const prCalls:string[]=[];
+  const editedPullRequest:typeof githubAppRequest=async(method,path)=>{
+    prCalls.push(method+" "+path);
+    if(path==="/repos/ci/repo")return {default_branch:"main"};
+    if(path.endsWith("/git/ref/heads/main"))return {object:{sha}};
+    if(path.includes("/pulls?state=all"))return [{
+      number:7,html_url:"https://example.test/7",draft:true,state:"open",
+      title:"Outside edit",body:"Maintainer notes",base:{ref:"main"}
+    }];
+    throw new Error("Unexpected pull request fixture operation");
+  };
+  await assert.rejects(doWrite(scope,{kind:"open_draft_pr",description:"Intended body"},editedPullRequest,true),/Prior pull-request intent needs reconciliation/);
+  assert.ok(prCalls.every(call=>!call.startsWith("PATCH ")));
 });
