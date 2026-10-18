@@ -4,7 +4,7 @@ import {getDatabase} from "../../../../../src/server/db";
 import {authorizeOwnerRequest,OWNER_COOKIE,OwnerOriginRejected} from "../../../../../src/server/owner-session";
 import {UnauthorizedOwner} from "../../../../../src/server/owner-auth";
 import {SessionConflict} from "../../../../../src/server/sessions";
-import {operationsOverview,setExecutionPaused,setExecutionPolicy,recoverRun} from "../../../../../src/server/operations";
+import {operationsOverview,setExecutionPaused,setExecutionPolicy,recoverRun,emergencyStopPaidApi} from "../../../../../src/server/operations";
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
 const headers={"Cache-Control":"no-store"};
@@ -20,7 +20,7 @@ export async function POST(request:Request){
     const body=await request.json();
     const db=getDatabase();
     const result=body.kind==="pause"?await setExecutionPaused(db,body.paused):
-      body.kind==="policy"?await setExecutionPolicy(db,body):body.kind==="recover"?
+      body.kind==="policy"?await setExecutionPolicy(db,body):body.kind==="disablePaidApi"?await emergencyStopPaidApi(db):body.kind==="recover"?
         await recoverRun(db,String(body.runId),body.externalExecutionStopped):null;
     if(!result)throw new SessionConflict("Unsupported owner operation");
     return NextResponse.json(result,{headers});

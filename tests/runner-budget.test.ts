@@ -5,7 +5,7 @@ import {BoardroomRequestError} from "../src/sdk/boardroom-agent-client.ts";
 const id="26741e83-9694-4fb3-8174-783b2f9bf61c",sha="a".repeat(40);
 const config:RunnerConfig={baseUrl:"https://boardroom.example",name:"Smith",token:"b".repeat(64),provider:"openai",model:"explicit-model",providerKey:"private-provider-fixture",
   maxSeconds:60,maxCalls:5,maxTokens:100000,maxCostMicroUsd:1000000,inputUsdPerMillion:1,outputUsdPerMillion:1};
-for(const code of ["BUDGET_LIMIT","BUDGET_NOT_CONFIGURED"] as const)test(code+" stops before a model charge and checkpoints/releases accurately",async(t)=>{
+for(const code of ["BUDGET_LIMIT","BUDGET_NOT_CONFIGURED","API_DISABLED"] as const)test(code+" stops before a model charge and checkpoints/releases accurately",async(t)=>{
   let paidCalls=0;const payloads:{path:string;body:Record<string,unknown>}[]=[];
   t.mock.method(globalThis,"fetch",async(url:RequestInfo|URL,init:RequestInit)=>{
     const path=new URL(String(url)).pathname;
@@ -18,7 +18,7 @@ for(const code of ["BUDGET_LIMIT","BUDGET_NOT_CONFIGURED"] as const)test(code+" 
     return new Response(JSON.stringify(body));
   });
   const result=await runHostedAgent(config,"budget-fixture-activation-0001");
-  const expected=code==="BUDGET_LIMIT"?"YIELDED":"BLOCKED";
+  const expected=code==="BUDGET_NOT_CONFIGURED"?"BLOCKED":"YIELDED";
   assert.equal(result.status,expected);assert.equal(paidCalls,0);
   assert.equal(payloads.at(-1)?.body.outcome,expected);
   assert.ok(payloads.some(p=>p.path.endsWith("/checkpoint")));

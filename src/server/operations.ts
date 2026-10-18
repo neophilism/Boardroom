@@ -38,6 +38,20 @@ export async function setExecutionPolicy(db:Pool,input:unknown){
     await client.query("COMMIT");return p;
   }catch(error){await client.query("ROLLBACK");throw error;}finally{client.release();}
 }
+/** Emergency API kill switch. Does not stop or change native ChatGPT schedules.
+ * Enabling paid calls is intentionally deferred to funded owner onboarding.
+ */
+export async function emergencyStopPaidApi(db:Pool){
+  const client=await db.connect();
+  try{
+    await client.query("BEGIN");
+    const result=await client.query<{api_spending_enabled:boolean}>(
+      "UPDATE execution_controls SET api_spending_enabled=FALSE,updated_at=now() WHERE singleton=TRUE RETURNING api_spending_enabled");
+    if(result.rowCount!==1)throw new SessionConflict("Paid API spending controls unavailable");
+    await client.query("INSERT INTO audit_events(kind,details) VALUES('owner.paid_api.emergency_stop','{}'::jsonb)");
+    await client.query("COMMIT");return {apiSpendingEnabled:false};
+  }catch(error){await client.query("ROLLBACK");throw error;}finally{client.release();}
+}
 export async function setExecutionPaused(db:Pool,paused:boolean){
   if(typeof paused!=="boolean")throw new SessionConflict("paused must be boolean");
   const client=await db.connect();
@@ -80,7 +94,8 @@ export async function recoverRun(db:Pool,runId:string,externalExecutionStopped:b
 }
 export async function operationsOverview(db:Pool){
   const [control,repositories,runs,audit,usage,outbox]=await Promise.all([
-    db.query<{paused:boolean}>("SELECT paused FROM execution_controls WHERE singleton=TRUE"),
+    db.query<{paused:boolean;apiSpendingEnabled:boolean}>(
+      'SELECT paused,api_spending_enabled AS "apiSpendingEnabled" FROM execution_controls WHERE singleton=TRUE'),
     db.query(`SELECT r.repository_id::text AS "repositoryId",r.full_name AS "fullName",COALESCE(p.auto_merge,FALSE) AS "autoMerge",
       COALESCE(p.required_checks,'[]'::jsonb) AS "requiredChecks",COALESCE(p.minimum_reviews,0) AS "minimumReviews",
       COALESCE(p.max_session_seconds,1800) AS "maxSessionSeconds",COALESCE(p.max_tool_calls,100) AS "maxToolCalls",COALESCE(p.max_tokens,100000) AS "maxTokens"
@@ -93,6 +108,6 @@ export async function operationsOverview(db:Pool){
     db.query("SELECT COALESCE(SUM(input_tokens+output_tokens),0)::text AS tokens,COALESCE(SUM(cost_microusd),0)::text AS cost_microusd FROM usage_events WHERE created_at>now()-interval '24 hours'"),
     db.query("SELECT state,COUNT(*)::integer AS count FROM operation_outbox GROUP BY state")
   ]);
-  return {paused:control.rows[0]?.paused??true,repositories:repositories.rows,runs:runs.rows,audit:audit.rows,
+  return {paused:control.rows[0]?.paused??true,apiSpendingEnabled:control.rows[0]?.apiSpendingEnabled??false,repositories:repositories.rows,runs:runs.rows,audit:audit.rows,
     last24HoursReportedUsage:usage.rows[0],outbox:outbox.rows,observedAt:new Date().toISOString()};
 }
