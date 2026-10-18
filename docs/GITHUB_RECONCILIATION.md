@@ -22,3 +22,10 @@ The internal maintenance queue coalesces legacy duplicated inventory sweeps, mar
 Operational checks: inspect `operation_outbox` grouped by `state` and `operation_type`; review `maintenance.tick.completed` and `maintenance.queue.coalesced` audits; inspect `repository_sync_status.last_success_at` for Boardroom. A newly merged PR must not continue to be assigned after its targeted refresh. If a GitHub outage blocks refreshing candidates, the claim fails with an explicit retryable cause instead of allocating an unverified lease.
 
 Do not infer actual deployment from GitHub CI or a merged PR. Render startup runs `db/migrate.ts` before serving traffic; verify the running revision and schema readiness independently.
+
+
+## Partial inventory failures cannot stall healthy repositories
+
+A live October 18 recovery pass showed two source registries failing strict verification (Superintelligence-Academy and Superintelligence-Command-Center). Previously any `report.failed>0` aborted the entire inventory cursor, so the same successful repositories were reread over and over while later repositories starved. Now a page with individually handled failures records `maintenance.inventory.partial_failure`, retains the failed repositories in ERROR/unapproved state, marks the **page operation** DONE with `PARTIAL_REPOSITORY_FAILURE`, and always schedules its verified continuation cursor. Only systemic errors (invalid API response, corrupted importer report, unavailable database or GitHub inventory) retry the page itself. This does not mark a failed repository verified or permit it to be assigned.
+
+The owner Operations dashboard shows per-operation state and result code, and the private audit contains the bounded affected repository list for follow-up. Fix invalid source registries independently without blocking healthy repositories. A future sweep retries previously failed repositories without repeated hourly AI reasoning.
