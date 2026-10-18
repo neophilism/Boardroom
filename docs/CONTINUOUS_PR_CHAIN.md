@@ -2,9 +2,9 @@
 
 After the current work unit has authoritative `MERGED` or `ACCEPTED` evidence, an authenticated worker may request the next unit without releasing its repository lease. Boardroom advances the existing assignment in one database transaction and preserves the repository ID, assignment ID, lease generation and run ID.
 
-Selection remains limited to approved units in that same repository. Local plan dependencies, source-owned cross-repository prerequisites, compatibility dependencies and unresolved Owner Actions must all be satisfied. Work already active or attached to an open PR is resumed before new pending work. A blocked unit is not selected unless it has a source-backed answered Coffee thread.
+The internal merge-chain selection remains limited to approved units in that same repository; the public continuation operation can checkpoint and release it before claiming another eligible repository. Local plan dependencies, source-owned cross-repository prerequisites, compatibility dependencies and unresolved Owner Actions must all be satisfied. Work already active or attached to an open PR is resumed before new pending work. A blocked unit is not selected unless it has a source-backed answered Coffee thread.
 
-If no eligible unit remains, the endpoint returns `EXHAUSTED`; the runner checkpoints and finishes the session through the ordinary fenced release path. An unmerged current unit, stale generation, expired lease, revoked credential or owner pause fails closed. The chain endpoint cannot claim a second repository.
+If no eligible unit remains, the internal chain function returns `EXHAUSTED`. The public `boardroom_advance` operation then checkpoints/releases through the handoff protocol and returns `ASSIGNED` for another eligible unit/repository or `IDLE` when the queue is exhausted. An unmerged current unit can be handed off without being marked complete. Stale generations, expired leases, revoked credentials, unresolved external mutations and owner pauses remain fail-closed boundaries.
 
 
 ## Automatic reconciliation when a merged PR is missing from local state
