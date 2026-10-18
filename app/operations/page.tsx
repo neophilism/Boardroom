@@ -17,6 +17,7 @@ export default async function OperationsPage(){
     {info.outbox.length===0?<p>No maintenance operations are recorded.</p>:<div className="work-grid">{info.outbox.map((item,index)=><article className="action-card" key={index}>
       <h3>{item.operationType}</h3>
       <p>{item.state}: <strong>{item.count}</strong></p>
+      {item.errorCode&&<p>Result code: {item.errorCode}</p>}
       <p>Oldest request: {item.oldestCreatedAt?new Date(item.oldestCreatedAt).toISOString():"Unavailable"}</p>
     </article>)}</div>}
     <h2>Repository synchronization</h2>
