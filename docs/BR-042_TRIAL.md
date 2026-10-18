@@ -1,6 +1,6 @@
 # BR-042 live scheduled-trial evidence
 
-This unit is accepted only after real scheduled-origin **server evidence** links arrival, claim, an authorized repository change, mapped PR, exact-current-head CI, checkpoint, and confirmed release with timestamps. Passing structural tests, a manual activation, a pending check, or a synthetic fixture is insufficient.
+This unit is accepted only after real scheduled-origin **server evidence** links arrival, claim, an authorized repository change, mapped PR, exact-current-head CI, checkpoint, and confirmed release with timestamps. A caller supplied `released: true` without an authenticated `releasedAt` timestamp is insufficient. Passing structural tests, a manual activation, a pending check, or a synthetic fixture is insufficient.
 
 The trialProblems helper checks **internal consistency only**. An arbitrary caller can set origin to "scheduled"; the helper cannot independently authenticate that claim. Even zero reported problems do not constitute operational acceptance, check provenance, a reviewed PR, or merge authorization.
 

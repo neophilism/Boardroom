@@ -18,6 +18,7 @@ const proof: TrialProof = {
   prOpenedAt: "2026-10-18T10:03:00Z",
   ciObservedAt: "2026-10-18T10:04:00Z",
   finishedAt: "2026-10-18T10:05:00Z",
+  releasedAt: "2026-10-18T10:05:01Z",
   released: true
 };
 
@@ -36,6 +37,10 @@ test("pending CI and unreleased lease cannot pass", () =>
   assert.equal(trialProblems({ ...proof, ciStatus: "pending", released: false }).length, 2));
 test("invalid chronology cannot pass", () =>
   assert.match(trialProblems({ ...proof, claimedAt: "2026-10-18T09:00:00Z" }).join(" "), /chronology/));
+test("release needs a valid timestamp after finish", () => {
+  assert.match(trialProblems({ ...proof, releasedAt: "2026-10-18T10:04:59Z" }).join(" "), /chronology/);
+  assert.match(trialProblems({ ...proof, releasedAt: "unknown" }).join(" "), /UTC timestamps/);
+});
 test("spoofed PR URLs cannot pass", () => {
   for (const prUrl of [
     "https://github.com/example/repo/pull/1/extra",

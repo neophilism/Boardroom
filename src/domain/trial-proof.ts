@@ -17,6 +17,8 @@ export type TrialProof = {
   prObservedAt?: string;
   ciObservedAt: string;
   finishedAt: string;
+  /** Authenticated coordinator observation of final lease release. */
+  releasedAt: string;
   released: boolean;
 };
 
@@ -61,7 +63,7 @@ export function trialProblems(e: TrialProof): string[] {
   }
   if (!mappedPrUrl(e.prUrl, e.repository)) failures.push("PR is not mapped to repository");
 
-  const events = [e.arrivedAt, e.claimedAt, e.committedAt, e.ciObservedAt, e.finishedAt].map(utcMillis);
+  const events = [e.arrivedAt, e.claimedAt, e.committedAt, e.ciObservedAt, e.finishedAt, e.releasedAt].map(utcMillis);
   const prOpened = utcMillis(e.prOpenedAt);
   const prObserved = e.prObservedAt === undefined ? NaN : utcMillis(e.prObservedAt);
   if (events.some(t => !Number.isFinite(t)) || !Number.isFinite(prOpened) ||
