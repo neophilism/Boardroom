@@ -79,9 +79,11 @@ export function trialProblems(e: TrialProof): string[] {
     if (events.some((t, i) => i > 0 && t < events[i - 1]!)) {
       failures.push("Event chronology is invalid");
     }
+    const resumed = prOpened < events[2]!;
+    const observationIsInvalid = Number.isFinite(prObserved) &&
+      (prObserved < prOpened || prObserved < events[2]! || prObserved > events[3]!);
     if (prOpened > events[3]! ||
-        (prOpened < events[2]! && (!Number.isFinite(prObserved) ||
-          prObserved < events[2]! || prObserved > events[3]! || prObserved < prOpened))) {
+        (resumed && !Number.isFinite(prObserved)) || observationIsInvalid) {
       failures.push("Mapped PR was not observed after this run's commit");
     }
   }

@@ -98,3 +98,16 @@ test("truthy but non-boolean release does not pass", () => {
     assert.match(trialProblems(invalid).join(" "), /Run release is unverified/);
   }
 });
+
+test("PR observations must follow both creation and the current commit", () => {
+  assert.deepEqual(trialProblems({
+    ...proof, prObservedAt: "2026-10-18T10:03:30Z"
+  }), []);
+  for (const prObservedAt of [
+    "2026-10-18T10:01:59Z", // before current commit and PR creation
+    "2026-10-18T10:02:30Z", // after commit but before PR creation
+    "2026-10-18T10:04:01Z"  // after current-head CI observation
+  ]) {
+    assert.match(trialProblems({ ...proof, prObservedAt }).join(" "), /Mapped PR/);
+  }
+});
