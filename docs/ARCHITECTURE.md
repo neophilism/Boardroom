@@ -18,6 +18,10 @@ Recurring ChatGPT tasks (and later Claude/Grok scheduled executions) all use the
 
 ## Constraints and threat boundaries
 
+Transactional assignment notifications and pre-effect GitHub receipts are
+described in [Operation delivery](OPERATION_DELIVERY.md). Durable intent and
+delivery receipts never replace live authorization or prove code completion.
+
 - Strict repository exclusivity applies only to agents and GitHub writes routed through Boardroom enforcement. Unrestricted outside GitHub credentials can bypass that policy and require separate access controls.
 - Lease timeout alone cannot prove termination; block writable reassignment until old execution is confirmed stopped or fully fenced.
 - Server verification, not agent claims, determines PR status, test status, merges, deployments, and completion.

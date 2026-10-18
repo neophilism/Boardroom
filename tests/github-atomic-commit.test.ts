@@ -47,7 +47,7 @@ function fixture(options:{head?:string;fail?:"tree"|"commit"|"ref"|"response";ra
   };
   return {transport,calls,head:()=>head};
 }
-const run=(f:ReturnType<typeof fixture>,op=operation())=>commitAssignedFiles("/repos/ci/repo","boardroom/BR-035",op,f.transport);
+const run=(f:ReturnType<typeof fixture>,op=operation(),reconcileOnly=false)=>commitAssignedFiles("/repos/ci/repo","boardroom/BR-035",op,f.transport,reconcileOnly);
 
 test("one non-force ref update atomically publishes additions, edits and deletions",async()=>{
   const f=fixture(),result=await run(f);
@@ -74,6 +74,9 @@ test("a lost successful response reconciles the exact commit without duplicating
   assert.ok(replay.calls.every(c=>c.method!=="PATCH"&&!(c.method==="POST"&&c.path.endsWith("/commits"))));
   await assert.rejects(run(fixture({head:newCommit,replayMessage:"An unrelated commit"})),GitHubAppError);
   await assert.rejects(run(fixture({head:newCommit,tree:other})),GitHubAppError);
+  const reverted=fixture({head:base});
+  await assert.rejects(run(reverted,operation(),true),/Prior commit intent needs source reconciliation/);
+  assert.ok(reverted.calls.every(c=>c.method==="GET"));
 });
 test("stale heads and concurrent branch changes never overwrite outside work",async()=>{
   const stale=fixture({head:other});await assert.rejects(run(stale),GitHubAppError);

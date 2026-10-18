@@ -6,6 +6,7 @@ import {safeWorkBranch} from "./github-write-gateway.ts";
 import {assessObservedChecks,type CheckRun,type CheckSuite,type LegacyStatus} from "./pr-evidence.ts";
 import {SessionConflict} from "./sessions.ts";
 import {assertWorkPrerequisites} from "./work-prerequisites.ts";
+import {githubWriteIdentity} from "./github-write-ledger.ts";
 
 export type MergePolicy={auto_merge:boolean;required_checks:string[];minimum_reviews:number};
 export function aggregateLinkedPrState(unitId:string,linked:number[],pulls:readonly GitHubPull[],confirmedMerged:number):"MERGED"|"OPEN_PR"|"UNKNOWN"{
@@ -50,14 +51,34 @@ export function mergeDenialAuditDetails(unitId:string,number:number,headSha:stri
   return {unitId,number,headSha,reasons:[...new Set(reasons)]};
 }
 
-export async function mergeAssignedPullRequest(db:Pool,runId:string,credentialId:string,generation:string,number:number,expectedSha:string){
+export async function mergeAssignedPullRequest(db:Pool,runId:string,credentialId:string,generation:string,number:number,expectedSha:string,
+  services={request:githubAppRequest,pulls:fetchPullRequests}){
   if(!Number.isSafeInteger(number)||number<=0||!/^[a-f0-9]{40}$/i.test(expectedSha))throw new SessionConflict("Valid PR and expected commit required");
   const client=await db.connect();
   let transactionOpen=false;
+  let intent:{repositoryId:string;unitId:string;key:string;digest:string}|undefined;
   try{
+    // Persist the bounded intent before any GitHub mutation, then perform the
+    // full existing authorization/check/review preflight under a NEW lease lock.
+    await client.query("BEGIN");transactionOpen=true;
+    await client.query("SET LOCAL statement_timeout='25s'");
+    const intendedScope=await assignedScope(client,runId,credentialId,generation,true);
+    await assertWorkPrerequisites(client,intendedScope.repository_id,intendedScope.unit_id);
+    const identity=githubWriteIdentity(intendedScope.unit_id,{kind:"merge_pr",number,expectedSha});
+    intent={repositoryId:intendedScope.repository_id,unitId:intendedScope.unit_id,...identity};
+    await client.query(`INSERT INTO github_operations(repository_id,unit_id,run_id,idempotency_key,request_digest,request_metadata)
+      VALUES($1,$2,$3,$4,$5,$6::jsonb) ON CONFLICT(repository_id,idempotency_key) DO NOTHING`,
+      [intent.repositoryId,intent.unitId,runId,intent.key,intent.digest,JSON.stringify({kind:"merge_pr",number,expectedSha})]);
+    await client.query("COMMIT");transactionOpen=false;
     await client.query("BEGIN");transactionOpen=true;
     await client.query("SET LOCAL statement_timeout='25s'");
     const scope=await assignedScope(client,runId,credentialId,generation,true);
+    if(scope.repository_id!==intent.repositoryId||scope.unit_id!==intent.unitId)throw new SessionConflict("Assignment changed after merge intent");
+    const recorded=await client.query<{request_digest:string}>("SELECT request_digest FROM github_operations WHERE repository_id=$1 AND idempotency_key=$2 FOR UPDATE",[intent.repositoryId,intent.key]);
+    if(recorded.rows[0]?.request_digest!==intent.digest)throw new SessionConflict("Merge intent mismatch");
+    async function confirm(result:unknown){
+      await client.query("UPDATE github_operations SET state='CONFIRMED',result=$3::jsonb,confirmed_at=now() WHERE repository_id=$1 AND idempotency_key=$2",[intent!.repositoryId,intent!.key,JSON.stringify(result)]);
+    }
     const policyResult=await client.query<MergePolicy>("SELECT auto_merge,required_checks,minimum_reviews FROM repository_execution_policy WHERE repository_id=$1",[scope.repository_id]);
     const policy=policyResult.rows[0]??{auto_merge:false,required_checks:[],minimum_reviews:0};
     const controls=await client.query<{paused:boolean}>("SELECT paused FROM execution_controls WHERE singleton=TRUE");
@@ -68,35 +89,37 @@ export async function mergeAssignedPullRequest(db:Pool,runId:string,credentialId
       const refs=await client.query<{planned_prs:unknown}>("SELECT planned_prs FROM roadmap_units WHERE repository_id=$1 AND unit_id=$2",[scope.repository_id,scope.unit_id]);
       const links=refs.rows[0]?.planned_prs;
       if(!Array.isArray(links)||links.some(n=>!Number.isSafeInteger(n)||n<1))throw new SessionConflict("Approved PR references unavailable");
-      const observed=aggregateLinkedPrState(scope.unit_id,links,await fetchPullRequests(scope.full_name),number);
+      const observed=aggregateLinkedPrState(scope.unit_id,links,await services.pulls(scope.full_name),number);
       await client.query("UPDATE roadmap_units SET state=CASE WHEN state='ACCEPTED' THEN state ELSE $3 END,source_observed_at=now() WHERE repository_id=$1 AND unit_id=$2",[scope.repository_id,scope.unit_id,observed]);
       return observed;
     }
-    const pr=await githubAppRequest("GET",api+"/pulls/"+number) as {
+    const pr=await services.request("GET",api+"/pulls/"+number) as {
       state:string;draft:boolean;merged:boolean;head:{sha:string;ref:string;repo:{id:number}};html_url:string;
     };
     const prScopeMatches=pr.head.ref===safeWorkBranch(scope.unit_id)&&
       String(pr.head.repo.id)===scope.repository_id;
     if(pr.merged){
-      if(!prScopeMatches)throw new SessionConflict("PR is outside the assigned work branch");
-      const unitState=await reconcileMergedUnit();await client.query("COMMIT");transactionOpen=false;
-      return {merged:true,replay:true,url:pr.html_url,unitState};
+      if(!prScopeMatches||pr.head.sha!==expectedSha)throw new SessionConflict("Merged PR is outside the assigned intent");
+      const unitState=await reconcileMergedUnit();
+      const result={merged:true,replay:true,url:pr.html_url,unitState};
+      await confirm(result);await client.query("COMMIT");transactionOpen=false;
+      return result;
     }
     const [owner,name]=scope.full_name.split("/");
     const controlsItsOwnAuthority=scope.full_name.toLowerCase()===(process.env.BOARDROOM_GITHUB_OWNER??"neophilism").toLowerCase()+"/boardroom";
-    const observed=await githubAppRequest("POST","/graphql",{
+    const observed=await services.request("POST","/graphql",{
       query:"query($owner:String!,$name:String!,$number:Int!){repository(owner:$owner,name:$name){pullRequest(number:$number){mergeStateStatus reviewDecision headRefOid}}}",
       variables:{owner,name,number}
     }) as {data?:{repository?:{pullRequest?:{mergeStateStatus:string;reviewDecision:string|null;headRefOid:string}}};errors?:unknown[]};
     const graph=observed.data?.repository?.pullRequest;
     if(!graph||observed.errors?.length||graph.headRefOid!==pr.head.sha)throw new SessionConflict("Authoritative merge requirements unavailable or head changed");
-    const checked=await githubAppRequest("GET",api+"/commits/"+pr.head.sha+"/check-runs?per_page=100") as {total_count:number;check_runs:CheckRun[]};
-    const suiteResult=await githubAppRequest("GET",api+"/commits/"+pr.head.sha+"/check-suites?per_page=100") as {total_count:number;check_suites:CheckSuite[]};
-    const statuses=await githubAppRequest("GET",api+"/commits/"+pr.head.sha+"/status?per_page=100") as {total_count:number;statuses:LegacyStatus[]};
+    const checked=await services.request("GET",api+"/commits/"+pr.head.sha+"/check-runs?per_page=100") as {total_count:number;check_runs:CheckRun[]};
+    const suiteResult=await services.request("GET",api+"/commits/"+pr.head.sha+"/check-suites?per_page=100") as {total_count:number;check_suites:CheckSuite[]};
+    const statuses=await services.request("GET",api+"/commits/"+pr.head.sha+"/status?per_page=100") as {total_count:number;statuses:LegacyStatus[]};
     if(!Array.isArray(checked.check_runs)||!Array.isArray(suiteResult.check_suites)||!Array.isArray(statuses.statuses))
       throw new SessionConflict("Authoritative check evidence unavailable");
     if(statuses.total_count>100)throw new SessionConflict("Check status pagination incomplete");
-    const reviews=await githubAppRequest("GET",api+"/pulls/"+number+"/reviews?per_page=100") as {user:{login:string};state:string;commit_id:string}[];
+    const reviews=await services.request("GET",api+"/pulls/"+number+"/reviews?per_page=100") as {user:{login:string};state:string;commit_id:string}[];
     if(!Array.isArray(reviews)||reviews.length===100)throw new SessionConflict("Review evidence requires pagination");
     const reasons=mergeBlockers(policy,{draft:pr.draft,state:pr.state,headSha:pr.head.sha,expectedSha,
       branch:pr.head.ref,expectedBranch:safeWorkBranch(scope.unit_id),repositoryId:String(pr.head.repo.id),
@@ -111,12 +134,21 @@ export async function mergeAssignedPullRequest(db:Pool,runId:string,credentialId
       await client.query("COMMIT");transactionOpen=false;
       throw new SessionConflict("Merge blocked: "+reasons.join(", "));
     }
-    const merged=await githubAppRequest("PUT",api+"/pulls/"+number+"/merge",{sha:expectedSha,merge_method:"squash"}) as {merged:boolean;sha:string};
+    const merged=await services.request("PUT",api+"/pulls/"+number+"/merge",{sha:expectedSha,merge_method:"squash"}) as {merged:boolean;sha:string};
     if(!merged.merged||!/^[a-f0-9]{40}$/i.test(merged.sha))throw new GitHubAppError(409);
     const unitState=await reconcileMergedUnit();
     await client.query("INSERT INTO audit_events(run_id,repository_id,kind,details) VALUES($1,$2,'github.pr.merged',$3::jsonb)",
       [runId,scope.repository_id,JSON.stringify({unitId:scope.unit_id,number,headSha:expectedSha,mergeSha:merged.sha})]);
+    await confirm({merged:true,sha:merged.sha,url:pr.html_url,unitState});
     await client.query("COMMIT");transactionOpen=false;
     return {merged:true,replay:false,sha:merged.sha,url:pr.html_url,unitState};
-  }catch(error){if(transactionOpen)await client.query("ROLLBACK");throw error;}finally{client.release();}
+  }catch(error){
+    if(transactionOpen)await client.query("ROLLBACK");
+    if(intent){
+      try{await client.query("UPDATE github_operations SET state='UNCERTAIN' WHERE repository_id=$1 AND idempotency_key=$2 AND state<>'CONFIRMED'",[intent.repositoryId,intent.key]);}
+      catch{/* Durable INTENDED receipt remains after a lost database connection. */}
+    }
+    throw error;
+  }finally{client.release();}
 }
+
