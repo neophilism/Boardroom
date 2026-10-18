@@ -1,6 +1,6 @@
 # Boardroom — Complete Implementation Roadmap
 
-**80 planned, approved-for-planning PR work units (roadmap version 2)**. These are *planned PRs*, not currently implemented or verified pull requests. BR-001 creates this plan; subsequent PRs require actual code, reviews, tests, and merges.
+**118 planned, approved-for-planning PR work units (roadmap version 3)**. These are *planned PRs*, not currently implemented or verified pull requests. BR-001 creates this plan; subsequent PRs require actual code, reviews, tests, and merges.
 
 **Portfolio priority:** Boardroom is the highest-priority project until an end-to-end unattended scheduled-agent loop with an Owner Action Board is working. Do not fabricate overall portfolio ranking changes in the currently undeployed Boardroom app; the owner can later change the rank using its priority editor.
 
@@ -682,3 +682,7 @@ Maintain all 601 owner-supplied names exactly, including punctuation and case, i
 ### BR-080 — Server-verified named identity
 
 Each scheduled task receives one owner-assigned name from the roster and retains it on every hourly activation; its run ID remains new every time. Bind the name to a unique secret credential or trusted provider authentication and derive it server-side. Do not accept name claims as proof of identity. Reject unregistered names at onboarding/admission and return the verified display name with session details. No raw bearer token or personal details may be committed to GitHub. (Depends on BR-079 and BR-003.)
+
+## F9–F12: API-agent expansion and million-identity capacity (BR-081 through BR-118)
+
+The owner-requested API integration and long-term mixed-role scaling roadmap is canonical in `registry/prs.json` and specified in detail in [API_AGENT_SCALE_PLAN.md](API_AGENT_SCALE_PLAN.md). It adds 38 work units without changing the existing BR-001–BR-080 identities, dependencies, PR mappings or acceptance evidence. The new provider adapters and scale tests are *planned*, not deployed or proven. The entire paid fleet remains $0-disabled until owner-provided credentials and explicit funding authorization. No statement here certifies million-agent production capacity.
