@@ -1,6 +1,7 @@
 import type {Pool,PoolClient} from "pg";
 import {synchronizeInstalledRepositories,synchronizeRepositoryById} from "./repository-sync.ts";
 import {GitHubAppError} from "./github-app.ts";
+import {inventoryPageOutcome} from "../domain/inventory-page.ts";
 export function retryDelaySeconds(attempt:number):number{
   return Math.min(900,15*2**Math.max(0,Math.min(6,attempt-1)));
 }
@@ -90,15 +91,16 @@ export async function dispatchOutbox(db:Pool,limit=5){
       if(item.operation_type==="sync_repository")await synchronizeRepositoryById(String(item.payload.repositoryId));
       else if(item.operation_type==="sync_inventory"){
         const report=await synchronizeInstalledRepositories({limit:6,afterId:typeof item.payload.afterId==="string"?item.payload.afterId:null});
-        // Repository failures are individually recorded as ERROR/unapproved by
-        // syncOne. They must not trap the inventory cursor on this page.
-        if(report.failed){
+        // A failed repository remains ERROR/unapproved, but a partial page
+        // must never strand the rest of the inventory behind the same cursor.
+        const outcome=inventoryPageOutcome(report);
+        if(outcome.partial){
           partialInventory=true;
           await db.query("INSERT INTO audit_events(kind,details) VALUES('maintenance.inventory.partial_failure',$1::jsonb)",
             [JSON.stringify({outboxId:item.outbox_id,processed:report.processed,failed:report.failed,
-              repositories:report.errors.map(e=>e.repository).slice(0,10)})]);
+              repositories:outcome.failedRepositories})]);
         }
-        if(report.nextAfterId)await db.query("INSERT INTO operation_outbox(idempotency_key,operation_type,payload) VALUES($1,'sync_inventory',$2::jsonb) ON CONFLICT DO NOTHING",["inventory-continuation:"+item.outbox_id,JSON.stringify({afterId:report.nextAfterId})]);
+        if(outcome.nextAfterId)await db.query("INSERT INTO operation_outbox(idempotency_key,operation_type,payload) VALUES($1,'sync_inventory',$2::jsonb) ON CONFLICT DO NOTHING",["inventory-continuation:"+item.outbox_id,JSON.stringify({afterId:outcome.nextAfterId})]);
       }else throw new Error("Unsupported outbox operation");
       await db.query("UPDATE operation_outbox SET state='DONE',completed_at=now(),last_error_code=$2 WHERE outbox_id=$1",
         [item.outbox_id,partialInventory?"PARTIAL_REPOSITORY_FAILURE":null]);report.done++;
