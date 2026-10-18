@@ -1,6 +1,6 @@
-/** A server-verified, fail-closed classification of PR filenames.
- * GitHub source files are untrusted: the agent cannot set its own risk category.
- * This protects sensitive controls, not every ordinary Boardroom self-update.
+/** An optional server-verified classification of PR filenames for audit/reporting.
+ * This must never impose an independent owner/human-review merge requirement:
+ * GitHub's actual branch protection and merge transaction control approvals.
  */
 export type ChangedFile={filename:string;status:string;previous_filename?:string};
 export type ChangedFileRisk="ROUTINE"|"REVIEW_REQUIRED"|"UNVERIFIED";

@@ -10,7 +10,11 @@ test("private policy updates persist caps and merge-only requests preserve them"
   await db.query("INSERT INTO repositories(repository_id,full_name,created_at,enabled) VALUES($1,'ci/limits',now(),FALSE)",[repositoryId]);
   const policy={repositoryId,autoMerge:false,requiredChecks:[],maxSessionSeconds:600,maxToolCalls:25,maxTokens:20000};
   await setExecutionPolicy(db,policy);
-  await setExecutionPolicy(db,{repositoryId,autoMerge:false,requiredChecks:[],minimumReviews:1});
+  await setExecutionPolicy(db,{repositoryId,autoMerge:false,requiredChecks:[],minimumReviews:0});
+  await assert.rejects(
+    setExecutionPolicy(db,{repositoryId,autoMerge:false,requiredChecks:[],minimumReviews:1}),
+    /Independent review counts are not a Boardroom merge requirement/
+  );
   const row=(await db.query("SELECT max_session_seconds,max_tool_calls,max_tokens,minimum_reviews FROM repository_execution_policy WHERE repository_id=$1",[repositoryId])).rows[0];
-  assert.deepEqual(row,{max_session_seconds:600,max_tool_calls:25,max_tokens:20000,minimum_reviews:1});
+  assert.deepEqual(row,{max_session_seconds:600,max_tool_calls:25,max_tokens:20000,minimum_reviews:0});
 });
