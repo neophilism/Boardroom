@@ -93,3 +93,4 @@ export default function LogicalAgentInventory({initial}:{initial:Page}){
     </section>
     {message&&<p role="status" aria-live="polite">{message}</p>}
   </section>;
+}
