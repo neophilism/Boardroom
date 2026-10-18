@@ -14,4 +14,5 @@ export const MIGRATION_MANIFEST = [
   {filename: "0010_coffee_question_metadata.sql", sha256: "119244a91c769210f12bb115bf560c7060fb12c602a8cfbb615f25dae37765c6"},
   {filename: "0011_coffee_posting_budget_index.sql", sha256: "814ce5baae5af4b83c75ecbae33ca5812be127016e5faa9e1647dad8bf12ef8e"}
   ,{filename: "0014_logical_agents.sql", sha256: "5209ab882e52e77b848b6c94877170354efd05dc1aef1a5682d5956c26f5b5ec"}
+  ,{filename: "0015_outbox_supersession.sql", sha256: "f71463c46e9b682fc1a4464f75e50fce17c2e2feb9cf2e853415ce7044e79932"}
 ] as const;
