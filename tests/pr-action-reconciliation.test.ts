@@ -22,6 +22,9 @@ test("only GitHub-confirmed merge, closure, or stale requested head resolves own
   assert.equal(prApprovalDisposition({...same,state:"closed"},107,null),"CANCELLED");
   assert.equal(prApprovalDisposition({...same,head:{sha:"b".repeat(40)}},107,same.head.sha),"CANCELLED");
   assert.equal(prApprovalDisposition(same,107,same.head.sha),null);
+  assert.equal(prApprovalDisposition({...same,changedFileRisk:"ROUTINE"},107,same.head.sha),"CANCELLED");
+  assert.equal(prApprovalDisposition({...same,changedFileRisk:"REVIEW_REQUIRED"},107,same.head.sha),null);
+  assert.equal(prApprovalDisposition({...same,changedFileRisk:"UNVERIFIED"},107,same.head.sha),null);
   assert.equal(prApprovalDisposition({...same,number:108,state:"closed",merged:true},107,null),null);
 });
 test("bounded reconciliation records only evidence-confirmed changes with atomic audit",async()=>{
