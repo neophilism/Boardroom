@@ -1,5 +1,6 @@
 import type {Pool} from "pg";
-import {recordedGitHubActivity,actionAge,safeRevision} from "../domain/operational-digest.ts";
+import {recordedGitHubActivity,actionAge} from "../domain/operational-digest.ts";
+import {deploymentRevision} from "../domain/deployment-revision.ts";
 import {checkReadiness} from "./readiness.ts";
 
 /** A private read-only report. Outcomes are model/session reports; only gateway
@@ -40,7 +41,7 @@ export async function getOperationalDigest(db:Pool,env:NodeJS.ProcessEnv,observe
   const activity=events.rows.map(recordedGitHubActivity).filter(x=>x!==null);
   return {
     observedAt:observedAt.toISOString(),since:since.toISOString(),
-    deployment:{revision:safeRevision(env.RENDER_GIT_COMMIT),ready},
+    deployment:{revision:deploymentRevision(env),ready},
     activity,activityMayBeTruncated:events.rows.length===200,
     reportedSessionOutcomes:outcomes.rows,
     ownerActions:actions.rows.map(a=>({...a,createdAt:a.createdAt.toISOString(),...actionAge(a.createdAt,observedAt),href:"/owner-actions#action-"+a.actionId})),

@@ -1,0 +1,82 @@
+name: Publish verified Boardroom image
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+  packages: write
+jobs:
+  image-test:
+    name: Build, test and publish verified image
+    if: github.event.repository.private == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: boardroom_test
+          POSTGRES_USER: boardroom_ci
+          POSTGRES_PASSWORD: ci_only_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U boardroom_ci -d boardroom_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the exact source revision without production secrets
+        run: docker build --platform linux/amd64 --build-arg BOARDROOM_BUILD_REVISION="$GITHUB_SHA" -t boardroom:ci .
+      - name: Verify the non-root image and excluded credential files
+        run: |
+          docker run --rm boardroom:ci node -e '
+            const fs=require("node:fs");
+            if(process.getuid()===0||fs.existsSync(".env")||fs.existsSync(".git"))process.exit(1);
+          '
+      - name: Start with disposable database and fixture-only credentials
+        run: |
+          cat > "$RUNNER_TEMP/boardroom-image.env" <<'FIXTURE'
+          DATABASE_URL=postgres://boardroom_ci:ci_only_password@127.0.0.1:5432/boardroom_test
+          BOARDROOM_TOKEN_PEPPER=fixture-only-image-pepper-at-least-thirty-two-bytes
+          BOARDROOM_OWNER_API_TOKEN=fixture-only-image-owner-token-at-least-thirty-two-bytes
+          BOARDROOM_SESSION_SECRET=fixture-only-image-session-secret-at-least-thirty-two-bytes
+          FIXTURE
+          docker run --detach --name boardroom-image-test --network host --env-file "$RUNNER_TEMP/boardroom-image.env" boardroom:ci
+      - name: Verify migrations, exact revision, readiness and anonymous denial
+        run: |
+          python - <<'PY'
+          import json,os,time,urllib.request,urllib.error
+          base='http://127.0.0.1:10000'
+          for attempt in range(60):
+              try:
+                  health=json.load(urllib.request.urlopen(base+'/api/health',timeout=2))
+                  if health.get('revision')==os.environ['GITHUB_SHA']:break
+              except (OSError,ValueError):pass
+              time.sleep(1)
+          else:raise SystemExit('Container failed exact-revision liveness')
+          assert json.load(urllib.request.urlopen(base+'/api/ready',timeout=5))['readiness']=='ready'
+          try:
+              urllib.request.urlopen(base+'/api/v1/owner/agents',timeout=5)
+              raise AssertionError('Anonymous owner API was exposed')
+          except urllib.error.HTTPError as error:assert error.code==401
+          print('Exact source revision, migrated PostgreSQL readiness and owner denial passed')
+          PY
+      - name: Show bounded fixture logs on failure
+        if: failure()
+        run: docker logs --tail 80 boardroom-image-test || true
+      - name: Stop the disposable runtime
+        if: always()
+        run: docker rm --force boardroom-image-test || true
+      - name: Authenticate only to this repository's package registry
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          export DOCKER_CONFIG="$RUNNER_TEMP/ghcr-auth"
+          printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+      - name: Publish the exact tested image and record its digest
+        run: |
+          export DOCKER_CONFIG="$RUNNER_TEMP/ghcr-auth"
+          image="ghcr.io/${GITHUB_REPOSITORY,,}:sha-$GITHUB_SHA"
+          docker tag boardroom:ci "$image"
+          docker push "$image"
+          docker buildx imagetools inspect "$image" >> "$GITHUB_STEP_SUMMARY"
