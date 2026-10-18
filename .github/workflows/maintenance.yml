@@ -1,13 +1,10 @@
 name: Boardroom maintenance
 on:
   workflow_dispatch:
+  # GitHub cron is best-effort and may run hours late. Every merge to main
+  # schedules a bounded recovery tick, regardless of changed file paths.
   push:
     branches: [main]
-    paths:
-      - .github/workflows/maintenance.yml
-      - scripts/maintenance.mjs
-      - scripts/maintenance-auth.mjs
-      - src/server/maintenance-auth.ts
   schedule:
     - cron: '*/10 * * * *'
 permissions:
