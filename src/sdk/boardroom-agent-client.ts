@@ -35,10 +35,12 @@ export type GithubWrite=
   |{kind:"open_draft_pr";description:string}
   |{kind:"ready_pr";number:number};
 
+const REQUEST_ERROR_CODES=["BUDGET_LIMIT","BUDGET_NOT_CONFIGURED","GITHUB_OPERATION_UNCERTAIN","RELEASE_RECONCILIATION_REQUIRED","CONTINUATION_REQUIRED"] as const;
+type RequestErrorCode=typeof REQUEST_ERROR_CODES[number];
 export class BoardroomRequestError extends Error{
   readonly status:number;
-  readonly code:"BUDGET_LIMIT"|"BUDGET_NOT_CONFIGURED"|null;
-  constructor(status:number,code:"BUDGET_LIMIT"|"BUDGET_NOT_CONFIGURED"|null=null){
+  readonly code:RequestErrorCode|null;
+  constructor(status:number,code:RequestErrorCode|null=null){
     super("Boardroom request failed with HTTP "+status);
     this.name="BoardroomRequestError";
     this.status=status;
@@ -93,10 +95,10 @@ export class BoardroomAgentClient{
       signal:AbortSignal.timeout(40000)
     });
     if(!response.ok){
-      // Recognize only fixed server budget codes, never provider messages or
+      // Recognize only fixed server diagnostic codes, never provider messages or
       // arbitrary response text which might contain a credential.
       const body=response.status===409?await response.json().catch(()=>null):null;
-      const code=body?.code==="BUDGET_LIMIT"||body?.code==="BUDGET_NOT_CONFIGURED"?body.code:null;
+      const code=REQUEST_ERROR_CODES.includes(body?.code)?body.code as RequestErrorCode:null;
       throw new BoardroomRequestError(response.status,code);
     }
     try{return await response.json() as T;}

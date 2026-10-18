@@ -4,6 +4,8 @@ import {githubAppRequest,GitHubAppError} from "./github-app.ts";
 import {commitAssignedFiles} from "./github-atomic-commit.ts";
 import {resolveAssignedWorkBranch,assignedPrNumbers,assertAssignedPull,type WorkPull} from "./work-branch.ts";
 import {assertWorkPrerequisites} from "./work-prerequisites.ts";
+import {prepareGithubOperation,githubOperationWriter,recordGithubMutation,githubBlobSha,githubValueDigest,
+  unresolvedGithubOperation,GithubOperationUncertain,type GithubMutationRecorder} from "./github-operation-ledger.ts";
 
 type RepoScope={repository_id:string;full_name:string;unit_id:string;title:string};
 export type GithubWrite=
@@ -117,15 +119,15 @@ function repoParts(repo:string):{owner:string;name:string}{
     throw new GithubWriteValidation("Invalid repository identity");
   return {owner:parts[0],name:parts[1]};
 }
-async function defaultBranch(path:string):Promise<{base:string;sha:string}>{
-  const info=await githubAppRequest("GET",path) as {default_branch?:string};
+async function defaultBranch(path:string,request:typeof githubAppRequest):Promise<{base:string;sha:string}>{
+  const info=await request("GET",path) as {default_branch?:string};
   const base=info.default_branch;
   if(!base||!/^[a-zA-Z0-9._/-]{1,100}$/.test(base))throw new GitHubAppError(503);
-  const ref=await githubAppRequest("GET",path+"/git/ref/heads/"+base) as {object?:{sha?:string}};
+  const ref=await request("GET",path+"/git/ref/heads/"+base) as {object?:{sha?:string}};
   if(!validSha(ref.object?.sha))throw new GitHubAppError(503);
   return {base,sha:ref.object.sha};
 }
-type ExistingPullRequest={number:number;html_url:string;draft:boolean;title:string;body:string|null;base:{ref:string}};
+type ExistingPullRequest={number:number;html_url:string;draft:boolean;title:string;body:string|null;base:{ref:string};head?:{sha?:string}};
 export function canonicalPullRequest(unitId:string,title:string,description:string){
   return {
     title:(unitId+": "+title).slice(0,220),
@@ -142,37 +144,38 @@ export function pullRequestChanges(existing:ExistingPullRequest,
   return changes;
 }
 
-async function doWrite(db:Pool|import("pg").PoolClient,scope:RepoScope,op:GithubWrite){
+async function doWrite(db:Pool|import("pg").PoolClient,scope:RepoScope,op:GithubWrite,mutate:GithubMutationRecorder,request:typeof githubAppRequest){
   const {owner,name}=repoParts(scope.full_name);
   const repoPath="/repos/"+encodeURIComponent(owner)+"/"+encodeURIComponent(name);
-  const branch=await resolveAssignedWorkBranch(db,scope,true);
-  if(op.kind==="commit_files")return commitAssignedFiles(repoPath,branch,op);
+  const branch=await resolveAssignedWorkBranch(db,scope,true,request);
+  if(op.kind==="commit_files")return commitAssignedFiles(repoPath,branch,op,request,mutate);
   if(op.kind==="ready_pr"){
-    const pr=await githubAppRequest("GET",repoPath+"/pulls/"+op.number) as WorkPull & {node_id:string;draft:boolean};
+    const pr=await request("GET",repoPath+"/pulls/"+op.number) as WorkPull & {node_id:string;draft:boolean};
     if(assertAssignedPull(scope,op.number,await assignedPrNumbers(db,scope),pr)!==branch)
       throw new SessionConflict("PR is outside the assigned work branch");
     if(!pr.draft)return {kind:"ready_pr",number:op.number,replay:true};
-    const result=await githubAppRequest("POST","/graphql",{
+    if(typeof pr.node_id!=="string"||pr.node_id.length<1||pr.node_id.length>200)throw new GitHubAppError(503);
+    const result=await mutate({kind:"READY_PR",number:op.number,headSha:pr.head!.sha!},()=>request("POST","/graphql",{
       query:"mutation($id:ID!){markPullRequestReadyForReview(input:{pullRequestId:$id}){pullRequest{number isDraft}}}",
-      variables:{id:pr.node_id}}) as {errors?:unknown[]};
+      variables:{id:pr.node_id}})) as {errors?:unknown[]};
     if(result.errors?.length)throw new GitHubAppError(409);
     return {kind:"ready_pr",number:op.number,replay:false};
   }
   if(op.kind==="ensure_branch"){
-    const {sha}=await defaultBranch(repoPath);
+    const {sha}=await defaultBranch(repoPath,request);
     try{
-      const existing=await githubAppRequest("GET",repoPath+"/git/ref/heads/"+branch) as {object?:{sha?:string}};
+      const existing=await request("GET",repoPath+"/git/ref/heads/"+branch) as {object?:{sha?:string}};
       return {kind:"ensure_branch",branch,headSha:existing.object?.sha??null,created:false};
     }catch(error){
       if(!(error instanceof GitHubAppError)||error.httpStatus!==404)throw error;
     }
     try{
-      const created=await githubAppRequest("POST",repoPath+"/git/refs",
-        {ref:"refs/heads/"+branch,sha}) as {object?:{sha?:string}};
+      const created=await mutate({kind:"CREATE_REF",branch,targetSha:sha},()=>request("POST",repoPath+"/git/refs",
+        {ref:"refs/heads/"+branch,sha})) as {object?:{sha?:string}};
       return {kind:"ensure_branch",branch,headSha:created.object?.sha??sha,created:true};
     }catch(error){
       if(!(error instanceof GitHubAppError)||error.httpStatus!==422)throw error;
-      const existing=await githubAppRequest("GET",repoPath+"/git/ref/heads/"+branch) as {object?:{sha?:string}};
+      const existing=await request("GET",repoPath+"/git/ref/heads/"+branch) as {object?:{sha?:string}};
       return {kind:"ensure_branch",branch,headSha:existing.object?.sha??null,created:false};
     }
   }
@@ -180,11 +183,11 @@ async function doWrite(db:Pool|import("pg").PoolClient,scope:RepoScope,op:Github
     // An interrupted success is reconciled from GitHub before attempting PUT.
     // Content equality prevents duplicate commits on a retried file write.
     try{
-      const existing=await githubAppRequest("GET",repoPath+"/contents/"+
+      const existing=await request("GET",repoPath+"/contents/"+
         op.path.split("/").map(encodeURIComponent).join("/")+"?ref="+encodeURIComponent(branch)) as
         {content?:string;sha?:string;encoding?:string};
       if(existing.encoding==="base64"&&existing.content?.replace(/\s/g,"")===op.contentBase64){
-        const ref=await githubAppRequest("GET",repoPath+"/git/ref/heads/"+branch) as {object:{sha:string}};
+        const ref=await request("GET",repoPath+"/git/ref/heads/"+branch) as {object:{sha:string}};
         return {kind:"upsert_file",branch,path:op.path,blobSha:existing.sha,commitSha:ref.object.sha,replay:true};
       }
       if(existing.sha!==op.expectedSha)throw new GitHubAppError(409);
@@ -196,15 +199,15 @@ async function doWrite(db:Pool|import("pg").PoolClient,scope:RepoScope,op:Github
       message:op.message,branch,content:op.contentBase64,
     };
     if(op.expectedSha)body.sha=op.expectedSha;
-    const result=await githubAppRequest("PUT",repoPath+"/contents/"+
-      op.path.split("/").map(encodeURIComponent).join("/"),body) as
+    const result=await mutate({kind:"UPSERT_FILE",branch,filePath:op.path,blobSha:githubBlobSha(op.contentBase64)},()=>request("PUT",repoPath+"/contents/"+
+      op.path.split("/").map(encodeURIComponent).join("/"),body)) as
       {content?:{sha?:string};commit?:{sha?:string}};
     return {kind:"upsert_file",branch,path:op.path,
       blobSha:result.content?.sha??null,commitSha:result.commit?.sha??null};
   }
-  const {base}=await defaultBranch(repoPath);
+  const {base}=await defaultBranch(repoPath,request);
   const intended=canonicalPullRequest(scope.unit_id,scope.title,op.description);
-  const open=await githubAppRequest("GET",
+  const open=await request("GET",
     repoPath+"/pulls?state=open&head="+encodeURIComponent(owner+":"+branch)+"&per_page=5") as
     ExistingPullRequest[];
   if(open.length){
@@ -212,15 +215,22 @@ async function doWrite(db:Pool|import("pg").PoolClient,scope:RepoScope,op:Github
     const existing=onDefaultBase.length===1?onDefaultBase[0]:open.length===1?open[0]:null;
     if(!existing)throw new SessionConflict("Multiple open PRs exist for the assigned work branch");
     const changes=pullRequestChanges(existing,intended,base);
+    if(Object.keys(changes).length&&!validSha(existing.head?.sha))throw new GitHubAppError(503);
     const updated=Object.keys(changes).length>0
-      ?await githubAppRequest("PATCH",repoPath+"/pulls/"+existing.number,changes) as ExistingPullRequest
+      ?await mutate({kind:"UPDATE_PR",number:existing.number,headSha:existing.head!.sha!,base:changes.base,
+        titleDigest:changes.title===undefined?undefined:githubValueDigest(changes.title),
+        bodyDigest:changes.body===undefined?undefined:githubValueDigest(changes.body)},
+        ()=>request("PATCH",repoPath+"/pulls/"+existing.number,changes)) as ExistingPullRequest
       :existing;
     return {kind:"open_draft_pr",number:updated.number,url:updated.html_url,replay:true,
       updated:Object.keys(changes).length>0};
   }
-  const created=await githubAppRequest("POST",repoPath+"/pulls",{
+  const current=await request("GET",repoPath+"/git/ref/heads/"+branch) as {object?:{sha?:string}};
+  if(!validSha(current.object?.sha))throw new GitHubAppError(503);
+  const created=await mutate({kind:"CREATE_PR",branch,base,headSha:current.object.sha,
+    titleDigest:githubValueDigest(intended.title),bodyDigest:githubValueDigest(intended.body)},()=>request("POST",repoPath+"/pulls",{
     head:branch,base,title:intended.title,body:intended.body,draft:true
-  }) as {number:number;html_url:string};
+  })) as {number:number;html_url:string};
   return {kind:"open_draft_pr",number:created.number,url:created.html_url,replay:false};
 }
 
@@ -229,14 +239,16 @@ async function doWrite(db:Pool|import("pg").PoolClient,scope:RepoScope,op:Github
  * implement a lease-timeout-only takeover or issue raw installation tokens to agents.
  */
 export async function performFencedGithubWrite(db:Pool,runId:string,credentialId:string,
-  generation:string,op:GithubWrite){
+  generation:string,op:GithubWrite,request:typeof githubAppRequest=githubAppRequest){
   if(!isValidRunId(runId)||!isValidGeneration(generation))
     throw new GithubWriteValidation("Invalid run identity");
   const client=await db.connect();
-  let committed=false;
+  let committed=false,transactionOpen=false;
   try{
-    await client.query("BEGIN");
+    const operation=await prepareGithubOperation(client,runId,credentialId,generation,op);
+    await client.query("BEGIN");transactionOpen=true;
     await client.query("SET LOCAL statement_timeout='25s'");
+    await client.query("SELECT run_id FROM agent_runs WHERE run_id=$1 AND credential_id=$2 FOR UPDATE",[runId,credentialId]);
     const grant=await client.query<RepoScope>(
       `SELECT r.repository_id::text AS repository_id,r.full_name,a.unit_id,w.title
        FROM agent_runs ar
@@ -259,8 +271,13 @@ export async function performFencedGithubWrite(db:Pool,runId:string,credentialId
     const pause=await client.query<{paused:boolean}>("SELECT paused FROM execution_controls WHERE singleton=TRUE");
     if(pause.rows[0]?.paused)throw new SessionConflict("Owner paused execution");
     const scope=grant.rows[0];
+    if(scope.repository_id!==operation.repositoryId||scope.unit_id!==operation.unitId)
+      throw new SessionConflict("Assignment changed before GitHub operation fencing");
     await assertWorkPrerequisites(client,scope.repository_id,scope.unit_id);
-    const result=await doWrite(client,scope,op);
+    const pending=await unresolvedGithubOperation(client,runId,scope.repository_id,request);
+    if(pending){await client.query("COMMIT");committed=true;throw new GithubOperationUncertain(pending);}
+    const mutate:GithubMutationRecorder=(intent,send)=>recordGithubMutation(githubOperationWriter(db),operation,intent,send);
+    const result=await doWrite(client,scope,op,mutate,request);
     await client.query(
       "INSERT INTO audit_events(run_id,repository_id,kind,details) VALUES($1,$2,$3,$4::jsonb)",
       [runId,scope.repository_id,"github.write."+op.kind,
@@ -272,7 +289,7 @@ export async function performFencedGithubWrite(db:Pool,runId:string,credentialId
     await client.query("COMMIT");committed=true;
     return {repository:scope.full_name,unitId:scope.unit_id,operation:result};
   }catch(error){
-    if(!committed)await client.query("ROLLBACK");
+    if(!committed&&transactionOpen)await client.query("ROLLBACK");
     throw error;
   }finally{client.release();}
 }

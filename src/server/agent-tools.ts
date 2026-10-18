@@ -100,7 +100,8 @@ export async function executeAgentTool(db:Pool,agent:AuthenticatedAgent,name:str
       const digest=typeof key==="string"?digestActivation(agent.credentialId,key,process.env.BOARDROOM_TOKEN_PEPPER??""):null;
       const result=await admitAgentRun(db,agent,digest);
       return {agentName:agent.label,provider:agent.provider,runId:result.kind==="CREATED"?result.runId:null,
-        shouldWork:result.kind==="CREATED",state:result.state,replay:result.kind==="REPLAY"};
+        shouldWork:result.kind==="CREATED",state:result.state,replay:result.kind==="REPLAY",
+        ...(result.kind==="BUSY"?{activeSession:result.activeSession}:{})};
     }
     case "boardroom_claim":{const assignment=await claimAssignment(db,runId,agent.credentialId);return {status:assignment?"ASSIGNED":"IDLE",assignment};}
     case "boardroom_context":return getAssignmentContext(db,runId,agent.credentialId,generation);

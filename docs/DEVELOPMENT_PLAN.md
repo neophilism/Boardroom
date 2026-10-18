@@ -338,7 +338,7 @@
 
 ### BR-039 — Continuous eligible PR-chain workflow
 
-**Scope:** After a verified unit finishes, pick the next approved eligible unit in the same claimed repo without user prompting.
+**Scope:** Continue approved eligible work within the same activation, preferring the current repository and using checkpointed fenced handoffs when work must wait or the repository is exhausted.
 
 **Acceptance:** One activation may complete successive PR units and, after checkpoint and fenced release, move to another repository while holding at most one lease at a time.
 
@@ -731,3 +731,25 @@ work-unit acceptance or native 50-minute execution before live observation.
 - Merge only after current-head checks; deploy the existing service and verify
   its exact revision, readiness, served instructions and authenticated tool contract.
   Native scheduled duration remains separately observable, never inferred from code.
+
+## Admission, evidence and continuation reliability
+
+The follow-up repair preserves existing work-unit IDs and acceptance boundaries.
+An overlapping activation must distinguish a live session from an expired or
+held lease. A named OAuth arrival can run one bounded, credential-scoped recovery
+pass under the normal admission locks; in-flight writes and unresolved GitHub
+effects remain held. Recovery is no longer dependent on a timely maintenance
+schedule alone.
+
+Source-owned `contributingPrs` and `priorEvidencePrs` authorize historical evidence
+reads without granting branch-write or merge authority, and cannot establish full
+unit acceptance. The compatible continuation endpoint handles typed evidence and
+plan blockers through the separately fenced handoff path. A premature finish
+requires an actual stop condition, with external limits recorded as agent reports.
+
+The GitHub gateway must durably record intent before outbound mutation, preserve
+uncertain outcomes across transaction rollback, and reconcile positive remote
+evidence before releasing the affected assignment. User cancellation stops work
+without discarding an unresolved remote effect. Verification covers concurrent
+arrivals, stale generations, ledger persistence, guarded release, historical PR
+reads and continuation behavior; live scheduled execution remains a separate gate.

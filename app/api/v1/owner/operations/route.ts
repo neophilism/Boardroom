@@ -3,7 +3,7 @@ import {NextResponse} from "next/server";
 import {getDatabase} from "../../../../../src/server/db";
 import {authorizeOwnerRequest,OWNER_COOKIE,OwnerOriginRejected} from "../../../../../src/server/owner-session";
 import {UnauthorizedOwner} from "../../../../../src/server/owner-auth";
-import {SessionConflict} from "../../../../../src/server/sessions";
+import {SessionConflict,ReleaseReconciliationRequired} from "../../../../../src/server/sessions";
 import {operationsOverview,setExecutionPaused,setExecutionPolicy,recoverRun} from "../../../../../src/server/operations";
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
@@ -26,6 +26,7 @@ export async function POST(request:Request){
     return NextResponse.json(result,{headers});
   }catch(error){
     const status=error instanceof OwnerOriginRejected?403:error instanceof UnauthorizedOwner?401:error instanceof SessionConflict?409:503;
-    return NextResponse.json({error:error instanceof SessionConflict?error.message:"Operations unavailable"},{status,headers});
+    return NextResponse.json({error:error instanceof SessionConflict?error.message:"Operations unavailable",
+      ...(error instanceof ReleaseReconciliationRequired?{code:"RELEASE_RECONCILIATION_REQUIRED"}:{})},{status,headers});
   }
 }

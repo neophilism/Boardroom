@@ -1,7 +1,8 @@
 import {timingSafeEqual} from "node:crypto";
-import type {Pool} from "pg";
+import type {Pool,PoolClient} from "pg";
+import {reconcileGithubOperations} from "./github-operation-ledger.ts";
 export type WatchdogReport={examined:number;heldForRecovery:number;renewedMeanwhile:number;ownerRequestsCreated:number};
-type Stale={run_id:string;repository_id:string;generation:string;expires_at:Date};
+type Stale={run_id:string;repository_id:string;generation:string;expires_at:Date;native_oauth:boolean};
 type Lease={run_id:string|null;generation:string;expires_at:Date|null};
 
 export function authorizedWatchdogToken(value:string|null,secret:string|undefined):boolean{
@@ -12,27 +13,50 @@ export function authorizedWatchdogToken(value:string|null,secret:string|undefine
   return actual.length===expected.length && timingSafeEqual(actual,expected);
 }
 
-/** Mark expired work as RECOVERING. Never release a lease because time elapsed. */
-export async function scanStaleSessions(db:Pool,limit=50):Promise<WatchdogReport>{
+/** Mark expired work as RECOVERING. Never release a lease because time elapsed.
+ * credentialId is supplied only from an authenticated principal for a bounded
+ * arrival recovery pass; maintenance omits it to scan the fleet.
+ */
+export async function scanStaleSessions(db:Pool,limit=50,credentialId?:string):Promise<WatchdogReport>{
   if(!Number.isSafeInteger(limit)||limit<1||limit>100)throw new Error("Invalid scan limit");
+  return recoveryTransaction(db,client=>scanStaleSessionsLocked(client,limit,credentialId));
+}
+
+async function recoveryTransaction<T>(db:Pool,operation:(client:PoolClient)=>Promise<T>):Promise<T>{
   const client=await db.connect();
   let committed=false;
-  const report:WatchdogReport={examined:0,heldForRecovery:0,renewedMeanwhile:0,ownerRequestsCreated:0};
   try{
     await client.query("BEGIN");
+    const result=await operation(client);
+    await client.query("COMMIT");committed=true;
+    return result;
+  }catch(error){
+    if(!committed)await client.query("ROLLBACK");
+    throw error;
+  }finally{client.release();}
+}
+
+/** Caller owns the transaction; admission already holds its credential/run lock. */
+export async function scanStaleSessionsLocked(client:PoolClient,limit:number,credentialId?:string):Promise<WatchdogReport>{
+  if(!Number.isSafeInteger(limit)||limit<1||limit>100)throw new Error("Invalid scan limit");
+  const report:WatchdogReport={examined:0,heldForRecovery:0,renewedMeanwhile:0,ownerRequestsCreated:0};
     const candidates=await client.query<Stale>(
       "SELECT ar.run_id::text AS run_id,l.repository_id::text AS repository_id, " +
-      "l.generation::text AS generation,l.expires_at FROM agent_runs ar " +
+      "l.generation::text AS generation,l.expires_at,"+
+      "EXISTS (SELECT 1 FROM agent_credentials c JOIN oauth_grants g ON g.credential_id=c.credential_id "+
+      "WHERE c.credential_id=ar.credential_id AND c.provider='chatgpt' AND c.enabled=TRUE "+
+      "AND c.revoked_at IS NULL AND g.revoked_at IS NULL) AS native_oauth FROM agent_runs ar " +
       "JOIN repository_leases l ON l.run_id=ar.run_id " +
-      "WHERE ar.state='RUNNING' AND l.expires_at<=now() ORDER BY l.expires_at ASC " +
-      "FOR UPDATE OF ar SKIP LOCKED LIMIT $1",[limit]);
+      "WHERE ar.state='RUNNING' AND l.expires_at<=now() "+
+      "AND ($2::uuid IS NULL OR ar.credential_id=$2::uuid) ORDER BY l.expires_at ASC " +
+      "FOR UPDATE OF ar SKIP LOCKED LIMIT $1",[limit,credentialId??null]);
     report.examined=candidates.rows.length;
     for(const row of candidates.rows){
-      // Session finish locks ar before l. Lock in this same order; wait for
-      // in-flight gateway writes holding the repository lease lock to finish.
+      // Session finish locks ar before l. Keep that order and defer an in-flight
+      // gateway write instead of blocking the complete maintenance pass on it.
       const current=await client.query<Lease>(
         "SELECT run_id::text,generation::text AS generation,expires_at FROM " +
-        "repository_leases WHERE repository_id=$1 FOR UPDATE",[row.repository_id]);
+        "repository_leases WHERE repository_id=$1 FOR UPDATE SKIP LOCKED",[row.repository_id]);
       const lease=current.rows[0];
       if(!lease||lease.run_id!==row.run_id||lease.generation!==row.generation||
          !lease.expires_at||lease.expires_at.getTime()>Date.now()){
@@ -46,6 +70,10 @@ export async function scanStaleSessions(db:Pool,limit=50):Promise<WatchdogReport
         "INSERT INTO audit_events(run_id,repository_id,kind,details) VALUES($1,$2,'agent.run.recovery_hold',$3::jsonb)",
         [row.run_id,row.repository_id,JSON.stringify({generation:row.generation,
           expiresAt:row.expires_at.toISOString(),automaticRelease:false})]);
+      report.heldForRecovery++;
+      // Native OAuth recovery is a server operation, not an owner task. An
+      // unresolved external write remains a technical reconciliation hold.
+      if(row.native_oauth)continue;
       const key="boardroom:recovery:"+row.repository_id;
       const created=await client.query<{action_id:string}>(
         "INSERT INTO owner_actions(action_key,title,action_type,instructions,requested_permissions,status,source_run_id,price_estimate_cents) " +
@@ -61,14 +89,8 @@ export async function scanStaleSessions(db:Pool,limit=50):Promise<WatchdogReport
       if(actionId)await client.query(
         "INSERT INTO owner_action_dependents(action_id,repository_id,unit_id) VALUES($1,$2,NULL) ON CONFLICT DO NOTHING",
         [actionId,row.repository_id]);
-      report.heldForRecovery++;
     }
-    await client.query("COMMIT");committed=true;
     return report;
-  }catch(error){
-    if(!committed)await client.query("ROLLBACK");
-    throw error;
-  }finally{client.release();}
 }
 
 
@@ -92,27 +114,30 @@ type RecoveryAssignment={assignment_id:string;lease_generation:string};
  * GitHub connector access outside Boardroom. Such access must not be used by
  * scheduled agents; it cannot be proved absent by a database timeout.
  */
-export async function recoverFencedOAuthSessions(db:Pool,limit=50):Promise<NativeOAuthRecoveryReport>{
+export async function recoverFencedOAuthSessions(db:Pool,limit=50,credentialId?:string):Promise<NativeOAuthRecoveryReport>{
   if(!Number.isSafeInteger(limit)||limit<1||limit>100)throw new Error("Invalid recovery limit");
-  const client=await db.connect();
-  let committed=false;
+  return recoveryTransaction(db,client=>recoverFencedOAuthSessionsLocked(client,limit,credentialId));
+}
+
+/** Reuses admission's transaction so two arrivals cannot skip each other forever. */
+export async function recoverFencedOAuthSessionsLocked(client:PoolClient,limit:number,credentialId?:string):Promise<NativeOAuthRecoveryReport>{
+  if(!Number.isSafeInteger(limit)||limit<1||limit>100)throw new Error("Invalid recovery limit");
   const report:NativeOAuthRecoveryReport={examined:0,released:0,heldForAmbiguousWrites:0,renewedMeanwhile:0};
-  try{
-    await client.query("BEGIN");
     const candidates=await client.query<RecoverableOAuthRun>(
       "SELECT ar.run_id::text AS run_id,l.repository_id::text AS repository_id,"+
       "l.generation::text AS generation,l.expires_at FROM agent_runs ar "+
       "JOIN agent_credentials c ON c.credential_id=ar.credential_id "+
       "JOIN repository_leases l ON l.run_id=ar.run_id "+
       "WHERE ar.state='RECOVERING' AND l.expires_at<=now()-interval '60 seconds' "+
+      "AND ($2::uuid IS NULL OR ar.credential_id=$2::uuid) "+
       "AND c.provider='chatgpt' AND c.enabled=TRUE AND c.revoked_at IS NULL "+
       "AND EXISTS (SELECT 1 FROM oauth_grants g WHERE g.credential_id=c.credential_id AND g.revoked_at IS NULL) "+
-      "ORDER BY l.expires_at ASC FOR UPDATE OF ar SKIP LOCKED LIMIT $1",[limit]);
+      "ORDER BY l.expires_at ASC FOR UPDATE OF ar SKIP LOCKED LIMIT $1",[limit,credentialId??null]);
     report.examined=candidates.rows.length;
     for(const row of candidates.rows){
       const current=await client.query<Lease>(
         "SELECT run_id::text AS run_id,generation::text AS generation,expires_at "+
-        "FROM repository_leases WHERE repository_id=$1 FOR UPDATE",[row.repository_id]);
+        "FROM repository_leases WHERE repository_id=$1 FOR UPDATE SKIP LOCKED",[row.repository_id]);
       const lease=current.rows[0];
       if(!lease||lease.run_id!==row.run_id||lease.generation!==row.generation||
          !lease.expires_at||lease.expires_at.getTime()>Date.now()-60000){
@@ -127,6 +152,7 @@ export async function recoverFencedOAuthSessions(db:Pool,limit=50):Promise<Nativ
       }
       // External write results that may already have reached GitHub must first
       // be reconciled with current GitHub state, not silently ignored.
+      await reconcileGithubOperations(client,row.run_id,row.repository_id);
       const uncertain=await client.query(
         "SELECT 1 FROM github_operations WHERE run_id=$1 AND repository_id=$2 "+
         "AND state IN ('INTENDED','UNCERTAIN') LIMIT 1",[row.run_id,row.repository_id]);
@@ -156,10 +182,5 @@ export async function recoverFencedOAuthSessions(db:Pool,limit=50):Promise<Nativ
           externalExecutionTerminationVerified:false,outsideGithubCredentialsControlled:false})]);
       report.released++;
     }
-    await client.query("COMMIT");committed=true;
     return report;
-  }catch(error){
-    if(!committed)await client.query("ROLLBACK");
-    throw error;
-  }finally{client.release();}
 }
