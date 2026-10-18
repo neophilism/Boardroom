@@ -1,5 +1,6 @@
 import type { Pool, PoolClient } from "pg";
 import {queueAssignmentDispatch} from "./assignment-dispatch.ts";
+import {TECHNICAL_RECOVERY_ELIGIBLE_SQL} from "./work-recovery.ts";
 
 export type ClaimedAssignment = {
   assignmentId: string;
@@ -14,7 +15,7 @@ export type ClaimedAssignment = {
 export class AssignmentConflict extends Error { constructor(message: string) { super(message); this.name = "AssignmentConflict"; } }
 
 type Session = { run_id: string; state: string };
-type Eligible = { repository_id: string; full_name: string; unit_id: string };
+type Eligible = { repository_id: string; full_name: string; unit_id: string; unit_state:string };
 type Lease = { generation: string; expires_at: Date };
 type Existing = { assignment_id: string; repository_id: string; full_name: string; unit_id: string; generation: string; expires_at: Date };
 
@@ -42,18 +43,18 @@ export const REPOSITORY_CLAIM_QUERY = String.raw`
   ), effective_priority AS (
     SELECT repository_id,MIN(position) AS position FROM inherited_priority GROUP BY repository_id
   )
-  SELECT r.repository_id, r.full_name, chosen.unit_id
+  SELECT r.repository_id, r.full_name, chosen.unit_id, chosen.unit_state
   FROM repositories r
   JOIN repository_leases l ON l.repository_id = r.repository_id
   LEFT JOIN effective_priority p ON p.repository_id = r.repository_id
   JOIN LATERAL (
-    SELECT w.unit_id
+    SELECT w.unit_id,w.state AS unit_state
     FROM roadmap_units w
     WHERE w.repository_id = r.repository_id
       AND w.approved = TRUE
       AND registry_prerequisites_satisfied(w.repository_id,w.unit_id)
       AND w.state IN ('PENDING', 'ACTIVE', 'OPEN_PR','BLOCKED')
-      AND (w.state<>'BLOCKED' OR EXISTS(SELECT 1 FROM coffee_threads t JOIN coffee_messages m ON m.thread_id=t.thread_id WHERE t.repository_id=w.repository_id AND t.unit_id=w.unit_id AND t.status='ANSWERED' AND m.message_kind='ANSWER' AND jsonb_array_length(m.evidence)>0))
+      AND ${TECHNICAL_RECOVERY_ELIGIBLE_SQL}
       AND NOT EXISTS (
         SELECT 1
         FROM jsonb_array_elements_text(w.depends_on) AS dependency(id)
@@ -160,7 +161,8 @@ export async function claimAssignment(db: Pool, runId: string, credentialId: str
     );
     await client.query(
       "INSERT INTO audit_events(run_id,repository_id,kind,details) VALUES($1,$2,'agent.assignment.claimed',$3::jsonb)",
-      [runId,repositoryId,JSON.stringify({ unitId, generation:lease.generation })]
+      [runId,repositoryId,JSON.stringify({ unitId, generation:lease.generation, unitState:choice.rows[0].unit_state,
+        eligibilityReason:choice.rows[0].unit_state==="BLOCKED"?"TECHNICAL_ANSWER_AVAILABLE":"APPROVED_PREREQUISITES_READY" })]
     );
     await client.query("COMMIT");
     committed = true;

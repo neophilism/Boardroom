@@ -83,7 +83,7 @@ export async function mergeAssignedPullRequest(db:Pool,runId:string,credentialId
     const policy=policyResult.rows[0]??{auto_merge:false,required_checks:[],minimum_reviews:0};
     const controls=await client.query<{paused:boolean}>("SELECT paused FROM execution_controls WHERE singleton=TRUE");
     if(controls.rows[0]?.paused)throw new SessionConflict("Owner paused execution");
-    await assertWorkPrerequisites(client,scope.repository_id,scope.unit_id);
+    await assertWorkPrerequisites(client,scope.repository_id,scope.unit_id,true);
     const api=repositoryApiPath(scope.full_name);
     async function reconcileMergedUnit(){
       const refs=await client.query<{planned_prs:unknown}>("SELECT planned_prs FROM roadmap_units WHERE repository_id=$1 AND unit_id=$2",[scope.repository_id,scope.unit_id]);
@@ -151,3 +151,4 @@ export async function mergeAssignedPullRequest(db:Pool,runId:string,credentialId
     throw error;
   }finally{client.release();}
 }
+
