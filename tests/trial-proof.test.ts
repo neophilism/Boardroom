@@ -17,6 +17,7 @@ const proof: TrialProof = {
   committedAt: "2026-10-18T10:02:00Z",
   prOpenedAt: "2026-10-18T10:03:00Z",
   ciObservedAt: "2026-10-18T10:04:00Z",
+  checkpointedAt: "2026-10-18T10:04:30Z",
   finishedAt: "2026-10-18T10:05:00Z",
   releasedAt: "2026-10-18T10:05:01Z",
   released: true
@@ -60,3 +61,17 @@ test("a self-asserted scheduled value does not independently prove origin", () =
   // Only authenticated private Boardroom records can attest real origin.
   assert.deepEqual(trialProblems({ ...proof, origin: "scheduled" }), []);
 });
+
+test("checkpoint is required after CI and before finish", () => {
+  for (const checkpointedAt of [
+    undefined, "unknown", "2026-10-18T10:03:59Z", "2026-10-18T10:05:01Z"
+  ]) {
+    const invalid = { ...proof, checkpointedAt } as unknown as TrialProof;
+    assert.ok(trialProblems(invalid).some(message =>
+      /UTC timestamps|chronology/.test(message)));
+  }
+  assert.deepEqual(trialProblems({
+    ...proof, checkpointedAt: proof.ciObservedAt
+  }), []);
+});
+

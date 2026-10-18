@@ -16,6 +16,8 @@ export type TrialProof = {
   /** For an existing mapped PR, the post-commit GitHub observation timestamp. */
   prObservedAt?: string;
   ciObservedAt: string;
+  /** Durable coordinator checkpoint after exact-head CI observation. */
+  checkpointedAt: string;
   finishedAt: string;
   /** Authenticated coordinator observation of final lease release. */
   releasedAt: string;
@@ -63,7 +65,7 @@ export function trialProblems(e: TrialProof): string[] {
   }
   if (!mappedPrUrl(e.prUrl, e.repository)) failures.push("PR is not mapped to repository");
 
-  const events = [e.arrivedAt, e.claimedAt, e.committedAt, e.ciObservedAt, e.finishedAt, e.releasedAt].map(utcMillis);
+  const events = [e.arrivedAt, e.claimedAt, e.committedAt, e.ciObservedAt, e.checkpointedAt, e.finishedAt, e.releasedAt].map(utcMillis);
   const prOpened = utcMillis(e.prOpenedAt);
   const prObserved = e.prObservedAt === undefined ? NaN : utcMillis(e.prObservedAt);
   if (events.some(t => !Number.isFinite(t)) || !Number.isFinite(prOpened) ||
@@ -82,3 +84,4 @@ export function trialProblems(e: TrialProof): string[] {
   if (!e.released) failures.push("Run release is unverified");
   return failures;
 }
+
