@@ -753,3 +753,39 @@ evidence before releasing the affected assignment. User cancellation stops work
 without discarding an unresolved remote effect. Verification covers concurrent
 arrivals, stale generations, ledger persistence, guarded release, historical PR
 reads and continuation behavior; live scheduled execution remains a separate gate.
+
+### Shared instruction rollout — recovery and continuous work
+
+Combine the owner-supplied recovery rules with BR-039's 50-minute work loop in
+`src/domain/scheduled-instruction.ts` and the matching protocol. Preserve named
+connection routing, schema discovery, precise evidence-based failure reporting,
+no permission-denial workarounds, recurring-schedule preservation and best-effort
+release after checkpoint failure. Keep pending CI as a same-run task handoff.
+
+Update existing scheduled tasks on each account through that account's authorized
+automation tools. Preserve identities, connections, task IDs and schedules; read
+back every prompt and enabled state. This account cannot claim updates on another
+account. Provide the other account a concrete rollout request referencing the
+versioned shared protocol. No recurring task, provider spending or credential
+permission is added by this rollout.
+
+Live follow-up found that native finish accepted one-minute exits while eligible
+work remained, and the advertised hosted-runner 100-call cap was being treated
+as native connector usage evidence. Route native completion through a
+50-minute continuation decision: checkpoint and release only the old lease,
+return CONTINUE_REQUIRED without acquiring a replacement lease, and require
+the agent to acknowledge by claiming the same run. Distinguish agent-reported
+activation-wide hard-stop evidence from server-verified platform facts. Allow
+truthful empty-queue, lost-authority, owner-pause and actual deadline stops;
+retain best-effort release when checkpointing fails. Do not raise hosted model,
+token, tool or monetary caps. Test native MCP dispatch, stale-generation replay,
+idle bypass, early stop and cross-project continuation in real PostgreSQL.
+
+The follow-up also rejects partial-draft churn: native advance/yield requires a
+verified merge, a concrete prerequisite/blocker, or implementation-complete work
+with immutable acceptance evidence and a matching current PR head whose CI is
+actually pending. Unfinished draft integration and failed CI stay on the current
+unit. Record external observations as agent-reported, preserve unresolved GitHub
+release holds, and reconcile ADMITTED-after-release claims without demanding the
+old lease or ending the activation. Test partial drafts, CI/head/association
+misreporting, same-run recovery and stale-generation replay.

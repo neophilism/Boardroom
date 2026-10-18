@@ -180,7 +180,12 @@ export async function saveCheckpoint(db: Pool, runId: string, credentialId: stri
   finally { client.release(); }
 }
 
-export async function finishRun(db: Pool, runId: string, credentialId: string, generation: string, outcome: SessionOutcome): Promise<{state:SessionOutcome;replay:boolean}> {
+export async function finishRun(db: Pool, runId: string, credentialId: string, generation: string, outcome: SessionOutcome, stop?:ActivationStop): Promise<{state:SessionOutcome;replay:boolean}> {
+  if(stop){
+    validateCheckpoint({state:{activationStop:stop}});
+    if(!ACTIVATION_STOP_REASONS.includes(stop.reason)||typeof stop.detail!=="string"||stop.detail.trim().length<20||stop.detail.length>2000)
+      throw new SessionConflict("Concrete activation-wide stop evidence required");
+  }
   const client = await db.connect();
   let committed=false;
   try {
@@ -215,7 +220,8 @@ export async function finishRun(db: Pool, runId: string, credentialId: string, g
       if(!observed)throw new SessionConflict("Finish evidence unavailable");
       const basis=activationFinishBasis(outcome,{startedAt:observed.started_at,now:observed.observed_at,
         leaseExpiresAt:observed.expires_at,maxSessionSeconds:observed.max_session_seconds,
-        paused:observed.paused,usedTokens:Number(observed.used_tokens),maxTokens:observed.max_tokens,checkpointState:observed.checkpoint_state});
+        paused:observed.paused,usedTokens:Number(observed.used_tokens),maxTokens:observed.max_tokens,
+        checkpointState:stop?{activationStop:stop}:observed.checkpoint_state});
       if(!basis){
         // Preserve any positive source-bound reconciliation above. No release
         // or assignment mutation has occurred, so continued work keeps its lease.

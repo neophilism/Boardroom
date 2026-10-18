@@ -25,8 +25,13 @@ test("profile supplies current shared work instructions to older installed conne
 });
 test("launch instruction and copyable protocol are identical and require continuation without empty polling",async()=>{
   const doc=await readFile(new URL("../docs/SCHEDULED_AGENT_PROTOCOL.md",import.meta.url),"utf8");
-  const prompt=doc.slice(doc.indexOf("> Use the authorized"),doc.indexOf("\n## Supported integration boundary")).trim().split("\n").map(line=>line.replace(/^> ?/,"")).join("\n");
+  const prompt=doc.slice(doc.indexOf("> Policy version:"),doc.indexOf("\n## Supported integration boundary")).trim().split("\n").map(line=>line.replace(/^> ?/,"")).join("\n");
   assert.equal(prompt,SCHEDULED_AGENT_INSTRUCTION);
-  for(const text of ["50 minutes","55 minutes","boardroom_yield_and_claim","SAME runId","do not assume imported PRs","Do not sleep"])
+  for(const text of ["50 minutes","55 minutes","boardroom_yield_and_claim","SAME runId","imported branch names","Never pad elapsed time"])
     assert.ok(prompt.includes(text),text);
+});
+
+test("combined recovery policy preserves recurrence and truthful failure handling without ending normal handoffs",()=>{
+  for(const text of ["Never disable, pause, delete, change the cadence", "discover the Boardroom tools for that same named connection", "encoding or endpoint", "unless the returned evidence identifies that cause", "A failed checkpoint must not prevent a best-effort boardroom_finish attempt", "Do not call boardroom_finish after an ordinary PR handoff", "SAME runId", "50 minutes"])
+    assert.ok(SCHEDULED_AGENT_INSTRUCTION.includes(text),text);
 });

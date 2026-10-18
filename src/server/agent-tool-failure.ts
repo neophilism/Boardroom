@@ -39,7 +39,9 @@ export function agentToolFailure(error:unknown){
     code:"INPUT_REJECTED",message:error.message,nextAction:"Correct the request using the tool contract. If an owner authorization is required, request it privately; do not bypass the restriction.",retryable:false};
   else if(error instanceof SessionConflict||error instanceof AssignmentConflict){
     const message=error.message;
-    if(message.startsWith("Merge blocked: "))failure={code:"MERGE_BLOCKED",message,
+    if(message.startsWith("Continue the current approved unit:"))failure={code:"CONTINUE_CURRENT_UNIT",message,
+      nextAction:"The current lease remains held. Continue implementing, integrating, testing and fixing this SAME work unit and PR. A partial draft, unfinished acceptance criteria or CI on an incomplete draft does not justify switching units. Record checkpoint.state.unitHandoff only after implementation is complete and current-head CI actually waits, or a concrete external blocker prevents all remaining useful implementation. Do not invent a blocker or an execution-budget limit.",retryable:false};
+    else if(message.startsWith("Merge blocked: "))failure={code:"MERGE_BLOCKED",message,
       nextAction:"Read current PR evidence. Fix actionable failures. For pending CI or an unresolved unit-specific gate, checkpoint and call boardroom_yield_and_claim or boardroom_advance to continue other eligible work in the same run. Use a private Owner Action only for genuinely owner-only decisions.",retryable:false};
     else if(message==="Owner paused execution")failure={code:"EXECUTION_PAUSED",message,
       nextAction:"Stop writes, checkpoint remote progress and finish. Only the owner can resume execution.",retryable:false};

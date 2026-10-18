@@ -1,5 +1,5 @@
 import type {Pool} from "pg";
-import {SessionConflict,isValidGeneration,isValidRunId} from "./sessions.ts";
+import {SessionConflict,ReleaseReconciliationRequired,retainUnreconciledLease,isValidGeneration,isValidRunId} from "./sessions.ts";
 import {claimAssignment} from "./assignment.ts";
 
 /** Relinquish one assignment without ending the authorized agent activation.
@@ -7,7 +7,7 @@ import {claimAssignment} from "./assignment.ts";
  * claim query, so an owner-blocked PR cannot spin in a tight loop.
  * A replay after release can claim again using the same authorized run.
  */
-export async function yieldAndClaim(db:Pool,runId:string,credentialId:string,generation:string,
+export async function releaseAssignmentForContinuation(db:Pool,runId:string,credentialId:string,generation:string,
   outcome:"BLOCKED"|"YIELDED"|"COMPLETED"){
   if(!isValidRunId(runId)||!isValidGeneration(generation))throw new SessionConflict("Invalid session identity");
   const client=await db.connect();
@@ -41,10 +41,11 @@ export async function yieldAndClaim(db:Pool,runId:string,credentialId:string,gen
         [current.repository_id]);
       if(lease.rowCount!==1||lease.rows[0].run_id!==runId||lease.rows[0].generation!==generation||
          lease.rows[0].expires_at<=new Date())throw new SessionConflict("Current live lease unavailable");
-      const pending=await client.query(
-        `SELECT 1 FROM github_operations WHERE run_id=$1 AND repository_id=$2
-         AND state IN ('INTENDED','UNCERTAIN') LIMIT 1`,[runId,current.repository_id]);
-      if(pending.rowCount)throw new SessionConflict("Unreconciled GitHub operations require recovery before release");
+      const pending=await retainUnreconciledLease(client,runId,current.repository_id,generation,outcome);
+      if(pending){
+        await client.query("COMMIT");released=true;
+        throw new ReleaseReconciliationRequired(pending);
+      }
       await client.query("UPDATE work_assignments SET outcome=$2,released_at=now() WHERE assignment_id=$1",
         [current.assignment_id,outcome]);
       const freed=await client.query(
@@ -60,6 +61,11 @@ export async function yieldAndClaim(db:Pool,runId:string,credentialId:string,gen
     }
   }catch(error){if(!released)await client.query("ROLLBACK");throw error;}
   finally{client.release();}
+}
+
+export async function yieldAndClaim(db:Pool,runId:string,credentialId:string,generation:string,
+  outcome:"BLOCKED"|"YIELDED"|"COMPLETED"){
+  await releaseAssignmentForContinuation(db,runId,credentialId,generation,outcome);
   // A new claim has its own lease generation. Failure leaves an admitted run
   // that can safely retry boardroom_claim, rather than losing the activation.
   const next=await claimAssignment(db,runId,credentialId);
