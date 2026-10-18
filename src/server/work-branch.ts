@@ -15,13 +15,23 @@ export function validWorkBranch(branch:unknown):branch is string{
     branch.split("/").every(part=>!part.startsWith(".")&&!part.endsWith(".")&&!part.endsWith(".lock"));
 }
 export async function assignedPrNumbers(db:Pick<Pool|PoolClient,"query">,scope:WorkScope):Promise<number[]>{
-  const result=await db.query<{planned_prs:unknown}>(
-    "SELECT planned_prs FROM roadmap_units WHERE repository_id=$1 AND unit_id=$2 AND approved=TRUE",
+  const result=await db.query<{planned_prs:unknown;source_metadata:unknown}>(
+    "SELECT planned_prs,source_metadata FROM roadmap_units WHERE repository_id=$1 AND unit_id=$2 AND approved=TRUE",
     [scope.repository_id,scope.unit_id]);
   const numbers=result.rows[0]?.planned_prs;
   if(!Array.isArray(numbers)||numbers.length>100||numbers.some(n=>!Number.isSafeInteger(n)||n<1))
     throw new WorkMappingConflict("Approved work-unit PR mapping unavailable");
-  return [...new Set(numbers)];
+  // planned_prs also contains title-discovered PRs for progress reporting.
+  // Only numeric links in the verified repository-owned registry authorize an
+  // imported branch; a collaborator-controlled PR title is never authority.
+  const source=result.rows[0]?.source_metadata;
+  if(!source||typeof source!=="object"||Array.isArray(source))return [];
+  const metadata=source as {id?:unknown;prs?:unknown};
+  if(metadata.prs===undefined)return [];
+  if(metadata.id!==scope.unit_id||!Array.isArray(metadata.prs)||metadata.prs.length>100||
+    metadata.prs.some(n=>!Number.isSafeInteger(n)||n<1||!numbers.includes(n)))
+    throw new WorkMappingConflict("Verified source-owned PR mapping is inconsistent");
+  return [...new Set(metadata.prs)] as number[];
 }
 /** A branch convention is a default, not the identity of an imported PR.
  * Only server-imported approved links can authorize an alternate branch. */

@@ -1,13 +1,13 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import type {Pool} from "pg";
-import {assertAssignedPull,resolveAssignedWorkBranch,validWorkBranch,WorkMappingConflict,type WorkPull} from "../src/server/work-branch.ts";
+import {assertAssignedPull,resolveAssignedWorkBranch,validWorkBranch,assignedPrNumbers,WorkMappingConflict,type WorkPull} from "../src/server/work-branch.ts";
 import type {githubAppRequest} from "../src/server/github-app.ts";
 const scope={repository_id:"1412357542",full_name:"ci/SceneSignal",unit_id:"SS-19"};
 const pr:WorkPull={number:13,state:"open",head:{ref:"feat/ss19-speaker-topology-fades",sha:"a".repeat(40),repo:{id:1412357542}},base:{ref:"main",repo:{id:1412357542}}};
 function fixture(pulls:WorkPull[],options:{protected?:boolean;defaultBranch?:string}={}){
   const writes:string[]=[];
-  const db={query:async()=>({rows:[{planned_prs:pulls.map(p=>p.number)}]})} as unknown as Pool;
+  const db={query:async()=>({rows:[{planned_prs:pulls.map(p=>p.number),source_metadata:{id:scope.unit_id,prs:pulls.map(p=>p.number)}}]})} as unknown as Pool;
   const request=async(method:string,path:string)=>{
     writes.push(method+" "+path);
     if(path.includes("/pulls/"))return pulls.find(p=>p.number===Number(path.split("/").at(-1)));
@@ -45,4 +45,10 @@ test("merged historical PRs leave new work on its deterministic branch",async()=
   assert.equal(await resolveAssignedWorkBranch(f.db,scope,true,f.request),"boardroom/SS-19");
   for(const value of ["main..x","feat//x","feat/.hidden","feat/a.lock","feat/x/","/main","feat/x."])
     assert.equal(validWorkBranch(value),false,value);
+});
+
+test("title-discovered PR numbers cannot authorize an imported branch",async()=>{
+  const db={query:async()=>({rows:[{planned_prs:[13,99],source_metadata:{id:"SS-19",prs:[13]}}]})} as unknown as Pool;
+  const links=await assignedPrNumbers(db,scope);assert.deepEqual(links,[13]);
+  assert.throws(()=>assertAssignedPull(scope,99,links,{...pr,number:99}),WorkMappingConflict);
 });
