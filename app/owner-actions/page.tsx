@@ -35,6 +35,7 @@ export default async function OwnerActionsPage({searchParams}:{searchParams:Prom
       <Link className="priority-nav" href="/work-board">Live Work Board</Link>
       <Link className="priority-nav" href="/coffee">Coffee Corner</Link>
       <Link className="priority-nav" href="/agents">Scheduled agents</Link>
+      <Link className="priority-nav" href="/observatory">Usage observatory</Link>
       <Link className="priority-nav" href="/system">System status</Link>
       <form action="/api/v1/owner/logout" method="post"><button type="submit" className="outline">Sign out</button></form>
     </header>
