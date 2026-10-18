@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {GeminiStatelessSession,normalizeGeminiInteraction,ProviderContractError,GeminiTransportFailure} from "../src/runner/gemini-interactions.ts";
+import {GeminiStatelessSession,normalizeGeminiInteraction,GeminiTransportFailure} from "../src/runner/gemini-interactions.ts";
+import {ProviderContractError} from "../src/runner/provider-contract.ts";
 const tools=[{name:"read_file",description:"Read source safely",parameters:{type:"object",properties:{path:{type:"string"}}}}];
 const call={type:"function_call",id:"call_7",name:"read_file",arguments:{path:"README.md"}};
 const usage={total_input_tokens:100,total_output_tokens:20,total_cached_tokens:40,total_thought_tokens:9,total_tool_use_tokens:6};
