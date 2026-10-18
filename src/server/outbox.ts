@@ -5,6 +5,10 @@ export function retryDelaySeconds(attempt:number):number{
   return Math.min(900,15*2**Math.max(0,Math.min(6,attempt-1)));
 }
 const QUEUE_LOCK_NAMESPACE=21410;
+export function preferredMaintenanceKind(slot:number):"sync_inventory"|"sync_repository"{
+  if(!Number.isSafeInteger(slot)||slot<0)throw new Error("Invalid maintenance slot");
+  return slot%3===2?"sync_inventory":"sync_repository";
+}
 
 /**
  * GitHub webhook delivery IDs provide event replay protection; this separate
@@ -75,7 +79,7 @@ export async function dispatchOutbox(db:Pool,limit=5){
     const client=await db.connect();let item:{outbox_id:string;operation_type:string;payload:Record<string,unknown>;attempts:number}|undefined;
     try{
       await client.query("BEGIN");
-      const ready=await client.query<NonNullable<typeof item>>("SELECT outbox_id,operation_type,payload,attempts FROM operation_outbox WHERE state IN ('PENDING','RETRY') AND available_at<=now() ORDER BY CASE WHEN operation_type=$1 THEN 0 ELSE 1 END,available_at,created_at FOR UPDATE SKIP LOCKED LIMIT 1",[i%3===2?"sync_inventory":"sync_repository"]);
+      const ready=await client.query<NonNullable<typeof item>>("SELECT outbox_id,operation_type,payload,attempts FROM operation_outbox WHERE state IN ('PENDING','RETRY') AND available_at<=now() ORDER BY CASE WHEN operation_type=$1 THEN 0 ELSE 1 END,available_at,created_at FOR UPDATE SKIP LOCKED LIMIT 1",[preferredMaintenanceKind(i)]);
       item=ready.rows[0];
       if(item)await client.query("UPDATE operation_outbox SET state='RUNNING',attempts=attempts+1,claimed_at=now() WHERE outbox_id=$1",[item.outbox_id]);
       await client.query("COMMIT");
