@@ -7,11 +7,11 @@ import {getOperationalDigest} from "../../src/server/operational-digest";
 import {formatEastern} from "../../src/domain/work-board";
 export const dynamic="force-dynamic";
 export default async function ReportsPage(){
-  if(!validOwnerSession((await cookies()).get(OWNER_COOKIE)?.value))redirect("/login");
+  if(!validOwnerSession((await cookies()).get(OWNER_COOKIE)?.value))redirect("/login?next=%2Freports");
   const report=await getOperationalDigest(getDatabase(),process.env);
   return <main className="owner-shell">
     <header className="owner-header"><div><p className="eyebrow">BOARDROOM / DAILY REPORT</p><h1>Last 24 hours</h1></div>
-      <nav className="work-nav"><Link href="/work-board">Work board</Link><Link href="/owner-actions">Owner actions</Link><Link href="/operations">Operations</Link><Link href="/system">System status</Link></nav>
+
     </header>
     <p>Observed {formatEastern(report.observedAt)}. This report gathers recorded GitHub activity, pending owner actions and operating problems. A session marked completed does not by itself establish accepted work.</p>
     <div className="summary-strip"><strong>{report.activity.length}</strong> GitHub operations <span>·</span><strong>{report.ownerActions.length}</strong> owner actions <span>·</span><strong>{report.queue?.recoveryHolds??0}</strong> recovery holds</div>
