@@ -1,6 +1,6 @@
 import {WorkMappingConflict} from "./work-branch.ts";
 import {SessionConflict} from "./sessions.ts";
-import {AssignmentConflict} from "./assignment.ts";
+import {AssignmentConflict,AssignmentRefreshPending} from "./assignment.ts";
 import {GithubWriteValidation} from "./github-write-gateway.ts";
 import {GitHubAppError,GitHubAppSetupFailure} from "./github-app.ts";
 import {CoffeeError,CoffeeRateLimit} from "./coffee.ts";
@@ -12,7 +12,9 @@ type Failure={code:string;message:string;nextAction:string;retryable:boolean};
 export function agentToolFailure(error:unknown){
   let failure:Failure={code:"SERVICE_UNAVAILABLE",message:"Boardroom could not complete the operation.",
     nextAction:"Reconcile the current assignment, source or PR before a bounded retry. If the service remains unavailable, report the blocker; do not assume the write failed or release succeeded.",retryable:true};
-  if(error instanceof RunnerBudgetBlocked)failure={code:error.code,message:error.message,
+  if(error instanceof AssignmentRefreshPending)failure={code:"ASSIGNMENT_REFRESH_PENDING",message:error.message,
+    nextAction:"No repository lease was granted. Keep the same admitted runId and retry boardroom_claim with bounded backoff (at most three retries). Do not call arrive again or classify this as IDLE. If synchronization remains unavailable, report the exact error and use an evidenced capability stop; preserve the recurring schedule.",retryable:true};
+  else if(error instanceof RunnerBudgetBlocked)failure={code:error.code,message:error.message,
     nextAction:"Stop paid work, checkpoint remote progress and finish. Request an owner spending decision privately if required.",retryable:false};
   else if(error instanceof WorkMappingConflict)failure={code:"PR_MAPPING_CONFLICT",message:error.message,
     nextAction:"Re-read the approved PR links and current assignment once. Do not rename branches or bypass scope. Save a checkpoint and call boardroom_yield_and_claim (or boardroom_advance for an older connection) to continue another eligible unit or project; record the mapping defect for repair.",retryable:false};
