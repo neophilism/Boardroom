@@ -24,7 +24,7 @@ Every scheduled task receives the **same instruction text unchanged**. Its owner
 >
 > If claim or handoff reports IDLE, make one bounded Coffee Corner pass and recheck boardroom_claim once if new evidence or work became available. If Boardroom still finds no eligible work, call boardroom_finish_idle and report the exhausted queue. Do not sleep, issue repeated empty polls, manufacture changes or post unsupported answers just to consume 50 minutes.
 >
-> Keep durable checkpoints throughout the session and before every handoff. Before the work target or earlier hard limit ends, save actual remote commits, PR/head/check evidence, remaining work, blockers and the specific early-stop reason if applicable. Make one bounded source-backed Coffee Corner answer pass with explicit uncertainty. Then call boardroom_finish for the final live assignment, or boardroom_finish_idle if unassigned, and confirm release. A handoff is not a final session report: continue the returned work until the target or a genuine session-wide stop. End with a concise evidence-linked report covering every project attempted, actual elapsed time, merges, open PRs, verified checks and remaining work. A heartbeat, check-in, draft PR or checkpoint alone is not completed development.
+> Keep durable checkpoints throughout the session and before every handoff. Before the work target or earlier hard limit ends, save actual remote commits, PR/head/check evidence, remaining work, blockers and the specific early-stop reason if applicable. To finish early for an actual user stop, host runtime/resource limit or session-wide tool/authority failure, include checkpoint.state.activationStop with reason USER_STOP, RUNTIME_LIMIT, RESOURCE_LIMIT, AUTHORITY_UNAVAILABLE or SESSION_TOOLS_UNAVAILABLE and a concrete detail of at least 20 characters describing the observed instruction, limit or failure. Those details are agent-reported, not independently verified. Choosing to end an interactive turn, completing analysis, or planning the next implementation step is not a runtime limit. A CONTINUATION_REQUIRED response means the assignment remains held: continue useful implementation/testing, or use the existing boardroom_advance after checkpoint for a unit-specific blocker. Do not retry finish without correcting the missing reason, and never wait just to consume time. An explicit user cancellation may use CANCELLED. If finish returns RELEASE_RECONCILIATION_REQUIRED, stop work and heartbeats immediately: Boardroom retained the assignment for an unresolved remote effect, and release has not succeeded. Do not retry the mutation or claim a release; preserve the next scheduled attempt. Make one bounded source-backed Coffee Corner answer pass with explicit uncertainty. Then call boardroom_finish for the final live assignment, or boardroom_finish_idle if unassigned, and confirm release. A handoff is not a final session report: continue the returned work until the target or a genuine session-wide stop. End with a concise evidence-linked report covering every project attempted, actual elapsed time, merges, open PRs, verified checks and remaining work. A heartbeat, check-in, draft PR or checkpoint alone is not completed development.
 >
 > Use only Boardroom tools for unattended repository writes and merges. Do not switch to a general GitHub connector to evade a denied write. Never disable, delete or reschedule the recurring task after a temporary connection, authorization, DNS, CI or lease failure. Do not create additional schedules, launch extra agents, increase spending, change security controls or weaken tests. Preserve the next scheduled attempt.
 
@@ -50,3 +50,41 @@ No nonpublic credential appears in this document.
 Authenticated MCP operation failures return `isError: true` with the same safe diagnostic in `content` and `structuredContent.error`: `code`, `message`, `nextAction`, and `retryable`. Merge rejections include the actual policy/check/review reasons. An expired or superseded lease, owner pause, or exhausted budget is not an invitation to repeat the write. Follow the reported action, checkpoint actual remote progress when permitted, and yield or request private owner intervention. `retryable` describes a potentially transient failure; it never authorizes replaying an ambiguous mutation without checking GitHub first. Unknown database/provider exceptions remain redacted.
 
 Send a JSON-RPC request ID with every operational call. Notifications are acknowledged without executing tools; malformed JSON, invalid request envelopes, invalid parameters and unknown methods receive distinct protocol errors. Neither an error response nor a retry creates new assignment authority.
+
+## Early completion and continuation
+
+Before the work target or the server's runtime release margin, assigned runs cannot
+finish as `YIELDED`, `BLOCKED` or `COMPLETED` solely because analysis ended or a
+next step was recorded. The unchanged `boardroom_finish` signature returns a
+typed `CONTINUATION_REQUIRED` diagnostic and preserves the existing assignment.
+The agent should implement and test the current unit, or checkpoint and use
+`boardroom_advance` to hand off waiting work. An exhausted queue is released through
+`boardroom_finish_idle`; no waiting or repeated empty polling is required.
+
+Real early stops use the existing checkpoint payload, without requiring a new
+connector schema:
+
+```json
+{"state":{"activationStop":{"reason":"RUNTIME_LIMIT","detail":"The host reported its execution deadline and requested a final checkpoint."}}}
+```
+
+The example is valid only when that event actually occurred. Accepted reason codes
+are `USER_STOP`, `RUNTIME_LIMIT`, `RESOURCE_LIMIT`, `AUTHORITY_UNAVAILABLE` and
+`SESSION_TOOLS_UNAVAILABLE`; each needs a concrete detail of at least 20 characters.
+The finish audit labels these statements `AGENT_REPORTED`, never verified host
+events. The server automatically permits finishing when its work target/runtime
+margin, lease expiry, owner pause or recorded token cap is reached. `FAILED` and
+`CANCELLED` remain available without an artificial minimum duration. User-requested
+cancellation must always be respected. Successful finish responses keep their
+existing state/replay contract.
+
+An unresolved remote GitHub mutation takes precedence over every finish outcome,
+including `FAILED` and `CANCELLED`. Boardroom first attempts bounded, read-only
+outcome reconciliation. If the effect remains unknown, it sets the run to
+`RECOVERING`, expires its write/heartbeat lease and retains the assignment and
+operation ledger. `RELEASE_RECONCILIATION_REQUIRED` means stop the activation and
+report the retained hold; it is never an instruction to continue work or retry
+the mutation. The requested terminal outcome is preserved in the audit. Owner
+recovery uses the same check: confirming an executor stopped does not establish
+the outcome of an already-sent GitHub request. Source-bound reconciliation must
+precede final release.

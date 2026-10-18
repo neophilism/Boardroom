@@ -1,10 +1,11 @@
 import {WorkMappingConflict} from "./work-branch.ts";
-import {SessionConflict} from "./sessions.ts";
+import {SessionConflict,ContinuationRequired,ReleaseReconciliationRequired} from "./sessions.ts";
 import {AssignmentConflict,AssignmentRefreshPending} from "./assignment.ts";
 import {GithubWriteValidation} from "./github-write-gateway.ts";
 import {GitHubAppError,GitHubAppSetupFailure} from "./github-app.ts";
 import {CoffeeError,CoffeeRateLimit} from "./coffee.ts";
 import {RunnerBudgetBlocked} from "./budget-errors.ts";
+import {GithubOperationUncertain} from "./github-operation-ledger.ts";
 
 type Failure={code:string;message:string;nextAction:string;retryable:boolean};
 /** Only application-controlled errors are returned to an authenticated agent.
@@ -14,6 +15,12 @@ export function agentToolFailure(error:unknown){
     nextAction:"Reconcile the current assignment, source or PR before a bounded retry. If the service remains unavailable, report the blocker; do not assume the write failed or release succeeded.",retryable:true};
   if(error instanceof AssignmentRefreshPending)failure={code:"ASSIGNMENT_REFRESH_PENDING",message:error.message,
     nextAction:"No repository lease was granted. Keep the same admitted runId and retry boardroom_claim with bounded backoff (at most three retries). Do not call arrive again or classify this as IDLE. If synchronization remains unavailable, report the exact error and use an evidenced capability stop; preserve the recurring schedule.",retryable:true};
+  else if(error instanceof ReleaseReconciliationRequired)failure={code:"RELEASE_RECONCILIATION_REQUIRED",message:error.message,
+    nextAction:"Stop this activation now. Boardroom fenced this run and retained its assignment because a remote GitHub effect remains unresolved. Do not continue work, renew the heartbeat, repeat the mutation or claim a release. Report the operation identifier and requested stop outcome; maintenance must reconcile the remote result before safe release. Preserve the recurring schedule.",retryable:false};
+  else if(error instanceof GithubOperationUncertain)failure={code:"GITHUB_OPERATION_UNCERTAIN",message:error.message,
+    nextAction:"The remote mutation may have succeeded. Read boardroom_source or boardroom_pr_evidence for the current assigned branch/PR and preserve the observed references in a checkpoint. Boardroom must reconcile the saved intent against source-bound evidence before another mutation. Do not repeat the mutation, claim it failed, switch connectors or assume the assignment was released. Continue only under the current live run and generation; if stopping, call finish and respect any retained reconciliation hold.",retryable:false};
+  else if(error instanceof ContinuationRequired)failure={code:"CONTINUATION_REQUIRED",message:error.message,
+    nextAction:"The assignment was not released. Continue useful implementation, testing or CI repair. For pending CI or a unit-specific blocker, checkpoint and call boardroom_advance (or boardroom_yield_and_claim) in this same run. To stop for an actual user instruction, host runtime/resource limit or session-wide tool/authority failure, save checkpoint.state.activationStop with reason USER_STOP, RUNTIME_LIMIT, RESOURCE_LIMIT, AUTHORITY_UNAVAILABLE or SESSION_TOOLS_UNAVAILABLE and a concrete detail of at least 20 characters, then finish. These details are agent-reported; merely choosing to end a turn is not a runtime limit. Never wait or poll just to consume time.",retryable:false};
   else if(error instanceof RunnerBudgetBlocked)failure={code:error.code,message:error.message,
     nextAction:"Stop paid work, checkpoint remote progress and finish. Request an owner spending decision privately if required.",retryable:false};
   else if(error instanceof WorkMappingConflict)failure={code:"PR_MAPPING_CONFLICT",message:error.message,

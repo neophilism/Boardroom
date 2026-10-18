@@ -45,6 +45,29 @@ export function assertAssignedPull(scope:WorkScope,number:number,links:readonly 
   return branch;
 }
 
+export type PrEvidenceRelationship="ASSIGNED_WORK"|"CONTRIBUTION"|"PRIOR_EVIDENCE";
+/** Historical source references authorize evidence reads, never imported-branch
+ * writes or merges. Keep them out of assignedPrNumbers and branch resolution. */
+export function assertAssignedEvidencePull(scope:WorkScope & {source_metadata:unknown},
+  number:number,links:readonly number[],pr:WorkPull):{branch:string;relationship:PrEvidenceRelationship}{
+  const source=scope.source_metadata;
+  const metadata=source&&typeof source==="object"&&!Array.isArray(source)?
+    source as {id?:unknown;contributingPrs?:unknown;priorEvidencePrs?:unknown}:null;
+  function evidenceNumbers(field:"contributingPrs"|"priorEvidencePrs"):number[]{
+    const values=metadata?.[field];
+    if(values===undefined)return [];
+    if(metadata?.id!==scope.unit_id||!Array.isArray(values)||values.length>100||
+      values.some(n=>!Number.isSafeInteger(n)||n<1)||new Set(values).size!==values.length)
+      throw new WorkMappingConflict("Verified source-owned PR evidence references are inconsistent");
+    return values as number[];
+  }
+  const contributions=evidenceNumbers("contributingPrs"),prior=evidenceNumbers("priorEvidencePrs");
+  const branch=assertAssignedPull(scope,number,[...links,...contributions,...prior],pr);
+  const relationship:PrEvidenceRelationship=links.includes(number)?"ASSIGNED_WORK":
+    contributions.includes(number)?"CONTRIBUTION":prior.includes(number)?"PRIOR_EVIDENCE":"ASSIGNED_WORK";
+  return {branch,relationship};
+}
+
 /** Source, writes, readiness and merge all use the same verified association.
  * Multiple open branches require explicit reconciliation, never a guessed write. */
 export async function resolveAssignedWorkBranch(db:Pick<Pool|PoolClient,"query">,scope:WorkScope,

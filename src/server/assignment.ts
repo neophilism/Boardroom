@@ -26,7 +26,7 @@ type Existing = { assignment_id: string; repository_id: string; full_name: strin
  * Priority position takes precedence; otherwise sort by last actual GitHub development event.
  * Expired but still assigned leases are excluded until explicit fenced recovery.
  */
-function buildRepositoryClaimQuery(excludePreviouslyAttempted:boolean,freshOnly=false,skipRepositories=false):string { return String.raw`
+function buildRepositoryClaimQuery(excludePreviouslyAttempted:boolean,freshOnly=false,skipRepositories=false,lockLease=true):string { return String.raw`
   WITH RECURSIVE dependency_edges AS (
     SELECT repository_id,unit_id,prerequisite_repository_id,prerequisite_unit_id FROM compatibility_dependencies
     UNION
@@ -102,13 +102,13 @@ function buildRepositoryClaimQuery(excludePreviouslyAttempted:boolean,freshOnly=
     p.position ASC NULLS LAST,
     COALESCE(r.last_development_at, r.created_at) ASC,
     r.repository_id ASC
-  FOR UPDATE OF l SKIP LOCKED
+  ${lockLease?"FOR UPDATE OF l SKIP LOCKED":""}
   LIMIT 1
 `; }
 export const REPOSITORY_CLAIM_QUERY=buildRepositoryClaimQuery(false);
 export const REPOSITORY_CONTINUATION_CLAIM_QUERY=buildRepositoryClaimQuery(true);
 export const FRESH_REPOSITORY_CLAIM_QUERY=buildRepositoryClaimQuery(true,true);
-export const REPOSITORY_REFRESH_CANDIDATE_QUERY=buildRepositoryClaimQuery(true,false,true);
+export const REPOSITORY_REFRESH_CANDIDATE_QUERY=buildRepositoryClaimQuery(true,false,true,false);
 
 async function existingAssignment(client: PoolClient, runId: string): Promise<ClaimedAssignment | null> {
   const current = await client.query<Existing>(

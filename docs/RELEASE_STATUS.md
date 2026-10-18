@@ -72,7 +72,7 @@ This is implementation/infrastructure evidence, not completion of BR-004, BR-042
 | Agent authentication | At least one exact roster identity is bound to a credential in a supported private connection | Private `/agents` and connector/worker secret store |
 | Supported activation | Real scheduled ChatGPT tool invocation, or an explicitly labeled hosted-worker trial | BR-004/005 evidence; no fabricated scheduled result |
 | Development loop | Exclusive claim, useful change, isolated checks, mapped PR, current-head CI/review, checkpoint and release | BR-042 evidence with actual run and PR references |
-| PR chaining | Same session completes and advances through successive eligible approved units in one repository | BR-039/041; owner merge policy and current-head requirements enforced |
+| PR chaining | Same activation continues eligible approved units, with checkpointed fenced repository handoffs and one live lease at a time | BR-039/041; original clock, prerequisites and current-head merge requirements enforced |
 | Interruption safety | Old execution confirmed stopped or isolated; stale writes rejected; checkpoint safely resumed | BR-053/054/060 |
 | Human escalation | Genuine private Owner Action, verified resolution and requeue; evidence-based Coffee answer | BR-029/050/063 |
 

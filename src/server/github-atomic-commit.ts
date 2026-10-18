@@ -1,6 +1,7 @@
 import {githubAppRequest,GitHubAppError} from "./github-app.ts";
 import {SessionConflict} from "./sessions.ts";
 import type {GithubWrite} from "./github-write-gateway.ts";
+import type {GithubMutationRecorder} from "./github-operation-ledger.ts";
 
 type CommitFiles=Extract<GithubWrite,{kind:"commit_files"}>;
 type Commit={tree:{sha:string};parents:{sha:string}[];message:string};
@@ -10,7 +11,8 @@ const validSha=(s:unknown):s is string=>typeof s==="string"&&/^[a-f0-9]{40}$/i.t
 /** Internal only: invoke with validated input while holding the assignment's
  * repository lease lock. Git objects are staged first; only the final non-force
  * ref update makes the entire change visible to the branch and CI. */
-export async function commitAssignedFiles(api:string,branch:string,op:CommitFiles,transport=githubAppRequest){
+export async function commitAssignedFiles(api:string,branch:string,op:CommitFiles,transport=githubAppRequest,
+  mutate:GithubMutationRecorder=async(_intent,send)=>send()){
   const refPath=api+"/git/refs/heads/"+branch;
   const readHead=async()=>{
     const ref=await transport("GET",api+"/git/ref/heads/"+branch) as {object?:{sha?:string}};
@@ -41,7 +43,7 @@ export async function commitAssignedFiles(api:string,branch:string,op:CommitFile
     const entry={path:file.path,mode:existing?.mode??"100644",type:"blob"};
     return file.contentBase64===null?{...entry,sha:null}:{...entry,content:Buffer.from(file.contentBase64,"base64").toString("utf8")};
   });
-  const staged=await transport("POST",api+"/git/trees",{base_tree:base.tree.sha,tree}) as {sha?:string};
+  const staged=await mutate({kind:"CREATE_TREE"},()=>transport("POST",api+"/git/trees",{base_tree:base.tree.sha,tree})) as {sha?:string};
   if(!validSha(staged.sha))throw new GitHubAppError(503);
   if(replay){
     if(current.tree.sha!==staged.sha||await readHead()!==head)throw new GitHubAppError(409);
@@ -51,10 +53,11 @@ export async function commitAssignedFiles(api:string,branch:string,op:CommitFile
     if(await readHead()!==head)throw new GitHubAppError(409);
     return {kind:"commit_files" as const,branch,commitSha:head,treeSha:staged.sha,replay:false,changed:false};
   }
-  const commit=await transport("POST",api+"/git/commits",{message:op.message,tree:staged.sha,parents:[head]}) as {sha?:string};
+  const commit=await mutate({kind:"CREATE_COMMIT"},()=>transport("POST",api+"/git/commits",{message:op.message,tree:staged.sha,parents:[head]})) as {sha?:string};
   if(!validSha(commit.sha))throw new GitHubAppError(503);
   if(await readHead()!==head)throw new GitHubAppError(409);
-  const updated=await transport("PATCH",refPath,{sha:commit.sha,force:false}) as {object?:{sha?:string}};
+  const updated=await mutate({kind:"UPDATE_REF",branch,targetSha:commit.sha},
+    ()=>transport("PATCH",refPath,{sha:commit.sha,force:false})) as {object?:{sha?:string}};
   if(updated.object?.sha!==commit.sha)throw new GitHubAppError(503);
   return {kind:"commit_files" as const,branch,commitSha:commit.sha,treeSha:staged.sha,replay:false,changed:true};
 }

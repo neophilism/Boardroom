@@ -1,14 +1,43 @@
 import type { Pool, PoolClient } from "pg";
 import type { AuthenticatedAgent } from "./agent-auth";
+import {scanStaleSessionsLocked,recoverFencedOAuthSessionsLocked} from "./watchdog.ts";
+
+export type ActiveSessionDiagnostic={
+  classification:"ACTIVE_LEASE"|"ADMISSION_IN_PROGRESS"|"EXPIRED_LEASE"|"MISSING_LEASE"|"RECOVERY_HELD";
+  startedAt:string;lastSeenAt:string;leaseExpiresAt:string|null;
+};
 
 /** An activation is a temporary process, not the durable agent identity. */
 export type AdmissionResult =
   | { kind: "CREATED"; runId: string; state: string }
   | { kind: "REPLAY"; runId: string; state: string }
-  | { kind: "BUSY"; runId: null; state: "ALREADY_ACTIVE" | "RECOVERY_REQUIRED" };
+  | { kind: "BUSY"; runId: null; state: "ALREADY_ACTIVE" | "RECOVERY_REQUIRED"; activeSession:ActiveSessionDiagnostic };
 
-type LiveRun = { run_id: string; state: string; stale_admitted: boolean };
+type LiveRun = {
+  run_id:string;state:string;stale_admitted:boolean;lease_expired:boolean;
+  started_at:Date;last_seen_at:Date;lease_expires_at:Date|null;
+};
 type CreatedRun = { run_id: string; state: string };
+
+function activeSessionDiagnostic(run:LiveRun):ActiveSessionDiagnostic{
+  const classification=run.state==="RECOVERING"||run.state==="UNKNOWN"||run.stale_admitted?"RECOVERY_HELD":
+    run.state==="ADMITTED"?"ADMISSION_IN_PROGRESS":run.lease_expires_at===null?"MISSING_LEASE":
+    run.lease_expired?"EXPIRED_LEASE":"ACTIVE_LEASE";
+  return {classification,startedAt:run.started_at.toISOString(),lastSeenAt:run.last_seen_at.toISOString(),
+    leaseExpiresAt:run.lease_expires_at?.toISOString()??null};
+}
+
+const ACTIVE_RUN_QUERY=`SELECT ar.run_id,ar.state,ar.started_at,ar.last_seen_at,l.expires_at AS lease_expires_at,
+  (ar.state='ADMITTED' AND ar.last_seen_at < now() - interval '10 minutes') AS stale_admitted,
+  (ar.state='RUNNING' AND (l.run_id IS NULL OR l.expires_at<=now())) AS lease_expired
+ FROM agent_runs ar LEFT JOIN repository_leases l ON l.run_id=ar.run_id
+ WHERE ar.credential_id=$1 AND ar.state IN ('ADMITTED','RUNNING','RECOVERING','UNKNOWN')
+ ORDER BY ar.started_at ASC FOR UPDATE OF ar`;
+
+function needsRecovery(run:LiveRun):boolean{
+  const classification=activeSessionDiagnostic(run).classification;
+  return classification!=="ACTIVE_LEASE"&&classification!=="ADMISSION_IN_PROGRESS";
+}
 
 /** Serialize all new activations for the same authenticated credential.
  * No persistent slot ID, provider account name, or model memory is needed.
@@ -37,21 +66,15 @@ export async function admitAgentRun(db: Pool, principal: AuthenticatedAgent, act
       }
     }
 
-    const active = await client.query<LiveRun>(
-      `SELECT run_id,state,
-        (state='ADMITTED' AND last_seen_at < now() - interval '10 minutes') AS stale_admitted
-       FROM agent_runs
-       WHERE credential_id=$1 AND state IN ('ADMITTED','RUNNING','RECOVERING','UNKNOWN')
-       ORDER BY started_at ASC
-       FOR UPDATE`,
-      [principal.credentialId]
-    );
+    const active=await client.query<LiveRun>(ACTIVE_RUN_QUERY,[principal.credentialId]);
+    const retired=new Set<string>();
     for (const previous of active.rows) {
       if (previous.state !== "ADMITTED" || !previous.stale_admitted) continue;
-      // Abandoned admission with NO repository assignment is safe to retire.
+      // Abandoned admission with NO assignment or repository lease is safe to retire.
       // A stale running/leased execution is NEVER assumed dead just by elapsed time.
       const assignment = await client.query(
-        "SELECT 1 FROM work_assignments WHERE run_id=$1 AND released_at IS NULL LIMIT 1",
+        "SELECT 1 FROM work_assignments WHERE run_id=$1 AND released_at IS NULL "+
+        "UNION ALL SELECT 1 FROM repository_leases WHERE run_id=$1 LIMIT 1",
         [previous.run_id]
       );
       if (assignment.rowCount) continue;
@@ -63,20 +86,22 @@ export async function admitAgentRun(db: Pool, principal: AuthenticatedAgent, act
         "INSERT INTO audit_events(run_id,kind,details) VALUES($1,'agent.run.abandoned_admission',$2::jsonb)",
         [previous.run_id, JSON.stringify({reason:"No assignment after 10 minutes"})]
       );
+      retired.add(previous.run_id);
     }
-    if (active.rows.some(r => r.state !== "ADMITTED" || !r.stale_admitted)) {
-      const recovery = active.rows.some(r => r.state === "RECOVERING" || r.state === "UNKNOWN");
-      await client.query("COMMIT"); committed = true;
-      return {kind:"BUSY", runId:null, state:recovery?"RECOVERY_REQUIRED":"ALREADY_ACTIVE"};
+    let previous=active.rows.find(run=>!retired.has(run.run_id));
+    if(previous&&needsRecovery(previous)&&principal.provider==="chatgpt"){
+      // GitHub's maintenance schedule is best-effort. Recover only this
+      // authenticated credential in the same transaction as normal admission.
+      // The credential/run locks serialize competing arrivals; SKIP LOCKED on
+      // leases defers in-flight writes. No extra pooled connection is needed.
+      await scanStaleSessionsLocked(client,1,principal.credentialId);
+      await recoverFencedOAuthSessionsLocked(client,1,principal.credentialId);
+      previous=(await client.query<LiveRun>(ACTIVE_RUN_QUERY,[principal.credentialId])).rows[0];
     }
-    // Stale admitted runs with a still-open assignment must also remain blocked.
-    const remaining = await client.query(
-      "SELECT 1 FROM agent_runs WHERE credential_id=$1 AND state IN ('ADMITTED','RUNNING','RECOVERING','UNKNOWN') LIMIT 1",
-      [principal.credentialId]
-    );
-    if (remaining.rowCount) {
+    if(previous){
+      const diagnostic=activeSessionDiagnostic(previous);
       await client.query("COMMIT"); committed = true;
-      return {kind:"BUSY",runId:null,state:"RECOVERY_REQUIRED"};
+      return {kind:"BUSY",runId:null,state:needsRecovery(previous)?"RECOVERY_REQUIRED":"ALREADY_ACTIVE",activeSession:diagnostic};
     }
 
     const created = await client.query<CreatedRun>(

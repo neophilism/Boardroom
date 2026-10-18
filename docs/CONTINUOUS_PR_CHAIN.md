@@ -13,7 +13,7 @@ A scheduled agent may arrive after the PR has already merged while the coordinat
 
 An exact work-unit PR title such as `BR-004: ...` can establish the mapping if the canonical registry has no explicit PR number and only one candidate matches. Unrelated PRs, an open follow-up, ambiguous historical matches, a closed-unmerged PR, changed approved scope or a stale lease **never** count as completion. A verified ACCEPTED status is preserved only under an unchanged criteria and dependency contract. The endpoint does not assert that BR-042's full end-to-end execution gate passed.
 
-GitHub errors return a bounded retryable evidence-unavailable error rather than falsely marking work complete. The agent can checkpoint and yield; routine repository synchronization and the next activation can retry. The audit log records successful merge reconciliation and the verified PR numbers without secret material. This path spends no model tokens and needs no owner action.
+Unavailable merge evidence, a changed work plan or incomplete work returns a typed handoff condition. The public continuation endpoint then uses the separately fenced handoff path after a checkpoint, preserving the unfinished state. Authentication, lease and execution-policy failures do not enter that fallback. The audit log records successful merge reconciliation and the verified PR numbers without secret material. This path spends no model tokens and needs no owner action.
 
 ## Fifty-minute activation across projects
 

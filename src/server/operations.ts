@@ -1,5 +1,5 @@
 import type {Pool} from "pg";
-import {SessionConflict,isValidRunId} from "./sessions.ts";
+import {SessionConflict,isValidRunId,retainUnreconciledLease,ReleaseReconciliationRequired} from "./sessions.ts";
 
 export function parseExecutionPolicy(input:unknown){
   if(!input||typeof input!=="object"||Array.isArray(input))throw new SessionConflict("Policy object required");
@@ -56,6 +56,7 @@ export async function setExecutionPaused(db:Pool,paused:boolean){
 export async function recoverRun(db:Pool,runId:string,externalExecutionStopped:boolean){
   if(!isValidRunId(runId)||externalExecutionStopped!==true)throw new SessionConflict("Verify outside execution stopped or isolated before recovery");
   const client=await db.connect();
+  let committed=false;
   try{
     await client.query("BEGIN");
     const run=await client.query<{credential_id:string;state:string}>("SELECT credential_id,state FROM agent_runs WHERE run_id=$1 FOR UPDATE",[runId]);
@@ -70,6 +71,11 @@ export async function recoverRun(db:Pool,runId:string,externalExecutionStopped:b
       const lease=await client.query<{run_id:string;generation:string}>("SELECT run_id::text,generation::text FROM repository_leases WHERE repository_id=$1 FOR UPDATE",[repoId]);
       if(lease.rows[0]?.run_id!==runId||lease.rows[0]?.generation!==assignment.rows[0].lease_generation)
         throw new SessionConflict("Lease superseded; cannot release another run");
+      const unresolved=await retainUnreconciledLease(client,runId,repoId,assignment.rows[0].lease_generation,"CANCELLED");
+      if(unresolved){
+        await client.query("COMMIT");committed=true;
+        throw new ReleaseReconciliationRequired(unresolved);
+      }
     }
     await client.query("UPDATE agent_credentials SET enabled=FALSE,revoked_at=COALESCE(revoked_at,now()) WHERE credential_id=$1",[run.rows[0].credential_id]);
     await client.query("UPDATE work_assignments SET released_at=now(),outcome='CANCELLED' WHERE run_id=$1 AND released_at IS NULL",[runId]);
@@ -78,7 +84,7 @@ export async function recoverRun(db:Pool,runId:string,externalExecutionStopped:b
     if(repoId)await client.query("UPDATE owner_actions SET status='VERIFIED',resolved_at=now(),updated_at=now() WHERE action_key=$1 AND status IN ('OPEN','ACKNOWLEDGED','AWAITING_VERIFICATION')",["boardroom:recovery:"+repoId]);
     await client.query("INSERT INTO audit_events(run_id,repository_id,kind,details) VALUES($1,$2,'owner.run.fenced_and_recovered',$3::jsonb)",[runId,repoId??null,JSON.stringify({credentialRevoked:true,externalExecutionStopped:true})]);
     await client.query("COMMIT");return {state:"CANCELLED",replay:false,credentialRevoked:true};
-  }catch(error){await client.query("ROLLBACK");throw error;}finally{client.release();}
+  }catch(error){if(!committed)await client.query("ROLLBACK");throw error;}finally{client.release();}
 }
 export async function operationsOverview(db:Pool){
   const [control,repositories,runs,audit,usage,outbox,repositoryFreshness]=await Promise.all([
