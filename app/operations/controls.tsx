@@ -1,8 +1,8 @@
 "use client";
 import {useState} from "react";
 type Policy={repositoryId:string;fullName:string;autoMerge:boolean;requiredChecks:string[];minimumReviews:number;maxSessionSeconds:number;maxToolCalls:number;maxTokens:number};
-export default function OperationsControls({paused,repositories}:{paused:boolean;repositories:Policy[]}){
-  const [pause,setPause]=useState(paused),[message,setMessage]=useState(""),[busy,setBusy]=useState(false);
+export default function OperationsControls({paused,apiSpendingEnabled,repositories}:{paused:boolean;apiSpendingEnabled:boolean;repositories:Policy[]}){
+  const [pause,setPause]=useState(paused),[apiEnabled,setApiEnabled]=useState(apiSpendingEnabled),[message,setMessage]=useState(""),[busy,setBusy]=useState(false);
   async function send(body:Record<string,unknown>){
     setBusy(true);setMessage("");
     try{
@@ -15,6 +15,12 @@ export default function OperationsControls({paused,repositories}:{paused:boolean
   return <section>
     <button disabled={busy} onClick={async()=>{if(await send({kind:"pause",paused:!pause}))setPause(!pause);}}>{pause?"Resume repository work":"Pause new claims and GitHub writes"}</button>
     <p>{pause?"Work is paused. Active sessions can checkpoint and finish.":"Eligible named agents can claim work. Merges follow each repository's policy."}</p>
+    <section className="action-card"><h2>Paid API model execution</h2>
+      <p>Current state: <strong>{apiEnabled?"Enabled (requires owner review)":"Disabled — zero new provider reservations"}</strong>. Native scheduled ChatGPT Work agents are managed independently.</p>
+      {apiEnabled?<button type="button" disabled={busy} onClick={async()=>{if(await send({kind:"disablePaidApi"}))setApiEnabled(false);}}>Emergency stop: block new paid API reservations</button>:
+        <p>Paid API execution is disabled by default. This interface deliberately cannot activate spending; future funded onboarding must independently authorize a budget and credentials.</p>}
+      <p>Previously sent provider requests may still settle after a stop. A stop never cancels your existing ChatGPT scheduled tasks.</p>
+    </section>
     <h2>Repository limits and merge policies</h2>
     {repositories.map(r=><PolicyEditor key={r.repositoryId} initial={r} send={send} busy={busy}/>)}
     {message&&<p role="status">{message}</p>}

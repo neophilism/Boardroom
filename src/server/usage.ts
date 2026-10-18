@@ -13,11 +13,20 @@ export function usageInteger(value:unknown,max=1000000000):number{
  */
 export async function reserveRunnerBudget(db:Pool,runId:string,credentialId:string,generation:string,key:string,amount:number){
   usageInteger(amount);if(amount<1||!/^model-[0-9]{1,5}$/.test(key))throw new SessionConflict("Valid model operation and positive reservation required");
+  // The operator flag is an independent fail-closed kill switch. Never issue a
+  // reservation on a fresh or unconfigured deployment, even if a cap exists.
+  if(process.env.BOARDROOM_API_SPENDING_ENABLED!=="true")throw new RunnerBudgetBlocked("API_DISABLED");
   const cap=Number(process.env.BOARDROOM_DAILY_COST_CAP_MICROUSD??0);
   if(!Number.isSafeInteger(cap)||cap<1)throw new RunnerBudgetBlocked("BUDGET_NOT_CONFIGURED");
   const client=await db.connect();
   try{
     await client.query("BEGIN");await client.query("SELECT pg_advisory_xact_lock(540074)");
+    // SHARE lock serializes the owner's emergency stop with paid reservations.
+    // Previous in-flight provider calls may still incur charges; no new
+    // reservation is permitted after the stop commits.
+    const gate=await client.query<{api_spending_enabled:boolean}>(
+      "SELECT api_spending_enabled FROM execution_controls WHERE singleton=TRUE FOR SHARE");
+    if(gate.rows[0]?.api_spending_enabled!==true)throw new RunnerBudgetBlocked("API_DISABLED");
     await assignedScope(client,runId,credentialId,generation,true);
     const existing=await client.query<{reservation_id:string;reserved_microusd:string}>("SELECT reservation_id,reserved_microusd::text FROM runner_budget_reservations WHERE run_id=$1 AND operation_key=$2",[runId,key]);
     if(existing.rowCount){

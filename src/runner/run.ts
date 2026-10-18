@@ -34,7 +34,8 @@ const WORKER_TOOLS:ToolDefinition[]=[
 export type RunnerConfig={baseUrl:string;name:string;token:string;provider:ProviderName;model:string;providerKey:string;
   maxSeconds:number;maxCalls:number;maxTokens:number;maxCostMicroUsd:number;inputUsdPerMillion:number;outputUsdPerMillion:number};
 export function runnerConfiguration(env:Record<string,string|undefined>):RunnerConfig|null{
-  if(env.BOARDROOM_RUN_ENABLED!=="true")return null;
+  // Both independent switches must be explicitly enabled. Default: no paid provider calls.
+  if(env.BOARDROOM_RUN_ENABLED!=="true"||env.BOARDROOM_API_SPENDING_ENABLED!=="true")return null;
   const required=["BOARDROOM_BASE_URL","BOARDROOM_AGENT_NAME","BOARDROOM_AGENT_TOKEN","BOARDROOM_MODEL_PROVIDER","BOARDROOM_MODEL",
     "BOARDROOM_MAX_COST_MICROUSD","BOARDROOM_INPUT_USD_PER_MILLION","BOARDROOM_OUTPUT_USD_PER_MILLION"];
   if(required.some(k=>!env[k]))throw new Error("Hosted worker configuration is incomplete; no model request was sent");
@@ -264,7 +265,7 @@ export async function runHostedAgent(config:RunnerConfig,activationKey:string,si
       model.results(results);
     }
   }catch(error){
-    if(error instanceof BoardroomRequestError&&error.code==="BUDGET_LIMIT")outcome="YIELDED";
+    if(error instanceof BoardroomRequestError&&["BUDGET_LIMIT","API_DISABLED"].includes(String(error.code)))outcome="YIELDED";
     else if(error instanceof BoardroomRequestError&&error.code==="BUDGET_NOT_CONFIGURED"){
       outcome="BLOCKED";
       try{await client.ownerAction({runId,generation,actionKey:"boardroom:daily-model-spending",title:"Authorize a daily hosted-model spending cap",type:"APPROVAL",

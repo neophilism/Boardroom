@@ -7,7 +7,7 @@ permissions:
   contents: read
 jobs:
   activate:
-    if: vars.BOARDROOM_RUN_ENABLED == 'true'
+    if: vars.BOARDROOM_RUN_ENABLED == 'true' && vars.BOARDROOM_API_SPENDING_ENABLED == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 40
     environment: boardroom-worker
@@ -26,6 +26,7 @@ jobs:
         run: npm run agent:run
         env:
           BOARDROOM_RUN_ENABLED: ${{ vars.BOARDROOM_RUN_ENABLED }}
+          BOARDROOM_API_SPENDING_ENABLED: ${{ vars.BOARDROOM_API_SPENDING_ENABLED }}
           BOARDROOM_BASE_URL: ${{ vars.BOARDROOM_BASE_URL }}
           BOARDROOM_AGENT_NAME: ${{ vars.BOARDROOM_AGENT_NAME }}
           BOARDROOM_AGENT_TOKEN: ${{ secrets.BOARDROOM_AGENT_TOKEN }}

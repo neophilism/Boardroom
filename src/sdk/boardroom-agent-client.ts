@@ -36,8 +36,8 @@ export type GithubWrite=
 
 export class BoardroomRequestError extends Error{
   readonly status:number;
-  readonly code:"BUDGET_LIMIT"|"BUDGET_NOT_CONFIGURED"|null;
-  constructor(status:number,code:"BUDGET_LIMIT"|"BUDGET_NOT_CONFIGURED"|null=null){
+  readonly code:"API_DISABLED"|"BUDGET_LIMIT"|"BUDGET_NOT_CONFIGURED"|null;
+  constructor(status:number,code:"API_DISABLED"|"BUDGET_LIMIT"|"BUDGET_NOT_CONFIGURED"|null=null){
     super("Boardroom request failed with HTTP "+status);
     this.name="BoardroomRequestError";
     this.status=status;
@@ -95,7 +95,7 @@ export class BoardroomAgentClient{
       // Recognize only fixed server budget codes, never provider messages or
       // arbitrary response text which might contain a credential.
       const body=response.status===409?await response.json().catch(()=>null):null;
-      const code=body?.code==="BUDGET_LIMIT"||body?.code==="BUDGET_NOT_CONFIGURED"?body.code:null;
+      const code=body?.code==="BUDGET_LIMIT"||body?.code==="BUDGET_NOT_CONFIGURED"||body?.code==="API_DISABLED"?body.code:null;
       throw new BoardroomRequestError(response.status,code);
     }
     try{return await response.json() as T;}
