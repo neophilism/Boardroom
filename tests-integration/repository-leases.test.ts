@@ -212,7 +212,12 @@ test("500 named activations contend for 50 repos without duplicate ownership",as
 });
 test("real budget reservations retain uncertain charges and serialize competing calls",async()=>{
   const prior=process.env.BOARDROOM_DAILY_COST_CAP_MICROUSD;
+  const priorGate=process.env.BOARDROOM_API_SPENDING_ENABLED;
+  // This is a synthetic PostgreSQL fixture: no external provider is ever called.
+  // Restore the default-deny server and database state even if the test fails.
   process.env.BOARDROOM_DAILY_COST_CAP_MICROUSD="1000";
+  process.env.BOARDROOM_API_SPENDING_ENABLED="true";
+  await db.query("UPDATE execution_controls SET api_spending_enabled=TRUE WHERE singleton=TRUE");
   try{
     const repositoryId="950000001";
     await db.query("INSERT INTO repositories(repository_id,full_name,created_at) VALUES($1,'ci/budget',now())",[repositoryId]);
@@ -234,6 +239,8 @@ test("real budget reservations retain uncertain charges and serialize competing 
     await assert.rejects(recordRunnerUsage(db,runId,credentialId,"1",{operationKey:"model-0",inputTokens:0,outputTokens:0,costMicroUsd:0}),SessionConflict);
     await finishRun(db,runId,credentialId,"1","YIELDED");
   }finally{
+    await db.query("UPDATE execution_controls SET api_spending_enabled=FALSE WHERE singleton=TRUE");
+    if(priorGate===undefined)delete process.env.BOARDROOM_API_SPENDING_ENABLED;else process.env.BOARDROOM_API_SPENDING_ENABLED=priorGate;
     if(prior===undefined)delete process.env.BOARDROOM_DAILY_COST_CAP_MICROUSD;else process.env.BOARDROOM_DAILY_COST_CAP_MICROUSD=prior;
   }
 });
