@@ -8,7 +8,7 @@ test("hosted scheduling is inert until explicitly enabled and funded with protec
   assert.equal(runnerConfiguration({}),null);
   assert.equal(runnerConfiguration({...env,BOARDROOM_RUN_ENABLED:"false"}),null);
   assert.equal(runnerConfiguration(env)?.maxCostMicroUsd,100000);
-  assert.equal(runnerConfiguration({...env,BOARDROOM_MAX_SESSION_SECONDS:"",BOARDROOM_MAX_TOOL_CALLS:""})?.maxSeconds,1800);
+  assert.equal(runnerConfiguration({...env,BOARDROOM_MAX_SESSION_SECONDS:"",BOARDROOM_MAX_TOOL_CALLS:""})?.maxSeconds,3300);
   for(const patch of [{OPENAI_API_KEY:""},{BOARDROOM_MAX_COST_MICROUSD:"0"},{BOARDROOM_MAX_TOKENS:"-1"},{BOARDROOM_INPUT_USD_PER_MILLION:"NaN"}])
     assert.throws(()=>runnerConfiguration({...env,...patch}));
 });

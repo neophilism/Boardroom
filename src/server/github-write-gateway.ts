@@ -2,6 +2,7 @@ import type {Pool} from "pg";
 import {SessionConflict,isValidGeneration,isValidRunId} from "./sessions.ts";
 import {githubAppRequest,GitHubAppError} from "./github-app.ts";
 import {commitAssignedFiles} from "./github-atomic-commit.ts";
+import {resolveAssignedWorkBranch,assignedPrNumbers,assertAssignedPull,type WorkPull} from "./work-branch.ts";
 import {assertWorkPrerequisites} from "./work-prerequisites.ts";
 
 type RepoScope={repository_id:string;full_name:string;unit_id:string;title:string};
@@ -141,14 +142,14 @@ export function pullRequestChanges(existing:ExistingPullRequest,
   return changes;
 }
 
-async function doWrite(scope:RepoScope,op:GithubWrite){
+async function doWrite(db:Pool|import("pg").PoolClient,scope:RepoScope,op:GithubWrite){
   const {owner,name}=repoParts(scope.full_name);
   const repoPath="/repos/"+encodeURIComponent(owner)+"/"+encodeURIComponent(name);
-  const branch=safeWorkBranch(scope.unit_id);
+  const branch=await resolveAssignedWorkBranch(db,scope,true);
   if(op.kind==="commit_files")return commitAssignedFiles(repoPath,branch,op);
   if(op.kind==="ready_pr"){
-    const pr=await githubAppRequest("GET",repoPath+"/pulls/"+op.number) as {node_id:string;draft:boolean;head:{ref:string;repo:{id:number}}};
-    if(pr.head.ref!==branch||String(pr.head.repo.id)!==scope.repository_id)
+    const pr=await githubAppRequest("GET",repoPath+"/pulls/"+op.number) as WorkPull & {node_id:string;draft:boolean};
+    if(assertAssignedPull(scope,op.number,await assignedPrNumbers(db,scope),pr)!==branch)
       throw new SessionConflict("PR is outside the assigned work branch");
     if(!pr.draft)return {kind:"ready_pr",number:op.number,replay:true};
     const result=await githubAppRequest("POST","/graphql",{
@@ -250,7 +251,7 @@ export async function performFencedGithubWrite(db:Pool,runId:string,credentialId
          AND c.enabled=TRUE AND c.revoked_at IS NULL
          AND a.lease_generation=$3::bigint AND l.expires_at>now()+interval '25 seconds'
          AND r.enabled=TRUE AND r.archived=FALSE AND w.approved=TRUE
-         AND ar.started_at>now()-make_interval(secs=>COALESCE(policy.max_session_seconds,1800))
+         AND ar.started_at>now()-make_interval(secs=>COALESCE(policy.max_session_seconds,3300))
        FOR UPDATE OF l`,
       [runId,credentialId,generation]
     );
@@ -259,7 +260,7 @@ export async function performFencedGithubWrite(db:Pool,runId:string,credentialId
     if(pause.rows[0]?.paused)throw new SessionConflict("Owner paused execution");
     const scope=grant.rows[0];
     await assertWorkPrerequisites(client,scope.repository_id,scope.unit_id);
-    const result=await doWrite(scope,op);
+    const result=await doWrite(client,scope,op);
     await client.query(
       "INSERT INTO audit_events(run_id,repository_id,kind,details) VALUES($1,$2,$3,$4::jsonb)",
       [runId,scope.repository_id,"github.write."+op.kind,

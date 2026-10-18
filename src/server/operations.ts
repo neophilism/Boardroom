@@ -30,7 +30,7 @@ export async function setExecutionPolicy(db:Pool,input:unknown){
     const exists=await client.query("SELECT repository_id FROM repositories WHERE repository_id=$1 FOR UPDATE",[p.repositoryId]);
     if(exists.rowCount!==1)throw new SessionConflict("Repository has not been imported");
     await client.query(`INSERT INTO repository_execution_policy(repository_id,auto_merge,required_checks,minimum_reviews,max_session_seconds,max_tool_calls,max_tokens)
-      VALUES($1,$2,$3::jsonb,$4,COALESCE($5,1800),COALESCE($6,100),COALESCE($7,100000)) ON CONFLICT(repository_id) DO UPDATE SET auto_merge=excluded.auto_merge,
+      VALUES($1,$2,$3::jsonb,$4,COALESCE($5,3300),COALESCE($6,100),COALESCE($7,100000)) ON CONFLICT(repository_id) DO UPDATE SET auto_merge=excluded.auto_merge,
       required_checks=excluded.required_checks,minimum_reviews=excluded.minimum_reviews,
       max_session_seconds=COALESCE($5,repository_execution_policy.max_session_seconds),
       max_tool_calls=COALESCE($6,repository_execution_policy.max_tool_calls),
@@ -85,7 +85,7 @@ export async function operationsOverview(db:Pool){
     db.query<{paused:boolean}>("SELECT paused FROM execution_controls WHERE singleton=TRUE"),
     db.query(`SELECT r.repository_id::text AS "repositoryId",r.full_name AS "fullName",COALESCE(p.auto_merge,FALSE) AS "autoMerge",
       COALESCE(p.required_checks,'[]'::jsonb) AS "requiredChecks",
-      COALESCE(p.max_session_seconds,1800) AS "maxSessionSeconds",COALESCE(p.max_tool_calls,100) AS "maxToolCalls",COALESCE(p.max_tokens,100000) AS "maxTokens"
+      COALESCE(p.max_session_seconds,3300) AS "maxSessionSeconds",COALESCE(p.max_tool_calls,100) AS "maxToolCalls",COALESCE(p.max_tokens,100000) AS "maxTokens"
       FROM repositories r LEFT JOIN repository_execution_policy p ON p.repository_id=r.repository_id ORDER BY r.full_name`),
     db.query(`SELECT ar.run_id,ar.state,c.label,ar.provider,ar.started_at,ar.last_seen_at,ar.ended_at,
       r.full_name,a.unit_id FROM agent_runs ar JOIN agent_credentials c ON c.credential_id=ar.credential_id

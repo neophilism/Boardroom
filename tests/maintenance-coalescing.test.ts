@@ -84,6 +84,7 @@ test("fresh GitHub reconciliation removes merged work before a lease can be allo
   let selections=0,refreshes=0,leaseWrites=0;
   const client={
     query:async(sql:string)=>{
+      if(sql.includes(" AS within_budget "))return {rows:[{within_budget:true}],rowCount:1};
       if(sql.includes("SELECT run_id, state FROM agent_runs"))return {rows:[{state:"ADMITTED"}],rowCount:1};
       if(sql===REPOSITORY_CONTINUATION_CLAIM_QUERY)return {rows:[],rowCount:0};
       if(sql.includes("UPDATE repository_leases"))leaseWrites++;

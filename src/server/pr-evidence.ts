@@ -1,6 +1,6 @@
 import type {Pool} from "pg";
 import {githubAppRequest,GitHubAppError} from "./github-app.ts";
-import {safeWorkBranch} from "./github-write-gateway.ts";
+import {assignedPrNumbers,assertAssignedPull,type WorkPull} from "./work-branch.ts";
 import {isValidRunId,isValidGeneration,SessionConflict} from "./sessions.ts";
 
 export type CheckRun={
@@ -110,12 +110,10 @@ export async function readAssignedPrEvidence(db:Pool,runId:string,credentialId:s
     number:number;html_url:string;state:string;draft:boolean;merged_at:string|null;
     created_at?:string|null;updated_at?:string|null;
     head?:{sha?:string;ref?:string;repo?:{id?:number}};
+    base?:{ref?:string;repo?:{id?:number}};
   };
-  if(!pr.head||pr.head.ref!==safeWorkBranch(scope.unit_id)||
-     !/^[a-f0-9]{40}$/i.test(pr.head.sha??"")||
-     String(pr.head.repo?.id)!==scope.repository_id)
-    throw new SessionConflict("PR is not associated with the assigned repository work branch");
-  const sha=pr.head.sha as string;
+  const branch=assertAssignedPull(scope,prNumber,await assignedPrNumbers(db,scope),pr as WorkPull);
+  const sha=pr.head!.sha as string;
   const checkPath=url+"/commits/"+sha+"/check-runs?per_page=100";
   const checked=await githubAppRequest("GET",checkPath) as
     {total_count:number;check_runs:CheckRun[]};
@@ -136,7 +134,7 @@ export async function readAssignedPrEvidence(db:Pool,runId:string,credentialId:s
     repository:scope.full_name,unitId:scope.unit_id,
     pullRequest:{number:pr.number,url:pr.html_url,draft:pr.draft,state:pr.state,
       createdAt:evidenceTimestamp(pr.created_at),updatedAt:evidenceTimestamp(pr.updated_at),
-      mergedAt:evidenceTimestamp(pr.merged_at),accepted:isAcceptedMergedPullRequest(pr.merged_at),headSha:sha},
+      mergedAt:evidenceTimestamp(pr.merged_at),accepted:isAcceptedMergedPullRequest(pr.merged_at),headSha:sha,branch},
     unitAcceptance:{title:scope.title,state:scope.state,criteria:scope.acceptance_criteria,
       verification:acceptanceVerification(scope.source_metadata),
       planObservedAt:evidenceTimestamp(scope.source_observed_at),satisfied:evidenceSufficient},

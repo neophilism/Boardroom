@@ -89,6 +89,10 @@ function buildRepositoryClaimQuery(excludePreviouslyAttempted:boolean):string { 
     AND l.run_id IS NULL
     AND NOT EXISTS (SELECT 1 FROM execution_controls WHERE singleton=TRUE AND paused=TRUE)
   ORDER BY
+    ${excludePreviouslyAttempted ? String.raw`CASE WHEN r.repository_id=(
+      SELECT prior.repository_id FROM work_assignments prior WHERE prior.run_id=$1::uuid
+      AND prior.released_at IS NOT NULL ORDER BY prior.released_at DESC LIMIT 1
+    ) THEN 0 ELSE 1 END,` : ""}
     CASE WHEN p.position IS NULL THEN 1 ELSE 0 END,
     p.position ASC NULLS LAST,
     COALESCE(r.last_development_at, r.created_at) ASC,
@@ -112,6 +116,7 @@ async function existingAssignment(client: PoolClient, runId: string): Promise<Cl
   );
   if (!current.rows.length) return null;
   const row = current.rows[0];
+  if(row.expires_at<=new Date())throw new AssignmentConflict("Lease expired; recovery required");
   return {
     assignmentId: row.assignment_id, repositoryId: row.repository_id,
     fullName: row.full_name, unitId: row.unit_id,
@@ -161,6 +166,9 @@ export async function claimAssignment(db: Pool, runId: string, credentialId: str
     }
     if (state !== "ADMITTED") throw new AssignmentConflict("This run cannot claim an assignment");
 
+    const clock=await client.query<{within_budget:boolean}>(
+      "SELECT started_at>now()-interval '55 minutes' AS within_budget FROM agent_runs WHERE run_id=$1",[runId]);
+    if(clock.rows[0]?.within_budget!==true)throw new AssignmentConflict("Session time budget exhausted; checkpoint and finish");
     const choice = await client.query<Eligible>(REPOSITORY_CONTINUATION_CLAIM_QUERY,[runId]);
     if (!choice.rowCount) {
       await client.query("COMMIT");
@@ -170,9 +178,14 @@ export async function claimAssignment(db: Pool, runId: string, credentialId: str
     if(reconciliationExpired(choice.rows[0].last_success_at))
       throw new AssignmentConflict("Repository state is stale; retry after authoritative GitHub synchronization");
     const { repository_id: repositoryId, full_name: fullName, unit_id: unitId } = choice.rows[0];
+    const allowed=await client.query<{within_budget:boolean}>(
+      `SELECT ar.started_at>now()-make_interval(secs=>COALESCE(p.max_session_seconds,3300)) AS within_budget
+       FROM agent_runs ar LEFT JOIN repository_execution_policy p ON p.repository_id=$2 WHERE ar.run_id=$1`,[runId,repositoryId]);
+    if(allowed.rows[0]?.within_budget!==true)throw new AssignmentConflict("Session time budget exhausted; checkpoint and finish");
     const changed = await client.query<Lease>(
       `UPDATE repository_leases SET
-          run_id=$1, generation=generation+1,
+          run_id=$1, generation=GREATEST(generation+1,
+            (SELECT COALESCE(MAX(lease_generation),0)+1 FROM work_assignments WHERE run_id=$1)),
           assigned_at=now(), last_heartbeat_at=now(),
           expires_at=now() + interval '180 seconds'
         WHERE repository_id=$2 AND run_id IS NULL

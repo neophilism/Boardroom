@@ -1,3 +1,4 @@
+import {workSession} from "../domain/work-session.ts";
 import {safeDiscussionText} from "../domain/discussion-privacy.ts";
 import {isSafeGitHubReference} from "../domain/coffee-view.ts";
 import type {Pool} from "pg";
@@ -63,7 +64,7 @@ export async function getAssignmentContext(db:Pool,runId:string,credentialId:str
     `SELECT a.assignment_id::text, a.repository_id::text,r.full_name,a.unit_id,
        a.lease_generation::text AS generation,l.expires_at,
        w.title,w.state,w.version,w.depends_on,w.acceptance_criteria,w.planned_prs,w.source_metadata,w.external_dependencies,w.external_prerequisites,ar.started_at,
-       COALESCE(policy.max_session_seconds,1800) AS max_session_seconds,
+       COALESCE(policy.max_session_seconds,3300) AS max_session_seconds,
        COALESCE(policy.max_tool_calls,100) AS max_tool_calls,COALESCE(policy.max_tokens,100000) AS max_tokens
      FROM work_assignments a
      JOIN agent_runs ar ON ar.run_id=a.run_id
@@ -140,6 +141,7 @@ export async function getAssignmentContext(db:Pool,runId:string,credentialId:str
     checkpoint:recentCheckpoints.find(row=>row.unitId===item.unit_id)??null,
     recentCheckpoints,
     repositoryInstructions:instructions,
+    workSession:workSession(item.started_at,item.max_session_seconds),
     executionLimits:{maxSessionSeconds:item.max_session_seconds,maxToolCalls:item.max_tool_calls,maxTokens:item.max_tokens,
       deadlineAt:new Date(item.started_at.getTime()+item.max_session_seconds*1000).toISOString()},
     technicalQuestions:discussions.rows.map(thread=>({...thread,subject:safeDiscussionText(thread.subject),

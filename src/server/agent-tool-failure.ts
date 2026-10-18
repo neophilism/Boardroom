@@ -1,3 +1,4 @@
+import {WorkMappingConflict} from "./work-branch.ts";
 import {SessionConflict} from "./sessions.ts";
 import {AssignmentConflict} from "./assignment.ts";
 import {GithubWriteValidation} from "./github-write-gateway.ts";
@@ -13,6 +14,8 @@ export function agentToolFailure(error:unknown){
     nextAction:"Reconcile the current assignment, source or PR before a bounded retry. If the service remains unavailable, report the blocker; do not assume the write failed or release succeeded.",retryable:true};
   if(error instanceof RunnerBudgetBlocked)failure={code:error.code,message:error.message,
     nextAction:"Stop paid work, checkpoint remote progress and finish. Request an owner spending decision privately if required.",retryable:false};
+  else if(error instanceof WorkMappingConflict)failure={code:"PR_MAPPING_CONFLICT",message:error.message,
+    nextAction:"Re-read the approved PR links and current assignment once. Do not rename branches or bypass scope. Save a checkpoint and call boardroom_yield_and_claim (or boardroom_advance for an older connection) to continue another eligible unit or project; record the mapping defect for repair.",retryable:false};
   else if(error instanceof CoffeeRateLimit)failure={code:"COFFEE_RATE_LIMIT",message:error.message,
     nextAction:"Wait at least ten minutes before posting again, or checkpoint and continue eligible work. Do not create a new activation to bypass the credential-level limit.",retryable:true};
   else if(error instanceof GitHubAppSetupFailure)failure={code:"GITHUB_SETUP_REQUIRED",message:"GitHub App setup or connectivity is unavailable ("+error.issue+").",
@@ -28,7 +31,7 @@ export function agentToolFailure(error:unknown){
   else if(error instanceof SessionConflict||error instanceof AssignmentConflict){
     const message=error.message;
     if(message.startsWith("Merge blocked: "))failure={code:"MERGE_BLOCKED",message,
-      nextAction:"Read current PR evidence. Resolve failed checks; wait for pending checks; create a private Owner Action for required policy or review. Checkpoint and yield if it cannot be resolved in this run.",retryable:false};
+      nextAction:"Read current PR evidence. Fix actionable failures. For pending CI or an unresolved unit-specific gate, checkpoint and call boardroom_yield_and_claim or boardroom_advance to continue other eligible work in the same run. Use a private Owner Action only for genuinely owner-only decisions.",retryable:false};
     else if(message==="Owner paused execution")failure={code:"EXECUTION_PAUSED",message,
       nextAction:"Stop writes, checkpoint remote progress and finish. Only the owner can resume execution.",retryable:false};
     else if(message==="Session time budget exhausted; checkpoint and finish")failure={code:"SESSION_LIMIT",message,
@@ -36,7 +39,7 @@ export function agentToolFailure(error:unknown){
     else if(message==="Technical question prerequisite unresolved or retry evidence consumed")failure={code:"PREREQUISITE_BLOCKED",message,
       nextAction:"Search Coffee Corner and obtain fresh source-backed answers for every unresolved question. Verify and persist accepted answers through immutable repository ADRs before merging. Checkpoint and yield if the technical blocker remains. Do not replay consumed evidence or bypass the write gate.",retryable:false};
     else if(["Approved work-unit prerequisite unresolved","Cross-repository compatibility prerequisite unresolved","Owner action prerequisite unresolved"].includes(message))failure={code:"PREREQUISITE_BLOCKED",message,
-      nextAction:"Checkpoint and yield the blocked work. A prerequisite must be independently verified or the private Owner Action resolved before writes can resume. Do not override the dependency or approval.",retryable:false};
+      nextAction:"Checkpoint and use boardroom_yield_and_claim or boardroom_advance to continue another eligible unit or repository in the same activation. A prerequisite must be independently verified or the private Owner Action resolved before writes can resume. Do not override the dependency or approval.",retryable:false};
     else failure={code:"SESSION_CONFLICT",message,
       nextAction:"Reconcile the request and current assignment. Heartbeat only a still-live lease; if renewal is rejected, stop writes and report recovery needed. Never reclaim or assume release of another run's assignment.",retryable:false};
   }

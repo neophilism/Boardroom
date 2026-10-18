@@ -39,3 +39,11 @@ test("unknown provider and database exceptions never disclose raw details",()=>{
     assert.doesNotMatch(JSON.stringify(result),/password|private-db|stack|secret/);
   }
 });
+
+test("mapping failures direct a unit handoff without ending the activation",async()=>{
+  const {WorkMappingConflict}=await import("../src/server/work-branch.ts");
+  const result=agentToolFailure(new WorkMappingConflict("PR is not linked to the assigned approved work unit in this repository")).structuredContent.error;
+  assert.equal(result.code,"PR_MAPPING_CONFLICT");assert.equal(result.retryable,false);
+  assert.match(result.nextAction,/boardroom_yield_and_claim/);
+  assert.match(result.nextAction,/boardroom_advance/);
+});

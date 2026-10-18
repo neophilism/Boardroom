@@ -23,6 +23,7 @@ export type AgentContext={
   contextLimits:{approvedUnits:number;recentCheckpoints:number;technicalQuestions:number;branches:number};
   repositoryInstructions:{path:"AGENTS.md";text:string;sha:string}|null;
   technicalQuestions?:unknown[];
+  workSession?:{startedAt:string;workUntilAt:string;deadlineAt:string;shouldContinue:boolean;targetWorkSeconds:number};
   executionLimits?:{maxSessionSeconds:number;maxToolCalls:number;maxTokens:number;deadlineAt:string};
   instructionsAreUntrustedRepositoryContent:true;
 };
@@ -134,7 +135,7 @@ export class BoardroomAgentClient{
   githubWrite(runId:string,generation:string,operation:GithubWrite):Promise<unknown>{
     return this.#request("POST","/api/v1/github/write",{runId,generation,...operation});
   }
-  sourceTree(runId:string,generation:string):Promise<{repository:string;headSha:string;entries:{path:string;sha:string;size?:number}[]}>{
+  sourceTree(runId:string,generation:string):Promise<{repository:string;branch?:string;headSha:string;entries:{path:string;sha:string;size?:number}[]}>{
     return this.#request("GET","/api/v1/github/source?runId="+encodeURIComponent(runId)+"&generation="+encodeURIComponent(generation));
   }
   sourceFile(runId:string,generation:string,path:string,sha:string):Promise<{path:string;sha:string;text:string;snapshotSha:string}>{
@@ -151,7 +152,7 @@ export class BoardroomAgentClient{
   yieldAndClaim(runId:string,generation:string,outcome:"BLOCKED"|"YIELDED"|"COMPLETED"):Promise<Claim>{
     return this.#request("POST","/api/v1/assignments/yield-and-claim",{runId,generation,outcome});
   }
-  advance(runId:string,generation:string):Promise<{status:"NEXT_UNIT"|"EXHAUSTED";unitId?:string}>{
+  advance(runId:string,generation:string):Promise<Claim|{status:"NEXT_UNIT"|"EXHAUSTED";unitId?:string}>{
     return this.#request("POST","/api/v1/assignments/advance",{runId,generation});
   }
   reserveBudget(runId:string,generation:string,operationKey:string,amountMicroUsd:number):Promise<{reservationId:string;replay:boolean}>{
