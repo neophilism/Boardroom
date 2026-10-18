@@ -120,7 +120,8 @@ export function reconciliationExpired(value:Date|string|null|undefined,now=Date.
   return !Number.isFinite(when)||when>now+60000||now-when>60000;
 }
 
-export async function claimAssignment(db: Pool, runId: string, credentialId: string): Promise<ClaimedAssignment | null> {
+export async function claimAssignment(db: Pool, runId: string, credentialId: string,
+  refreshRepository:(repositoryId:string)=>Promise<unknown>=synchronizeRepositoryById): Promise<ClaimedAssignment | null> {
   // Network I/O happens outside the lease transaction. Only a server-admitted
   // principal may provoke repository reconciliation; do not permit untrusted
   // requests to turn this endpoint into an unauthenticated GitHub poller.
@@ -130,7 +131,7 @@ export async function claimAssignment(db: Pool, runId: string, credentialId: str
     for(let attempt=0;attempt<4;attempt++){
       const candidate=(await db.query<Eligible>(REPOSITORY_CLAIM_QUERY)).rows[0];
       if(!candidate||!reconciliationExpired(candidate.last_success_at))break;
-      try{await synchronizeRepositoryById(String(candidate.repository_id));}
+      try{await refreshRepository(String(candidate.repository_id));}
       catch{throw new AssignmentConflict("Authoritative repository reconciliation unavailable; no stale work assigned");}
     }
   }
