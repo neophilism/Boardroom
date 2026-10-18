@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import type {Pool,PoolClient} from "pg";
 import {queueInventoryRefresh,queueRepositoryRefresh,preferredMaintenanceKind} from "../src/server/outbox.ts";
-import {claimAssignment,reconciliationExpired,REPOSITORY_CLAIM_QUERY,AssignmentConflict} from "../src/server/assignment.ts";
+import {claimAssignment,reconciliationExpired,REPOSITORY_CLAIM_QUERY,REPOSITORY_CONTINUATION_CLAIM_QUERY,AssignmentConflict} from "../src/server/assignment.ts";
 
 type Recorded={sql:string;params:unknown[]};
 function mockInventory(queued:number,running=false){
