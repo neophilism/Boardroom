@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import type {Pool,PoolClient} from "pg";
 import {queueInventoryRefresh,queueRepositoryRefresh,preferredMaintenanceKind} from "../src/server/outbox.ts";
-import {reconciliationExpired,REPOSITORY_CLAIM_QUERY} from "../src/server/assignment.ts";
+import {claimAssignment,reconciliationExpired,REPOSITORY_CLAIM_QUERY,AssignmentConflict} from "../src/server/assignment.ts";
 
 type Recorded={sql:string;params:unknown[]};
 function mockInventory(queued:number,running=false){
@@ -78,4 +78,46 @@ test("stale or unknown repository observations block claim until GitHub verifica
   assert.match(REPOSITORY_CLAIM_QUERY,/repository_sync_status sync/);
   assert.match(REPOSITORY_CLAIM_QUERY,/sync.last_success_at/);
   assert.match(REPOSITORY_CLAIM_QUERY,/FOR UPDATE OF l SKIP LOCKED/);
+});
+
+test("fresh GitHub reconciliation removes merged work before a lease can be allocated",async()=>{
+  let selections=0,refreshes=0,leaseWrites=0;
+  const client={
+    query:async(sql:string)=>{
+      if(sql.includes("SELECT run_id, state FROM agent_runs"))return {rows:[{state:"ADMITTED"}],rowCount:1};
+      if(sql===REPOSITORY_CLAIM_QUERY)return {rows:[],rowCount:0};
+      if(sql.includes("UPDATE repository_leases"))leaseWrites++;
+      return {rows:[],rowCount:0};
+    },release:()=>{}
+  };
+  const db={
+    query:async(sql:string)=>{
+      if(sql.includes("SELECT state FROM agent_runs"))return {rows:[{state:"ADMITTED"}],rowCount:1};
+      if(sql===REPOSITORY_CLAIM_QUERY){
+        selections++;
+        return selections===1?{rows:[{repository_id:"1415596507",last_success_at:new Date(0)}],rowCount:1}
+          :{rows:[],rowCount:0};
+      }
+      throw new Error("Unexpected read before lease");
+    },connect:async()=>client
+  } as unknown as Pool;
+  const claim=await claimAssignment(db,"00000000-0000-4000-8000-000000000001","00000000-0000-4000-8000-000000000002",async id=>{
+    assert.equal(id,"1415596507");refreshes++;
+  });
+  assert.equal(claim,null);
+  assert.equal(refreshes,1);
+  assert.equal(leaseWrites,0);
+});
+test("GitHub preclaim outage fails closed before acquiring a lease",async()=>{
+  let connected=false;
+  const db={
+    query:async(sql:string)=>{
+      if(sql.includes("SELECT state FROM agent_runs"))return {rows:[{state:"ADMITTED"}],rowCount:1};
+      if(sql===REPOSITORY_CLAIM_QUERY)return {rows:[{repository_id:"1415596507",last_success_at:new Date(0)}],rowCount:1};
+      throw new Error("Unexpected SQL read");
+    },connect:async()=>{connected=true;throw new Error("Should not acquire a lease");}
+  } as unknown as Pool;
+  await assert.rejects(claimAssignment(db,"00000000-0000-4000-8000-000000000001","00000000-0000-4000-8000-000000000002",
+    async()=>{throw new Error("GitHub outage");}),AssignmentConflict);
+  assert.equal(connected,false);
 });
