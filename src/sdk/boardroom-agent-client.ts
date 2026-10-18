@@ -148,6 +148,9 @@ export class BoardroomAgentClient{
   merge(runId:string,generation:string,number:number,expectedSha:string):Promise<unknown>{
     return this.#request("POST","/api/v1/github/merge",{runId,generation,number,expectedSha});
   }
+  yieldAndClaim(runId:string,generation:string,outcome:"BLOCKED"|"YIELDED"|"COMPLETED"):Promise<Claim>{
+    return this.#request("POST","/api/v1/assignments/yield-and-claim",{runId,generation,outcome});
+  }
   advance(runId:string,generation:string):Promise<{status:"NEXT_UNIT"|"EXHAUSTED";unitId?:string}>{
     return this.#request("POST","/api/v1/assignments/advance",{runId,generation});
   }
