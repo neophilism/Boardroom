@@ -56,7 +56,7 @@ test("native recovery preserves OAuth credentials and fences the old generation"
   assert.equal(result.released,1);
   assert.ok(x.statements.some(s=>s.includes("generation=generation+1")));
   assert.ok(!x.statements.some(s=>s.startsWith("UPDATE agent_credentials")));
-  assert.ok(x.statements.some(s=>s.includes("externalExecutionTerminationVerified")));
+  assert.ok(x.statements.some(s=>s.includes("agent.run.oauth_fenced_and_released")));
 });
 test("native recovery holds uncertain GitHub effects and does not release a lease",async()=>{
   const {recoverFencedOAuthSessions}=await import("../src/server/watchdog.ts");
