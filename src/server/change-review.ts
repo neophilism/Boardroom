@@ -9,6 +9,10 @@ export function isSensitivePath(raw:string):boolean{
   const path=raw.toLowerCase();
   if(/^(?:\.github\/|\.circleci\/|db\/migrations\/|infra\/|terraform\/|deploy\/|deployment\/|\.env(?:\.|$)|agents\.md$|codeowners$|dockerfile$|render\.yaml$)/.test(path))return true;
   if(/(?:^|\/)(?:oauth|auth|authentication|authorization|security|secrets?|credentials?|privileges?|permissions?|access[-_]?control|risk[-_]?approval|merge[-_]?policy|github[-_]?write[-_]?gateway|owner[-_]?session|owner[-_]?auth|production|release[-_]?policy|deploy(?:ment)?|billing|payments?)(?:[\/._-]|$)/.test(path))return true;
+  // Direct privileged execution, token issuance, recovery, and internal maintenance
+  // entry points also require review, even if the filename has a neutral label.
+  if(/^src\/server\/(?:github-app|agent-auth|agent-tools|owner-actions?|owner-action-[^/]+|pr-action-reconciliation|sessions|assignment(?:-[^/]+)?|maintenance-auth|watchdog|readiness|work-prerequisites|operations|credential-handoff)(?:\.|\/|-)/.test(path))return true;
+  if(/^app\/api\/(?:mcp\/|oauth\/|v1\/(?:owner\/|owner-actions\/|github\/|internal\/|runs\/|assignments\/))/.test(path))return true;
   if(/\.(?:tf|tfvars)$/.test(path))return true;
   return false;
 }
