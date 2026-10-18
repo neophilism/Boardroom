@@ -29,7 +29,7 @@ function PolicyEditor({initial,send,busy}:{initial:Policy;send:(body:Record<stri
     <label>Maximum session duration in seconds<input type="number" min="60" max="14400" value={seconds} onChange={e=>setSeconds(Number(e.target.value))}/></label>
     <label>Maximum tools per hosted session<input type="number" min="1" max="1000" value={calls} onChange={e=>setCalls(Number(e.target.value))}/></label>
     <label>Maximum tokens per hosted session<input type="number" min="1" max="10000000" value={tokens} onChange={e=>setTokens(Number(e.target.value))}/></label>
-    <p>GitHub's actual branch-protection and review requirements are enforced at merge time; Boardroom does not require an additional human approval. Required CI must pass on the PR's current head.</p>
+    <p>GitHub&apos;s actual branch-protection and review requirements are enforced at merge time; Boardroom does not require an additional human approval. Required CI must pass on the PR&apos;s current head.</p>
     <p>Hosted workers obey the tighter repository or runtime limit. The separate shared daily spending cap also applies.</p>
     <button disabled={busy} onClick={()=>send({kind:"policy",repositoryId:initial.repositoryId,autoMerge:enabled,requiredChecks:checks.split("\n").map(s=>s.trim()).filter(Boolean),maxSessionSeconds:seconds,maxToolCalls:calls,maxTokens:tokens})}>Save limits and merge policy</button>
   </details>;
