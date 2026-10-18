@@ -75,3 +75,26 @@ test("checkpoint is required after CI and before finish", () => {
   }), []);
 });
 
+
+test("malformed runtime JSON fails closed without throwing", () => {
+  const invalid: unknown[] = [
+    null, undefined, [], {}, "scheduled",
+    { ...proof, branch: 0 },
+    { ...proof, repository: { id: "example/repo" } },
+    { ...proof, prUrl: null },
+    { ...proof, claimedAt: null },
+    { ...proof, ciHeadSha: false },
+    { ...proof, runId: [] },
+    { ...proof, prObservedAt: {} }
+  ];
+  for (const candidate of invalid) {
+    const failures = trialProblems(candidate as TrialProof);
+    assert.ok(failures.length > 0, JSON.stringify(candidate));
+  }
+});
+test("truthy but non-boolean release does not pass", () => {
+  for (const released of ["true", 1, { released: true }]) {
+    const invalid = { ...proof, released } as unknown as TrialProof;
+    assert.match(trialProblems(invalid).join(" "), /Run release is unverified/);
+  }
+});

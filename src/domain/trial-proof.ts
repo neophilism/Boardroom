@@ -24,16 +24,16 @@ export type TrialProof = {
   released: boolean;
 };
 
-function utcMillis(value: string): number {
-  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/.test(value)) return NaN;
+function utcMillis(value: unknown): number {
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/.test(value)) return NaN;
   const parsed = Date.parse(value);
   if (!Number.isFinite(parsed)) return NaN;
   const normalized = new Date(parsed).toISOString().replace(/\.000Z$/, "Z");
   return normalized === value.replace(/\.000Z$/, "Z") ? parsed : NaN;
 }
 
-function mappedPrUrl(url: string, repository: string): boolean {
-  if (!/^[\w.-]+\/[\w.-]+$/.test(repository)) return false;
+function mappedPrUrl(url: unknown, repository: unknown): boolean {
+  if (typeof url !== "string" || typeof repository !== "string" || !/^[\w.-]+\/[\w.-]+$/.test(repository)) return false;
   try {
     const parsed = new URL(url);
     const [owner, repo] = repository.split("/");
@@ -53,14 +53,18 @@ function mappedPrUrl(url: string, repository: string): boolean {
  * corroborate scheduled origin, fenced writes, current-head CI and release.
  */
 export function trialProblems(e: TrialProof): string[] {
+  if (!e || typeof e !== "object" || Array.isArray(e)) return ["Invalid trial proof object"];
   const failures: string[] = [];
   if (e.origin !== "scheduled") failures.push("Not an independently verified scheduled activation");
-  if (!/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i.test(e.runId) ||
-      !/^[1-9]\d*$/.test(e.generation) || !e.repository || !e.branch.trim()) {
+  if (typeof e.runId !== "string" || !/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i.test(e.runId) ||
+      typeof e.generation !== "string" || !/^[1-9]\d*$/.test(e.generation) ||
+      typeof e.repository !== "string" || !e.repository ||
+      typeof e.branch !== "string" || !e.branch.trim()) {
     failures.push("Missing or malformed assignment identity");
   }
-  if (!/^[a-f0-9]{40}$/i.test(e.headSha)) failures.push("Invalid commit SHA");
-  if (e.headSha !== e.ciHeadSha || e.ciStatus !== "success") {
+  if (typeof e.headSha !== "string" || !/^[a-f0-9]{40}$/i.test(e.headSha)) failures.push("Invalid commit SHA");
+  if (typeof e.ciHeadSha !== "string" || !/^[a-f0-9]{40}$/i.test(e.ciHeadSha) ||
+      e.headSha !== e.ciHeadSha || e.ciStatus !== "success") {
     failures.push("Current-head CI has not succeeded");
   }
   if (!mappedPrUrl(e.prUrl, e.repository)) failures.push("PR is not mapped to repository");
@@ -81,7 +85,7 @@ export function trialProblems(e: TrialProof): string[] {
       failures.push("Mapped PR was not observed after this run's commit");
     }
   }
-  if (!e.released) failures.push("Run release is unverified");
+  if (e.released !== true) failures.push("Run release is unverified");
   return failures;
 }
 
