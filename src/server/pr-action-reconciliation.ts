@@ -1,12 +1,13 @@
 import type {Pool} from "pg";
 import {githubAppRequest} from "./github-app.ts";
 import {repositoryApiPath} from "./assignment-scope.ts";
+import {classifyChangedFiles,type ChangedFile,type ChangedFileRisk} from "./change-review.ts";
 
 export type PendingPrApproval={
   actionId:string;actionKey:string;title:string;instructions:string;
   repository:string|null;repositoryCount:number;
 };
-export type PrSnapshot={number:number;state:string;merged:boolean;head?:{sha:string}};
+export type PrSnapshot={number:number;state:string;merged:boolean;head?:{sha:string};changedFileRisk?:ChangedFileRisk};
 export type PrApprovalDisposition="VERIFIED"|"CANCELLED"|null;
 
 /** Only an explicit numbered PR action scoped to precisely one repository is eligible.
@@ -28,11 +29,19 @@ export function prApprovalDisposition(pr:PrSnapshot,expectedNumber:number,reques
   if(pr.state==="closed"&&!pr.merged)return "CANCELLED";
   if(requestedHead&&pr.head&&/^[a-f0-9]{40}$/i.test(pr.head.sha)&&pr.head.sha.toLowerCase()!==requestedHead)
     return "CANCELLED";
+  // A routine open PR no longer requires an owner approval under the new policy.
+  // Only authoritative, complete GitHub file data can establish that classification.
+  if(pr.state==="open"&&pr.changedFileRisk==="ROUTINE")return "CANCELLED";
   return null;
 }
 type Source=(repository:string,number:number)=>Promise<PrSnapshot>;
-const githubSource:Source=async(repo,number)=>githubAppRequest("GET",
-  repositoryApiPath(repo)+"/pulls/"+number) as Promise<PrSnapshot>;
+const githubSource:Source=async(repo,number)=>{
+  const api=repositoryApiPath(repo);
+  const pr=await githubAppRequest("GET",api+"/pulls/"+number) as PrSnapshot&{changed_files?:number};
+  if(pr.state!=="open"||pr.merged)return pr;
+  const files=await githubAppRequest("GET",api+"/pulls/"+number+"/files?per_page=100") as ChangedFile[];
+  return {...pr,changedFileRisk:classifyChangedFiles(files,pr.changed_files)};
+};
 
 /** Run only during authenticated maintenance, in bounded batches and without model usage.
  * An unavailable GitHub response leaves approval OPEN and visible for a retry.
