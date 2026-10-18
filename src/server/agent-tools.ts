@@ -3,8 +3,8 @@ import {digestActivation,type AuthenticatedAgent} from "./agent-auth.ts";
 import {admitAgentRun} from "./admission.ts";
 import {claimAssignment} from "./assignment.ts";
 import {getAssignmentContext} from "./assignment-context.ts";
-import {heartbeatRun,saveCheckpoint,finishRun,parseSessionOutcome} from "./sessions.ts";
-import {finishIdleSession} from "./idle-session.ts";
+import {heartbeatRun,saveCheckpoint,parseSessionOutcome} from "./sessions.ts";
+import {finishScheduledRun,finishScheduledIdle,SESSION_STOP_REASONS} from "./scheduled-completion.ts";
 import {parseGithubWrite,performFencedGithubWrite} from "./github-write-gateway.ts";
 import {readAssignedPrEvidence} from "./pr-evidence.ts";
 import {readAssignedSource} from "./source.ts";
@@ -21,6 +21,7 @@ import {searchCoffeeThreads} from "./coffee-search.ts";
 
 const string={type:"string"};
 const session={runId:string,generation:string};
+const sessionStop={type:"object",properties:{reason:{enum:SESSION_STOP_REASONS},evidence:string},required:["reason","evidence"],additionalProperties:false};
 function tool(name:string,description:string,properties:Record<string,unknown>,required:string[],readOnlyHint=false){
   return {name,description,inputSchema:{type:"object",properties,required,additionalProperties:false},
     annotations:{readOnlyHint,destructiveHint:name==="boardroom_write",openWorldHint:true}};
@@ -64,9 +65,9 @@ export const AGENT_TOOLS=[
   tool("boardroom_risk_approval_request","Request an exact, single-use owner approval before spending, destructive work, privilege changes, legal or political risk, or production release.",{
     ...session,category:{enum:RISK_CATEGORIES},target:string,summary:string,maxCostCents:{type:["integer","null"],minimum:0}},
     ["runId","generation","category","target","summary","maxCostCents"]),
-  tool("boardroom_finish","Checkpoint, make a bounded Coffee pass, then release your current assignment. COMPLETED does not assert code acceptance.",{
-    ...session,outcome:{enum:["COMPLETED","YIELDED","BLOCKED","FAILED","CANCELLED"]}},["runId","generation","outcome"]),
-  tool("boardroom_finish_idle","End an admitted session that received no repository. Never frees an assigned lease.",{runId:string},["runId"])
+  tool("boardroom_finish","Finish at the 50-minute target or an evidenced activation-wide hard limit. An early project finish returns CONTINUE_REQUIRED: claim the same run and keep working. Record sessionStop for a real earlier hard limit; it can also be saved in checkpoint state for older schemas. COMPLETED does not assert code acceptance.",{
+    ...session,outcome:{enum:["COMPLETED","YIELDED","BLOCKED","FAILED","CANCELLED"]},sessionStop},["runId","generation","outcome"]),
+  tool("boardroom_finish_idle","End a truly empty portfolio. If eligible work remains before the target, returns CONTINUE_REQUIRED. An evidenced activation-wide failure may supply sessionStop. Never frees an assigned lease.",{runId:string,sessionStop},["runId"])
 ] as const;
 
 export class AgentToolError extends Error{constructor(){super("Invalid or unsupported Boardroom tool request");}}
@@ -94,7 +95,8 @@ export async function executeAgentTool(db:Pool,agent:AuthenticatedAgent,name:str
   const runId=String(args.runId??""),generation=String(args.generation??"");
   switch(name){
     case "boardroom_profile":return {id:agent.credentialId,displayName:agent.label,provider:agent.provider,ownerAdministration:false,scheduledInstruction:SCHEDULED_AGENT_INSTRUCTION,
-      workPolicy:{targetWorkSeconds:3000,defaultMaxSessionSeconds:3300,projectHandoffsEndActivation:false}};
+      workPolicy:{targetWorkSeconds:3000,defaultMaxSessionSeconds:3300,projectHandoffsEndActivation:false,
+        earlyFinishReturns:"CONTINUE_REQUIRED",modelToolCapScope:"HOSTED_RUNNER_TOOL_LOOP",nativeConnectorUsageMetered:false}};
     case "boardroom_arrive":{
       const key=args.activationKey;
       const digest=typeof key==="string"?digestActivation(agent.credentialId,key,process.env.BOARDROOM_TOKEN_PEPPER??""):null;
@@ -128,8 +130,8 @@ export async function executeAgentTool(db:Pool,agent:AuthenticatedAgent,name:str
     case "boardroom_risk_approval_request":return createOwnerAction(db,agent.credentialId,parseOwnerAction(renderRiskApprovalRequest(
       {runId,generation},{category:args.category,target:args.target,summary:args.summary,maxCostCents:args.maxCostCents}
     )));
-    case "boardroom_finish":return finishRun(db,runId,agent.credentialId,generation,parseSessionOutcome(args.outcome));
-    case "boardroom_finish_idle":return finishIdleSession(db,runId,agent.credentialId);
+    case "boardroom_finish":return finishScheduledRun(db,runId,agent.credentialId,generation,parseSessionOutcome(args.outcome),args.sessionStop);
+    case "boardroom_finish_idle":return finishScheduledIdle(db,runId,agent.credentialId,args.sessionStop);
     default:throw new AgentToolError();
   }
 }

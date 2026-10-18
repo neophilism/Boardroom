@@ -7,7 +7,7 @@ import {claimAssignment} from "./assignment.ts";
  * claim query, so an owner-blocked PR cannot spin in a tight loop.
  * A replay after release can claim again using the same authorized run.
  */
-export async function yieldAndClaim(db:Pool,runId:string,credentialId:string,generation:string,
+export async function releaseAssignmentForContinuation(db:Pool,runId:string,credentialId:string,generation:string,
   outcome:"BLOCKED"|"YIELDED"|"COMPLETED"){
   if(!isValidRunId(runId)||!isValidGeneration(generation))throw new SessionConflict("Invalid session identity");
   const client=await db.connect();
@@ -60,6 +60,11 @@ export async function yieldAndClaim(db:Pool,runId:string,credentialId:string,gen
     }
   }catch(error){if(!released)await client.query("ROLLBACK");throw error;}
   finally{client.release();}
+}
+
+export async function yieldAndClaim(db:Pool,runId:string,credentialId:string,generation:string,
+  outcome:"BLOCKED"|"YIELDED"|"COMPLETED"){
+  await releaseAssignmentForContinuation(db,runId,credentialId,generation,outcome);
   // A new claim has its own lease generation. Failure leaves an admitted run
   // that can safely retry boardroom_claim, rather than losing the activation.
   const next=await claimAssignment(db,runId,credentialId);
