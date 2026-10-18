@@ -91,10 +91,10 @@ export async function operationsOverview(db:Pool){
       ORDER BY ar.started_at DESC LIMIT 100`),
     db.query("SELECT event_id,kind,run_id,repository_id,occurred_at,details FROM audit_events ORDER BY occurred_at DESC LIMIT 100"),
     db.query("SELECT COALESCE(SUM(input_tokens+output_tokens),0)::text AS tokens,COALESCE(SUM(cost_microusd),0)::text AS cost_microusd FROM usage_events WHERE created_at>now()-interval '24 hours'"),
-    db.query(`SELECT operation_type AS "operationType",state,COUNT(*)::integer AS count,
+    db.query(`SELECT operation_type AS "operationType",state,COALESCE(last_error_code,'') AS "errorCode",COUNT(*)::integer AS count,
       MIN(created_at) AS "oldestCreatedAt",
       MAX(available_at) AS "latestAvailableAt"
-      FROM operation_outbox GROUP BY operation_type,state ORDER BY operation_type,state`),
+      FROM operation_outbox GROUP BY operation_type,state,last_error_code ORDER BY operation_type,state,last_error_code`),
     db.query(`SELECT r.full_name AS "fullName",s.plan_status AS "planStatus",
       s.last_success_at AS "lastSuccessAt",s.last_attempt_at AS "lastAttemptAt",
       s.last_error AS "lastError"

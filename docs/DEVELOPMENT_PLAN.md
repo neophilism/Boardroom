@@ -698,3 +698,8 @@ Gort, Joi and Bishop provided real scheduled-run evidence of stale local roadmap
 - GitHub's ten-minute scheduled Action is best-effort. A main-branch push now also runs a bounded maintenance tick. Event-driven direct repository operations and on-demand claim reconciliation do not depend on punctual cron delivery.
 - Perform real PostgreSQL concurrency, idempotency, ledger/migration hash, and queue-fairness tests. Do not claim full autonomous development until a live agent can claim fresh work, make a gated write, produce an evidence-linked PR and safely finish.
 - Deployment is independently verified using exact revision and service readiness evidence. Do not infer production rollout from a merged PR alone. Keep native ChatGPT app safety rejections separate from coordinator reconciliation failures.
+
+
+### Follow-up to October 18 maintenance recovery: partial import failures
+
+Live Neon review after PR #124 confirmed that the Boardroom work units had become MERGED with the correct PR numbers and duplicate inventory work was superseded, but two other repositories returned source-verification errors. A failed repository must remain ERROR and unapproved; however, it must not force all later inventory pages to retry indefinitely. The importer now persists partial-page audit evidence and completes the current page while preserving the numeric continuation cursor; next sweeps revisit the failed repositories. Tests assert that a partial failure produces the next-page cursor, and invalid importer reports still fail closed. Independently review and repair the affected repositories' source registries before calling them eligible.
