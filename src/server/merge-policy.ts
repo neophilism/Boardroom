@@ -6,6 +6,7 @@ import {safeWorkBranch} from "./github-write-gateway.ts";
 import {assessObservedChecks,type CheckRun,type CheckSuite,type LegacyStatus} from "./pr-evidence.ts";
 import {SessionConflict} from "./sessions.ts";
 import {assertWorkPrerequisites} from "./work-prerequisites.ts";
+import {reserveRepositoryObservation} from "./repository-observation.ts";
 
 export type MergePolicy={auto_merge:boolean;required_checks:string[];minimum_reviews:number};
 export function aggregateLinkedPrState(unitId:string,linked:number[],pulls:readonly GitHubPull[],confirmedMerged:number):"MERGED"|"OPEN_PR"|"UNKNOWN"{
@@ -65,6 +66,9 @@ export async function mergeAssignedPullRequest(db:Pool,runId:string,credentialId
     await assertWorkPrerequisites(client,scope.repository_id,scope.unit_id,true);
     const api=repositoryApiPath(scope.full_name);
     async function reconcileMergedUnit(){
+      // Invalidate observations started before this authoritative merge read;
+      // a delayed webhook refresh must not overwrite the verified merge.
+      await reserveRepositoryObservation(client,Number(scope.repository_id));
       const refs=await client.query<{planned_prs:unknown}>("SELECT planned_prs FROM roadmap_units WHERE repository_id=$1 AND unit_id=$2",[scope.repository_id,scope.unit_id]);
       const links=refs.rows[0]?.planned_prs;
       if(!Array.isArray(links)||links.some(n=>!Number.isSafeInteger(n)||n<1))throw new SessionConflict("Approved PR references unavailable");
