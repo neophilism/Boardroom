@@ -789,3 +789,18 @@ unit. Record external observations as agent-reported, preserve unresolved GitHub
 release holds, and reconcile ADMITTED-after-release claims without demanding the
 old lease or ending the activation. Test partial drafts, CI/head/association
 misreporting, same-run recovery and stale-generation replay.
+
+### BR-077 follow-up — prebuilt release without Render build minutes
+
+The owner explicitly sets a $0 additional deployment budget. Build and smoke-test
+an image on standard GitHub-hosted runners only while the source repository is
+public. Publish a SHA-tagged image to GitHub Container Registry using the
+repository-scoped Actions token; never supply production secrets to a build.
+Reuse the existing free Render web service and its runtime secrets/database.
+Switch its backing source to a verified public image or secure existing registry
+credential, without creating another service or increasing a spending limit.
+Run immutable migrations at startup as before, with no pre-deploy pipeline task.
+Verify the exact baked source revision, readiness, private-route denial and live
+native profile before reporting deployment. Retain rollback source and image
+digest. Do not claim the image is published, publicly pullable, deployed or free
+of platform restrictions until those boundaries have been verified separately.

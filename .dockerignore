@@ -1,0 +1,16 @@
+.git
+.github
+.next
+node_modules
+coverage
+dist
+out
+.env
+.env.*
+!.env.example
+*.log
+*.tsbuildinfo
+.DS_Store
+tests
+tests-integration
+tests-sandbox
