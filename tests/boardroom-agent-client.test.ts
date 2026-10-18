@@ -107,3 +107,16 @@ test("yield-and-claim keeps current run and requests next assignment with fenced
   assert.deepEqual(JSON.parse(f.requests[0].init.body as string),{runId:"run",generation:"6",outcome:"BLOCKED"});
   assert.equal(f.requests.length,1);
 });
+
+test("fixed continuation and uncertainty codes survive HTTP without arbitrary response data or retry",async()=>{
+  for(const code of ['GITHUB_OPERATION_UNCERTAIN','RELEASE_RECONCILIATION_REQUIRED','CONTINUATION_REQUIRED','private-not-a-code']){
+    const f=fake([{status:409,value:{code,error:secret}}]);
+    const client=new BoardroomAgentClient({baseUrl:'https://boardroom.example',bearerToken:secret,assignedName:'Smith',transport:f.transport});
+    await assert.rejects(client.githubWrite('run','1',{kind:'ensure_branch'}),error=>{
+      assert.ok(error instanceof BoardroomRequestError);
+      assert.equal(error.code,code==='private-not-a-code'?null:code);
+      assert.ok(!error.message.includes(secret));return true;
+    });
+    assert.equal(f.requests.length,1);
+  }
+});

@@ -5,7 +5,7 @@ import {readFile} from "node:fs/promises";
 import {Pool} from "pg";
 import {MIGRATION_MANIFEST} from "../db/migration-manifest.ts";
 import {claimAssignment} from "../src/server/assignment.ts";
-import {saveCheckpoint} from "../src/server/sessions.ts";
+import {saveCheckpoint,ReleaseReconciliationRequired} from "../src/server/sessions.ts";
 import {executeAgentTool} from "../src/server/agent-tools.ts";
 const url=process.env.DATABASE_URL;
 if(!url||!url.includes("boardroom_test"))throw new Error("Completion fixtures require an isolated boardroom_test database");
@@ -36,7 +36,14 @@ test("native finish at 90 seconds continues the same run, preserves fences, and 
     const withoutCheckpoint=await a.finish(first.generation);
     assert.ok('runEnded' in withoutCheckpoint);assert.equal(withoutCheckpoint.runEnded,false);
     assert.equal(withoutCheckpoint.state,'RUNNING');
-    await saveCheckpoint(db,a.runId,a.agent.credentialId,first.generation,{state:{checks:'PENDING',nextAction:'Continue implementation'}});
+    await saveCheckpoint(db,a.runId,a.agent.credentialId,first.generation,{state:{checks:'PENDING',remaining:'Substantial integration and acceptance work remains'}});
+    const partial=await a.finish(first.generation);
+    assert.ok('runEnded' in partial);assert.equal(partial.runEnded,false);assert.equal(partial.state,'RUNNING');
+    await assert.rejects(executeAgentTool(db,a.agent,'boardroom_yield_and_claim',{
+      runId:a.runId,generation:first.generation,outcome:'YIELDED'}),/Continue the current approved unit/);
+    const blocker={reason:'EXTERNAL_BLOCKER',code:'REPOSITORY_CREDENTIAL_UNAVAILABLE',operation:'Fixture provider integration',
+      observedError:'Fixture: required provider credential unavailable after all unblocked software work',unblockedImplementationRemaining:[]};
+    await saveCheckpoint(db,a.runId,a.agent.credentialId,first.generation,{state:{unitHandoff:blocker}});
     const early=await a.finish(first.generation);
     assert.ok('runEnded' in early);assert.equal(early.runEnded,false);
     assert.equal(early.state,'ADMITTED');
@@ -45,9 +52,12 @@ test("native finish at 90 seconds continues the same run, preserves fences, and 
     assert.equal((await a.finish(first.generation)).state,'ADMITTED');
     const idleBypass=await a.idle();
     assert.ok('runEnded' in idleBypass);assert.equal(idleBypass.runEnded,false);
-    const next=(await claimAssignment(db,a.runId,a.agent.credentialId))!;
+    const recovered=await executeAgentTool(db,a.agent,'boardroom_advance',{runId:a.runId,generation:first.generation});
+    assert.ok('assignment' in recovered);const next=recovered.assignment!;
     assert.equal(next.repositoryId,'2');assert.notEqual(next.generation,first.generation);
     await assert.rejects(a.finish(first.generation),/Stale or missing assignment/);
+    const replay=await executeAgentTool(db,a.agent,'boardroom_advance',{runId:a.runId,generation:first.generation});
+    assert.ok('assignment' in replay);assert.equal(replay.assignment?.assignmentId,next.assignmentId);
     await assert.rejects(executeAgentTool(db,{...a.agent,credentialId:randomUUID()},'boardroom_finish',{
       runId:a.runId,generation:next.generation,outcome:'YIELDED'}),/unauthorized run/);
     await assert.rejects(a.finish(next.generation,{reason:'RESOURCE_LIMIT',evidence:'short'}));
@@ -66,9 +76,21 @@ test("native finish at 90 seconds continues the same run, preserves fences, and 
     const older=(await claimAssignment(db,c.runId,c.agent.credentialId))!;
     await saveCheckpoint(db,c.runId,c.agent.credentialId,older.generation,{state:{sessionStop:{reason:'RUNTIME_LIMIT',evidence:'Fixture: actual host deadline reached; no further execution available'}}});
     const oldDone=await c.finish(older.generation);assert.ok('runEnded' in oldDone);assert.equal(oldDone.runEnded,true);
+    const legacy=await principal('Existing activationStop fixture');
+    const legacyAssignment=(await claimAssignment(db,legacy.runId,legacy.agent.credentialId))!;
+    await saveCheckpoint(db,legacy.runId,legacy.agent.credentialId,legacyAssignment.generation,{state:{activationStop:{reason:'RUNTIME_LIMIT',detail:'Fixture: an actual observed host deadline prevents further execution'}}});
+    const legacyDone=await legacy.finish(legacyAssignment.generation);assert.ok('runEnded' in legacyDone);assert.equal(legacyDone.runEnded,true);
     const d=await principal('Unassigned outage fixture');
     const outage=await d.idle({reason:'CAPABILITY_UNAVAILABLE',evidence:'Fixture: bounded authoritative GitHub synchronization retries exhausted'});
     assert.ok('runEnded' in outage);assert.equal(outage.runEnded,true);
+    const held=await principal('Uncertain effect fixture');
+    const heldAssignment=(await claimAssignment(db,held.runId,held.agent.credentialId))!;
+    await saveCheckpoint(db,held.runId,held.agent.credentialId,heldAssignment.generation,{state:{unitHandoff:blocker,remaining:'Reconcile uncertain GitHub effect'}});
+    await db.query("INSERT INTO github_operations(repository_id,unit_id,run_id,idempotency_key,request_digest,state,result) VALUES($1,$2,$3,'uncertain',$4,'UNCERTAIN','{}'::jsonb)",[
+      heldAssignment.repositoryId,heldAssignment.unitId,held.runId,'a'.repeat(64)]);
+    await assert.rejects(held.finish(heldAssignment.generation),ReleaseReconciliationRequired);
+    assert.equal((await db.query("SELECT state FROM agent_runs WHERE run_id=$1",[held.runId])).rows[0].state,'RECOVERING');
+    assert.equal((await db.query("SELECT run_id FROM repository_leases WHERE repository_id=$1",[heldAssignment.repositoryId])).rows[0].run_id,held.runId);
     const e=await principal('Actually empty fixture');
     await db.query("UPDATE repositories SET enabled=FALSE");
     const empty=await e.idle();assert.ok('runEnded' in empty);assert.equal(empty.runEnded,true);

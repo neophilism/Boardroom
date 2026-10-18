@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getDatabase } from "../../../../../src/server/db";
 import { authenticateAgent, InvalidAgentCredential } from "../../../../../src/server/agent-auth";
-import { AssignmentConflict, claimAssignment } from "../../../../../src/server/assignment";
+import { AssignmentConflict, AssignmentRefreshPending, claimAssignment } from "../../../../../src/server/assignment";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
@@ -22,6 +22,7 @@ export async function POST(request: Request): Promise<NextResponse> {
       {headers:{"Cache-Control":"no-store"}});
   } catch(error) {
     if (error instanceof InvalidAgentCredential) return NextResponse.json({error:"Unauthorized"},{status:401});
+    if (error instanceof AssignmentRefreshPending) return NextResponse.json({error:error.message,code:"ASSIGNMENT_REFRESH_PENDING",retryable:true},{status:409,headers:{"Cache-Control":"no-store"}});
     if (error instanceof AssignmentConflict) return NextResponse.json({error:error.message},{status:409});
     console.error("Boardroom claim failed");
     return NextResponse.json({error:"Assignment service unavailable"},{status:503});

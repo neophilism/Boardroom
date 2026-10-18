@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import type {Pool} from "pg";
-import {assertAssignedPull,resolveAssignedWorkBranch,validWorkBranch,assignedPrNumbers,WorkMappingConflict,type WorkPull} from "../src/server/work-branch.ts";
+import {assertAssignedPull,assertAssignedEvidencePull,resolveAssignedWorkBranch,validWorkBranch,assignedPrNumbers,WorkMappingConflict,type WorkPull} from "../src/server/work-branch.ts";
 import type {githubAppRequest} from "../src/server/github-app.ts";
 const scope={repository_id:"1412357542",full_name:"ci/SceneSignal",unit_id:"SS-19"};
 const pr:WorkPull={number:13,state:"open",head:{ref:"feat/ss19-speaker-topology-fades",sha:"a".repeat(40),repo:{id:1412357542}},base:{ref:"main",repo:{id:1412357542}}};
@@ -51,4 +51,35 @@ test("title-discovered PR numbers cannot authorize an imported branch",async()=>
   const db={query:async()=>({rows:[{planned_prs:[13,99],source_metadata:{id:"SS-19",prs:[13]}}]})} as unknown as Pool;
   const links=await assignedPrNumbers(db,scope);assert.deepEqual(links,[13]);
   assert.throws(()=>assertAssignedPull(scope,99,links,{...pr,number:99}),WorkMappingConflict);
+});
+
+test("historical contribution reads do not authorize work-branch writes or merges",async()=>{
+  const source_metadata={id:scope.unit_id,prs:[],contributingPrs:[13],priorEvidencePrs:[14]};
+  const db={query:async()=>({rows:[{planned_prs:[99],source_metadata}]})} as unknown as Pool;
+  const links=await assignedPrNumbers(db,scope);
+  assert.deepEqual(links,[]);
+  for(const [number,relationship] of [[13,"CONTRIBUTION"],[14,"PRIOR_EVIDENCE"]] as const){
+    const historical={...pr,number,state:"closed",merged_at:"2026-10-18T00:00:00Z"};
+    assert.deepEqual(assertAssignedEvidencePull({...scope,source_metadata},number,links,historical),
+      {branch:pr.head!.ref,relationship});
+    assert.throws(()=>assertAssignedPull(scope,number,links,historical),WorkMappingConflict);
+  }
+  const noRequests=async()=>{throw new Error("Historical evidence cannot select an imported work branch");};
+  assert.equal(await resolveAssignedWorkBranch(db,scope,true,noRequests),"boardroom/SS-19");
+  assert.throws(()=>assertAssignedEvidencePull({...scope,source_metadata},99,links,{...pr,number:99}),WorkMappingConflict);
+});
+
+test("evidence reads reject corrupted registry references and wrong GitHub identity",()=>{
+  for(const source_metadata of [
+    {id:"SS-20",contributingPrs:[13]},
+    {id:scope.unit_id,contributingPrs:["13"]},
+    {id:scope.unit_id,contributingPrs:[13,13]},
+    {id:scope.unit_id,contributingPrs:[13],priorEvidencePrs:[0]},
+    {id:scope.unit_id,priorEvidencePrs:Array.from({length:101},(_,i)=>i+1)}
+  ])assert.throws(()=>assertAssignedEvidencePull({...scope,source_metadata},13,[],pr),WorkMappingConflict);
+  const evidenceScope={...scope,source_metadata:{id:scope.unit_id,contributingPrs:[13]}};
+  for(const candidate of [
+    {...pr,number:14},{...pr,head:{...pr.head,repo:{id:99}}},
+    {...pr,base:{...pr.base,repo:{id:99}}},{...pr,head:{...pr.head,sha:"not-a-sha"}}
+  ])assert.throws(()=>assertAssignedEvidencePull(evidenceScope,13,[],candidate),WorkMappingConflict);
 });

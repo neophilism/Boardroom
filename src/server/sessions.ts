@@ -1,10 +1,50 @@
 import type { Pool, PoolClient } from "pg";
+import {workSession} from "../domain/work-session.ts";
 
 export class SessionConflict extends Error {
   constructor(message = "Session state or lease conflict") { super(message); this.name = "SessionConflict"; }
 }
+export class ContinuationRequired extends SessionConflict {
+  constructor(){
+    super("Useful work must continue: the work target remains and no concrete early-stop reason was recorded");
+    this.name="ContinuationRequired";
+  }
+}
+export class ReleaseReconciliationRequired extends SessionConflict {
+  readonly operationId:string;
+  constructor(operationId:string){
+    super("Work stopped; the assignment remains held for reconciliation of GitHub operation "+operationId);
+    this.name="ReleaseReconciliationRequired";this.operationId=operationId;
+  }
+}
 export type SessionOutcome = "COMPLETED" | "YIELDED" | "BLOCKED" | "FAILED" | "CANCELLED";
 export const SESSION_OUTCOMES: readonly SessionOutcome[] = ["COMPLETED","YIELDED","BLOCKED","FAILED","CANCELLED"];
+
+export const ACTIVATION_STOP_REASONS=["USER_STOP","RUNTIME_LIMIT","RESOURCE_LIMIT","AUTHORITY_UNAVAILABLE","SESSION_TOOLS_UNAVAILABLE"] as const;
+export type ActivationStop={reason:typeof ACTIVATION_STOP_REASONS[number];detail:string};
+type FinishBasis={source:"SERVER_OBSERVED"|"AGENT_REPORTED";reason:string;detail?:string};
+type FinishEvidence={
+  startedAt:Date;now:Date;maxSessionSeconds:number;leaseExpiresAt:Date;
+  paused:boolean;usedTokens:number;maxTokens:number;checkpointState:unknown;
+};
+/** External platform limits cannot be proven by Boardroom. Keep their supplied
+ * details explicitly agent-reported, and never infer a runtime limit merely
+ * because the model elects to end a turn. */
+export function activationFinishBasis(outcome:SessionOutcome,evidence:FinishEvidence):FinishBasis|null{
+  if(outcome==="FAILED"||outcome==="CANCELLED")return {source:"AGENT_REPORTED",reason:outcome};
+  if(evidence.paused)return {source:"SERVER_OBSERVED",reason:"OWNER_PAUSED"};
+  if(evidence.leaseExpiresAt<=evidence.now)return {source:"SERVER_OBSERVED",reason:"LEASE_EXPIRED"};
+  if(!workSession(evidence.startedAt,evidence.maxSessionSeconds,evidence.now.getTime()).shouldContinue)
+    return {source:"SERVER_OBSERVED",reason:"WORK_TARGET_OR_RUNTIME_MARGIN"};
+  if(evidence.usedTokens>=evidence.maxTokens)return {source:"SERVER_OBSERVED",reason:"RECORDED_TOKEN_LIMIT"};
+  if(!evidence.checkpointState||typeof evidence.checkpointState!=="object"||Array.isArray(evidence.checkpointState))return null;
+  const value=(evidence.checkpointState as Record<string,unknown>).activationStop;
+  if(!value||typeof value!=="object"||Array.isArray(value))return null;
+  const stop=value as Record<string,unknown>;
+  if(typeof stop.reason!=="string"||!ACTIVATION_STOP_REASONS.includes(stop.reason as ActivationStop["reason"])||
+    typeof stop.detail!=="string"||stop.detail.trim().length<20||stop.detail.length>2000)return null;
+  return {source:"AGENT_REPORTED",reason:stop.reason,detail:stop.detail.trim()};
+}
 
 export function parseSessionOutcome(value: unknown): SessionOutcome {
   if (typeof value !== "string" || !SESSION_OUTCOMES.includes(value as SessionOutcome))
@@ -51,6 +91,27 @@ async function lockedLease(client: PoolClient, assignment: Assignment, runId: st
   if (!row || row.run_id !== runId || row.generation !== generation)
     throw new SessionConflict("Repository lease was superseded");
   if (requireLive && row.expires_at <= new Date()) throw new SessionConflict("Lease expired; recovery required");
+}
+
+/** Caller holds the run, assignment and exact lease locks. A requested stop can
+ * fence execution immediately without asserting that an uncertain remote write
+ * has ended. The caller must COMMIT this hold before reporting its diagnostic. */
+export async function retainUnreconciledLease(client:PoolClient,runId:string,repositoryId:string,generation:string,outcome:SessionOutcome):Promise<string|null>{
+  // The ledger's typed errors depend on SessionConflict. Load lazily to keep
+  // direct sessions imports safe without a circular class-initialization edge.
+  const {unresolvedGithubOperation}=await import("./github-operation-ledger.ts");
+  const operationId=await unresolvedGithubOperation(client,runId,repositoryId);
+  if(!operationId)return null;
+  await client.query("UPDATE agent_runs SET state='RECOVERING',last_seen_at=now() WHERE run_id=$1",[runId]);
+  const fenced=await client.query(
+    "UPDATE repository_leases SET expires_at=LEAST(expires_at,now()) WHERE repository_id=$1 AND run_id=$2 AND generation=$3::bigint",
+    [repositoryId,runId,generation]);
+  if(fenced.rowCount!==1)throw new SessionConflict("Lease changed before release hold");
+  await client.query(
+    "INSERT INTO audit_events(run_id,repository_id,kind,details) VALUES($1,$2,'agent.run.release_held',$3::jsonb)",
+    [runId,repositoryId,JSON.stringify({generation,operationId,requestedOutcome:outcome,
+      boardroomWriteAuthorityRevoked:true,heartbeatAuthorityRevoked:true,externalExecutionTerminationVerified:false,assignmentReleased:false})]);
+  return operationId;
 }
 
 export async function heartbeatRun(db: Pool, runId: string, credentialId: string, generation: string): Promise<string> {
@@ -119,8 +180,14 @@ export async function saveCheckpoint(db: Pool, runId: string, credentialId: stri
   finally { client.release(); }
 }
 
-export async function finishRun(db: Pool, runId: string, credentialId: string, generation: string, outcome: SessionOutcome): Promise<{state:SessionOutcome;replay:boolean}> {
+export async function finishRun(db: Pool, runId: string, credentialId: string, generation: string, outcome: SessionOutcome, stop?:ActivationStop): Promise<{state:SessionOutcome;replay:boolean}> {
+  if(stop){
+    validateCheckpoint({state:{activationStop:stop}});
+    if(!ACTIVATION_STOP_REASONS.includes(stop.reason)||typeof stop.detail!=="string"||stop.detail.trim().length<20||stop.detail.length>2000)
+      throw new SessionConflict("Concrete activation-wide stop evidence required");
+  }
   const client = await db.connect();
+  let committed=false;
   try {
     await client.query("BEGIN");
     const run = await lockedRun(client,runId,credentialId);
@@ -131,6 +198,38 @@ export async function finishRun(db: Pool, runId: string, credentialId: string, g
     if (run.state !== "RUNNING") throw new SessionConflict("Run cannot finish from " + run.state);
     const assignment = await lockedAssignment(client,runId,generation);
     await lockedLease(client,assignment,runId,generation,false);
+    const unresolved=await retainUnreconciledLease(client,runId,assignment.repository_id,generation,outcome);
+    if(unresolved){
+      await client.query("COMMIT");committed=true;
+      throw new ReleaseReconciliationRequired(unresolved);
+    }
+    let finishBasis:FinishBasis={source:"AGENT_REPORTED",reason:outcome};
+    if(outcome!=="FAILED"&&outcome!=="CANCELLED"){
+      const evidence=await client.query<{
+        started_at:Date;observed_at:Date;expires_at:Date;max_session_seconds:number;max_tokens:number;
+        used_tokens:string;paused:boolean;checkpoint_state:unknown;
+      }>(`SELECT ar.started_at,now() AS observed_at,l.expires_at,
+        COALESCE(p.max_session_seconds,3300) AS max_session_seconds,COALESCE(p.max_tokens,100000) AS max_tokens,
+        (SELECT COALESCE(SUM(input_tokens+output_tokens),0)::text FROM usage_events WHERE run_id=ar.run_id) AS used_tokens,
+        COALESCE((SELECT paused FROM execution_controls WHERE singleton=TRUE),FALSE) AS paused,
+        (SELECT state FROM checkpoints WHERE assignment_id=$3 AND unit_id=$4 ORDER BY created_at DESC,checkpoint_id DESC LIMIT 1) AS checkpoint_state
+        FROM agent_runs ar JOIN repository_leases l ON l.repository_id=$2 AND l.run_id=ar.run_id
+        LEFT JOIN repository_execution_policy p ON p.repository_id=l.repository_id WHERE ar.run_id=$1`,
+        [runId,assignment.repository_id,assignment.assignment_id,assignment.unit_id]);
+      const observed=evidence.rows[0];
+      if(!observed)throw new SessionConflict("Finish evidence unavailable");
+      const basis=activationFinishBasis(outcome,{startedAt:observed.started_at,now:observed.observed_at,
+        leaseExpiresAt:observed.expires_at,maxSessionSeconds:observed.max_session_seconds,
+        paused:observed.paused,usedTokens:Number(observed.used_tokens),maxTokens:observed.max_tokens,
+        checkpointState:stop?{activationStop:stop}:observed.checkpoint_state});
+      if(!basis){
+        // Preserve any positive source-bound reconciliation above. No release
+        // or assignment mutation has occurred, so continued work keeps its lease.
+        await client.query("COMMIT");committed=true;
+        throw new ContinuationRequired();
+      }
+      finishBasis=basis;
+    }
     await client.query(
       "UPDATE work_assignments SET released_at=now(),outcome=$1 WHERE assignment_id=$2 AND released_at IS NULL",
       [outcome,assignment.assignment_id]
@@ -146,10 +245,10 @@ export async function finishRun(db: Pool, runId: string, credentialId: string, g
     );
     await client.query(
       "INSERT INTO audit_events(run_id,repository_id,kind,details) VALUES($1,$2,'agent.run.finished',$3::jsonb)",
-      [runId,assignment.repository_id,JSON.stringify({outcome,generation})]
+      [runId,assignment.repository_id,JSON.stringify({outcome,generation,finishBasis})]
     );
     await client.query("COMMIT");
     return {state:outcome,replay:false};
-  } catch(error) { await client.query("ROLLBACK"); throw error; }
+  } catch(error) { if(!committed)await client.query("ROLLBACK"); throw error; }
   finally { client.release(); }
 }

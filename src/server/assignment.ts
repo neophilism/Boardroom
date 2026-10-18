@@ -13,6 +13,9 @@ export type ClaimedAssignment = {
 };
 
 export class AssignmentConflict extends Error { constructor(message: string) { super(message); this.name = "AssignmentConflict"; } }
+export class AssignmentRefreshPending extends AssignmentConflict {
+  constructor(){super("Eligible work still needs authoritative GitHub synchronization; retry this admitted run");this.name="AssignmentRefreshPending";}
+}
 
 type Session = { run_id: string; state: string };
 type Eligible = { repository_id: string; full_name: string; unit_id: string; unit_state:string; last_success_at:Date|null };
@@ -23,7 +26,7 @@ type Existing = { assignment_id: string; repository_id: string; full_name: strin
  * Priority position takes precedence; otherwise sort by last actual GitHub development event.
  * Expired but still assigned leases are excluded until explicit fenced recovery.
  */
-function buildRepositoryClaimQuery(excludePreviouslyAttempted:boolean):string { return String.raw`
+function buildRepositoryClaimQuery(excludePreviouslyAttempted:boolean,freshOnly=false,skipRepositories=false,lockLease=true):string { return String.raw`
   WITH RECURSIVE dependency_edges AS (
     SELECT repository_id,unit_id,prerequisite_repository_id,prerequisite_unit_id FROM compatibility_dependencies
     UNION
@@ -87,6 +90,8 @@ function buildRepositoryClaimQuery(excludePreviouslyAttempted:boolean):string { 
   ) chosen ON TRUE
   WHERE r.enabled = TRUE AND r.archived = FALSE
     AND l.run_id IS NULL
+    ${skipRepositories ? "AND NOT (r.repository_id=ANY($2::bigint[]))" : ""}
+    ${freshOnly ? "AND sync.last_success_at>=now()-interval '60 seconds' AND sync.last_success_at<=now()+interval '60 seconds'" : ""}
     AND NOT EXISTS (SELECT 1 FROM execution_controls WHERE singleton=TRUE AND paused=TRUE)
   ORDER BY
     ${excludePreviouslyAttempted ? String.raw`CASE WHEN r.repository_id=(
@@ -97,11 +102,13 @@ function buildRepositoryClaimQuery(excludePreviouslyAttempted:boolean):string { 
     p.position ASC NULLS LAST,
     COALESCE(r.last_development_at, r.created_at) ASC,
     r.repository_id ASC
-  FOR UPDATE OF l SKIP LOCKED
+  ${lockLease?"FOR UPDATE OF l SKIP LOCKED":""}
   LIMIT 1
 `; }
 export const REPOSITORY_CLAIM_QUERY=buildRepositoryClaimQuery(false);
 export const REPOSITORY_CONTINUATION_CLAIM_QUERY=buildRepositoryClaimQuery(true);
+export const FRESH_REPOSITORY_CLAIM_QUERY=buildRepositoryClaimQuery(true,true);
+export const REPOSITORY_REFRESH_CANDIDATE_QUERY=buildRepositoryClaimQuery(true,false,true,false);
 
 async function existingAssignment(client: PoolClient, runId: string): Promise<ClaimedAssignment | null> {
   const current = await client.query<Existing>(
@@ -140,11 +147,17 @@ export async function claimAssignment(db: Pool, runId: string, credentialId: str
   const admission=await db.query<{state:string}>(
     "SELECT state FROM agent_runs WHERE run_id=$1 AND credential_id=$2",[runId,credentialId]);
   if(admission.rows[0]?.state==="ADMITTED"){
+    const attempted:string[]=[];
     for(let attempt=0;attempt<4;attempt++){
-      const candidate=(await db.query<Eligible>(REPOSITORY_CONTINUATION_CLAIM_QUERY,[runId])).rows[0];
+      const candidate=(await db.query<Eligible>(REPOSITORY_REFRESH_CANDIDATE_QUERY,[runId,attempted])).rows[0];
       if(!candidate||!reconciliationExpired(candidate.last_success_at))break;
       try{await refreshRepository(String(candidate.repository_id));}
-      catch{throw new AssignmentConflict("Authoritative repository reconciliation unavailable; no stale work assigned");}
+      catch{
+        attempted.push(String(candidate.repository_id));
+        // A single inaccessible project must not deny healthy portfolio work.
+        // Do not serialize provider errors or grant a lease from stale data.
+        await db.query("INSERT INTO audit_events(run_id,repository_id,kind,details) VALUES($1,$2,'agent.assignment.refresh_deferred','{}'::jsonb)",[runId,candidate.repository_id]);
+      }
     }
   }
   const client = await db.connect();
@@ -169,14 +182,16 @@ export async function claimAssignment(db: Pool, runId: string, credentialId: str
     const clock=await client.query<{within_budget:boolean}>(
       "SELECT started_at>now()-interval '55 minutes' AS within_budget FROM agent_runs WHERE run_id=$1",[runId]);
     if(clock.rows[0]?.within_budget!==true)throw new AssignmentConflict("Session time budget exhausted; checkpoint and finish");
-    const choice = await client.query<Eligible>(REPOSITORY_CONTINUATION_CLAIM_QUERY,[runId]);
+    const choice = await client.query<Eligible>(FRESH_REPOSITORY_CLAIM_QUERY,[runId]);
     if (!choice.rowCount) {
+      // Another agent can claim the just-refreshed repository between preflight
+      // and this transaction. Stale work elsewhere is not an empty queue.
+      const remaining=await client.query<Eligible>(REPOSITORY_CONTINUATION_CLAIM_QUERY,[runId]);
+      if(remaining.rowCount)throw new AssignmentRefreshPending();
       await client.query("COMMIT");
       committed = true;
       return null;
     }
-    if(reconciliationExpired(choice.rows[0].last_success_at))
-      throw new AssignmentConflict("Repository state is stale; retry after authoritative GitHub synchronization");
     const { repository_id: repositoryId, full_name: fullName, unit_id: unitId } = choice.rows[0];
     const allowed=await client.query<{within_budget:boolean}>(
       `SELECT ar.started_at>now()-make_interval(secs=>COALESCE(p.max_session_seconds,3300)) AS within_budget

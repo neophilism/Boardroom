@@ -5,6 +5,18 @@ import {TECHNICAL_RECOVERY_ELIGIBLE_SQL} from "./work-recovery.ts";
 import {fetchCanonicalRoadmap,fetchPullRequests} from "./github-app.ts";
 import {normalizeRoadmap} from "./roadmap-import.ts";
 import {evaluateChainMergeEvidence,type CurrentChainUnit} from "./chain-evidence.ts";
+import {unresolvedGithubOperation,GithubOperationUncertain} from "./github-operation-ledger.ts";
+
+export type ChainHandoffReason="MERGE_EVIDENCE_UNAVAILABLE"|"WORK_PLAN_CHANGED"|"WORK_INCOMPLETE";
+/** These failures prevent claiming completion, but do not prevent a separately
+ * fenced release. Authentication, lease and execution-policy errors must never
+ * be converted into this type. */
+export class ChainHandoffRequired extends SessionConflict{
+  readonly reason:ChainHandoffReason;
+  constructor(reason:ChainHandoffReason,message:string){
+    super(message);this.name="ChainHandoffRequired";this.reason=reason;
+  }
+}
 
 /** Advance within the current repository. Never release the repo between PRs. */
 export async function advanceAssignedWork(db:Pool,runId:string,credentialId:string,generation:string){
@@ -20,17 +32,20 @@ export async function advanceAssignedWork(db:Pool,runId:string,credentialId:stri
     try{
       const [raw,pulls]=await Promise.all([fetchCanonicalRoadmap(initial.full_name),fetchPullRequests(initial.full_name)]);
       observed=normalizeRoadmap(raw,initial.full_name,pulls);
-    }catch{throw new SessionConflict("Current GitHub merge evidence unavailable; retry reconciliation");}
+    }catch{throw new ChainHandoffRequired("MERGE_EVIDENCE_UNAVAILABLE","Current GitHub merge evidence unavailable; retry reconciliation");}
   }
   const client=await db.connect();
+  let transactionOpen=false;
   try{
-    await client.query("BEGIN");
+    await client.query("BEGIN");transactionOpen=true;
     await client.query("SELECT run_id FROM agent_runs WHERE run_id=$1 AND credential_id=$2 FOR UPDATE",[runId,credentialId]);
     const scope=await assignedScope(client,runId,credentialId,generation,true);
     const controls=await client.query<{paused:boolean}>("SELECT paused FROM execution_controls WHERE singleton=TRUE");
     if(controls.rows[0]?.paused)throw new SessionConflict("Owner paused execution");
     if(scope.repository_id!==initial.repository_id||scope.unit_id!==initial.unit_id||scope.full_name!==initial.full_name)
       throw new SessionConflict("Assignment changed during GitHub reconciliation");
+    const pending=await unresolvedGithubOperation(client,runId,scope.repository_id);
+    if(pending){await client.query("COMMIT");transactionOpen=false;throw new GithubOperationUncertain(pending);}
     const current=await client.query<CurrentChainUnit & {approved:boolean}>(
       "SELECT state,version,title,acceptance_criteria,depends_on,external_dependencies,external_prerequisites,approved FROM roadmap_units WHERE repository_id=$1 AND unit_id=$2 FOR UPDATE",
       [scope.repository_id,scope.unit_id]);
@@ -38,15 +53,15 @@ export async function advanceAssignedWork(db:Pool,runId:string,credentialId:stri
     if(observed){
       let evidence;
       try{evidence=evaluateChainMergeEvidence(observed,scope.unit_id,current.rows[0]);}
-      catch{throw new SessionConflict("Verified work plan changed or merge evidence is ambiguous; resynchronize before chaining");}
-      if(!evidence.canAdvance)throw new SessionConflict("Current unit needs observed merge evidence before chaining: "+evidence.reason);
+      catch{throw new ChainHandoffRequired("WORK_PLAN_CHANGED","Verified work plan changed or merge evidence is ambiguous; resynchronize before chaining");}
+      if(!evidence.canAdvance)throw new ChainHandoffRequired("WORK_INCOMPLETE","Current unit needs observed merge evidence before chaining: "+evidence.reason);
       await client.query("UPDATE roadmap_units SET state=$3,planned_prs=$4::jsonb,source_observed_at=now() WHERE repository_id=$1 AND unit_id=$2",
         [scope.repository_id,scope.unit_id,evidence.nextState,JSON.stringify(evidence.pullRequests)]);
       await client.query("INSERT INTO audit_events(run_id,repository_id,kind,details) VALUES($1,$2,'agent.work.merge_reconciled',$3::jsonb)",
         [runId,scope.repository_id,JSON.stringify({unitId:scope.unit_id,generation,reason:evidence.reason,observedStatus:evidence.observedStatus,
           nextState:evidence.nextState,pullRequests:evidence.pullRequests})]);
     }else if(!["MERGED","ACCEPTED"].includes(current.rows[0].state)){
-      throw new SessionConflict("Current unit needs observed merge evidence before chaining; retry reconciliation");
+      throw new ChainHandoffRequired("WORK_INCOMPLETE","Current unit needs observed merge evidence before chaining; retry reconciliation");
     }
     const next=await client.query<{unit_id:string;unit_state:string}>(`SELECT w.unit_id,w.state AS unit_state FROM roadmap_units w
       WHERE w.repository_id=$1 AND w.unit_id<>$2 AND w.approved=TRUE AND registry_prerequisites_satisfied(w.repository_id,w.unit_id) AND w.state IN ('PENDING','ACTIVE','OPEN_PR','BLOCKED')
@@ -66,5 +81,5 @@ export async function advanceAssignedWork(db:Pool,runId:string,credentialId:stri
       [runId,scope.repository_id,JSON.stringify({from:scope.unit_id,to:id,generation,unitState:next.rows[0].unit_state,
         eligibilityReason:next.rows[0].unit_state==="BLOCKED"?"TECHNICAL_ANSWER_AVAILABLE":"APPROVED_PREREQUISITES_READY"})]);
     await client.query("COMMIT");return {status:"NEXT_UNIT",repository:scope.full_name,unitId:id,generation};
-  }catch(error){await client.query("ROLLBACK");throw error;}finally{client.release();}
+  }catch(error){if(transactionOpen)await client.query("ROLLBACK");throw error;}finally{client.release();}
 }
