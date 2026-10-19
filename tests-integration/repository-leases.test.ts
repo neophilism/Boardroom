@@ -92,6 +92,34 @@ test("identical workflow activations from distinct credentials receive independe
   );
 });
 
+test("native fleet admission is serialized and conserves credits before repository work",async()=>{
+  const principals=await Promise.all(["Budget Native A","Budget Native B"].map(async(label,i)=>{
+    const row=await db.query<{credential_id:string}>(
+      "INSERT INTO agent_credentials(label,provider,token_digest) VALUES($1,'chatgpt',$2) RETURNING credential_id",
+      [label,(i===0?"d":"e").repeat(64)]);
+    return {credentialId:row.rows[0].credential_id,label,provider:"chatgpt"};
+  }));
+  const both=await Promise.all(principals.map(p=>admitAgentRun(db,p,null)));
+  assert.equal(both.filter(x=>x.kind==="CREATED").length,1);
+  assert.equal(both.filter(x=>x.kind==="THROTTLED").length,1);
+  const live=both.find(x=>x.kind==="CREATED");
+  if(!live||live.kind!=="CREATED")throw new Error("Missing first native admission");
+  assert.equal(both.find(x=>x.kind==="THROTTLED")?.state,"BUDGET_PAUSED");
+  // Without any repository lease, a 16-minute-old native activation cannot claim.
+  await db.query("UPDATE agent_runs SET started_at=now()-interval '16 minutes' WHERE run_id=$1",[live.runId]);
+  await assert.rejects(claimAssignment(db,live.runId,principals[both.findIndex(x=>x.kind==="CREATED")].credentialId),
+    /Session time budget exhausted/);
+  // Terminal sessions still count toward the rolling 24-hour admission cap.
+  await db.query("UPDATE agent_runs SET state='CANCELLED',ended_at=now(),started_at=now()-interval '5 hours' WHERE run_id=$1",[live.runId]);
+  const second=await admitAgentRun(db,principals[both.findIndex(x=>x.kind==="THROTTLED")],null);
+  assert.equal(second.kind,"CREATED");
+  if(second.kind!=="CREATED")throw new Error("Expected second native admission");
+  await db.query("UPDATE agent_runs SET state='CANCELLED',ended_at=now(),started_at=now()-interval '3 hours' WHERE run_id=$1",[second.runId]);
+  const rejected=await admitAgentRun(db,principals[both.findIndex(x=>x.kind==="CREATED")],null);
+  assert.equal(rejected.kind,"THROTTLED");
+  if(rejected.kind==="THROTTLED")assert.equal(rejected.budget.reason,"START_COOLDOWN");
+});
+
 test("two concurrent sessions claim distinct repositories with top priority included",async()=>{
   const results=await Promise.all([
     claimAssignment(db,runs[0],credentials[0]),

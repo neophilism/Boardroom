@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import {workSession} from "../src/domain/work-session.ts";
 import {evaluateNativeBudget,NATIVE_MAX_SESSION_SECONDS,NATIVE_TARGET_WORK_SECONDS,effectiveSessionSecondsSql} from "../src/server/native-budget.ts";
 const now=new Date("2026-10-19T12:00:00Z");
 const row=(data:Record<string,unknown>={})=>({active_native:0,starts_24h:0,last_started_at:null,
@@ -22,4 +23,14 @@ test("native hard deadline does not increase hosted runtime",()=>{
   assert.match(effectiveSessionSecondsSql("ar.provider","p.max_session_seconds"),/chatgpt.*LEAST/);
   assert.match(effectiveSessionSecondsSql("ar.provider","p.max_session_seconds"),/900/);
   assert.match(effectiveSessionSecondsSql("ar.provider","p.max_session_seconds"),/ELSE COALESCE/);
+});
+
+test("short native sessions have 12-minute target and 15-minute hard deadline",()=>{
+  const start=new Date("2026-10-19T12:00:00.000Z");
+  const window=workSession(start,900,start.getTime());
+  assert.equal(window.targetWorkSeconds,720);
+  assert.equal(window.workUntilAt,"2026-10-19T12:12:00.000Z");
+  assert.equal(window.deadlineAt,"2026-10-19T12:15:00.000Z");
+  assert.equal(window.targetFitsRuntime,true);
+  assert.equal(workSession(start,3300,start.getTime()).targetWorkSeconds,3000);
 });
