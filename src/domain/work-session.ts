@@ -6,8 +6,9 @@ export function workSession(startedAt:Date,maxSessionSeconds=DEFAULT_MAX_SESSION
   if(!Number.isFinite(start)||!Number.isSafeInteger(maxSessionSeconds)||maxSessionSeconds<60)
     throw new Error("Invalid work-session clock");
   const deadline=start+maxSessionSeconds*1000;
-  const target=start+TARGET_WORK_SECONDS*1000;
-  return {startedAt:startedAt.toISOString(),targetWorkSeconds:TARGET_WORK_SECONDS,
+  const targetSeconds=Math.min(TARGET_WORK_SECONDS,Math.max(0,maxSessionSeconds-180));
+  const target=start+targetSeconds*1000;
+  return {startedAt:startedAt.toISOString(),targetWorkSeconds:targetSeconds,
     workUntilAt:new Date(target).toISOString(),deadlineAt:new Date(deadline).toISOString(),
     elapsedSeconds:Math.max(0,Math.floor((now-start)/1000)),
     remainingWorkSeconds:Math.max(0,Math.ceil((target-now)/1000)),
