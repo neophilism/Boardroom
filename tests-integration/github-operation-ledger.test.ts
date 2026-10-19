@@ -157,8 +157,9 @@ test("merge transport is recorded only after current-head checks and survives po
   const f=await fixture();let merged=false;
   await db.query("INSERT INTO repository_execution_policy(repository_id,auto_merge,required_checks) VALUES($1,TRUE,'[\"verify\"]')",[f.repositoryId]);
   const request:typeof githubAppRequest=async(method,path)=>{
+    if(method==="GET"&&path==="/repos/"+f.fullName)return {default_branch:"main"};
     if(method==="GET"&&path.endsWith("/pulls/10"))return {number:10,state:"open",draft:false,merged:false,
-      head:{sha:target,ref:"boardroom/BR-035",repo:{id:Number(f.repositoryId)}},base:{repo:{id:Number(f.repositoryId)}},html_url:"https://github.com/"+f.fullName+"/pull/10"};
+      head:{sha:target,ref:"boardroom/BR-035",repo:{id:Number(f.repositoryId)}},base:{ref:"main",repo:{id:Number(f.repositoryId)}},html_url:"https://github.com/"+f.fullName+"/pull/10"};
     if(method==="POST"&&path==="/graphql")return {data:{repository:{pullRequest:{mergeable:"MERGEABLE",mergeStateStatus:"CLEAN",headRefOid:target}}}};
     if(path.includes("check-runs"))return {total_count:1,check_runs:[{id:1,name:"verify",status:"completed",conclusion:"success"}]};
     if(path.includes("check-suites"))return {total_count:0,check_suites:[]};
