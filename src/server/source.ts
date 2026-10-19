@@ -8,8 +8,8 @@ export function readableSourcePath(value:unknown):string{
   if(typeof value!=="string"||value.length<1||value.length>240||value.includes("\\")||/[\x00-\x1f\x7f]/.test(value))
     throw new SessionConflict("Invalid source path");
   const parts=value.split("/");
-  if(parts.some(p=>!p||p==="."||p===".."||[".git",".ssh",".aws","secrets"].includes(p.toLowerCase()))||
-    parts.some(p=>p.startsWith(".env")&&p!==".env.example")||/\.(?:pem|p12|pfx|key)$/i.test(value))
+  if(parts.some(p=>!p||p==="."||p===".."||[".git",".ssh",".aws","secrets",".npmrc",".pypirc"].includes(p.toLowerCase()))||
+    parts.some(p=>p.toLowerCase().startsWith(".env")&&p.toLowerCase()!==".env.example")||/\.(?:pem|p12|pfx|key)$/i.test(value))
     throw new SessionConflict("Protected source path");
   return value;
 }
