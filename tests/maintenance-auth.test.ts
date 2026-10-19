@@ -49,7 +49,7 @@ test("wrong signing keys, wrong algorithms and malformed tokens are rejected",as
 });
 test("OIDC verifies without an opt-in flag; reusable legacy token never authorizes a tick",async()=>{
   const assertion=await bearer();
-  const oidcEnv={NODE_ENV:"test",BOARDROOM_PUBLIC_ORIGIN:"https://boardroom.example"};
+  const oidcEnv:NodeJS.ProcessEnv={NODE_ENV:"test",BOARDROOM_PUBLIC_ORIGIN:"https://boardroom.example"};
   assert.deepEqual(await authorizeMaintenance(assertion,oidcEnv,keys.publicKey,now),
     {method:"github-oidc",workflowRunId:"123456",sha:"a".repeat(40)});
   const legacy="legacy-fixture-token-".repeat(3);
