@@ -72,15 +72,19 @@ export async function moderateCoffee(db:Pool,input:unknown){
       if(!replay)await client.query("UPDATE coffee_threads SET subject=$2,subject_redacted_at=now(),updated_at=now() WHERE thread_id=$1",
         [value.threadId,REDACTED_SUBJECT]);
     }else{
-      const message=await client.query<{redacted_at:Date|null}>(
-        "SELECT redacted_at FROM coffee_messages WHERE thread_id=$1 AND message_id=$2 FOR UPDATE",[value.threadId,value.messageId]);
+      const message=await client.query<{redacted_at:Date|null;message_kind:string}>(
+        "SELECT redacted_at,message_kind FROM coffee_messages WHERE thread_id=$1 AND message_id=$2 FOR UPDATE",[value.threadId,value.messageId]);
       if(!message.rows[0])throw new CoffeeModerationError("Message unavailable in this discussion");
       replay=message.rows[0].redacted_at!==null;
       if(!replay){
+        const accepted=message.rows[0].message_kind==="ANSWER"&&
+          (await client.query("SELECT 1 FROM audit_events WHERE kind='coffee.answer.accepted_in_adr' "+
+            "AND details->>'threadId'=$1 AND details->>'messageId'=$2 LIMIT 1",
+            [value.threadId,value.messageId])).rowCount!==0;
         await client.query("UPDATE coffee_messages SET content=$3,evidence='[]'::jsonb,author_run_id=NULL,redacted_at=now(),redaction_reason=$4 WHERE thread_id=$1 AND message_id=$2",
           [value.threadId,value.messageId,REDACTED_MESSAGE,value.reason]);
         // Withdrawing an answer must never silently authorize blocked work.
-        await client.query("UPDATE coffee_threads SET status=CASE WHEN status='ANSWERED' THEN 'OPEN' ELSE status END,updated_at=now() WHERE thread_id=$1",[value.threadId]);
+        await client.query("UPDATE coffee_threads SET status=CASE WHEN status='ANSWERED' OR ($2::boolean AND status='RESOLVED') THEN 'OPEN' ELSE status END,updated_at=now() WHERE thread_id=$1",[value.threadId,accepted]);
         await client.query("UPDATE roadmap_units w SET state='BLOCKED' FROM coffee_threads t "+
           "WHERE t.thread_id=$1 AND t.status='OPEN' AND w.repository_id=t.repository_id AND w.unit_id=t.unit_id "+
           "AND w.state IN ('PENDING','ACTIVE','OPEN_PR')",[value.threadId]);

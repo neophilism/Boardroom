@@ -26,6 +26,9 @@ export async function searchCoffeeThreads(db:Pool,queryInput:string|null,statusI
      ) messages ON TRUE
      LEFT JOIN LATERAL (SELECT e.details->>'adr' AS adr FROM audit_events e
        WHERE e.kind='coffee.answer.accepted_in_adr' AND e.details->>'threadId'=t.thread_id::text
+         AND t.status='RESOLVED' AND EXISTS(SELECT 1 FROM coffee_messages accepted
+           WHERE accepted.thread_id=t.thread_id AND accepted.message_id::text=e.details->>'messageId'
+             AND accepted.redacted_at IS NULL)
        ORDER BY e.occurred_at DESC,e.event_id DESC LIMIT 1) resolution ON TRUE
      WHERE ($1::text IS NULL OR t.status=$1) AND ($2::text='' OR strpos(lower(t.subject),lower($2))>0
        OR strpos(lower(r.full_name),lower($2))>0 OR EXISTS(SELECT 1 FROM coffee_messages x

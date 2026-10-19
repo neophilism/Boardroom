@@ -5,6 +5,7 @@ import {readFile} from "node:fs/promises";
 import {Pool} from "pg";
 import {MIGRATION_MANIFEST} from "../db/migration-manifest.ts";
 import {parseCoffeeModeration,coffeeRetentionPolicy,saveCoffeeRetentionPolicy,moderateCoffee,purgeExpiredCoffee,REDACTED_MESSAGE,REDACTED_SUBJECT} from "../src/server/coffee-moderation.ts";
+import {readCoffeeResumeSignal} from "../src/server/assignment-context.ts";
 
 const url=process.env.DATABASE_URL;
 if(!url||!url.includes("boardroom_test"))throw new Error("Moderation fixtures require the explicit boardroom_test database");
@@ -86,4 +87,20 @@ test("concurrent retention workers do not duplicate removals or audit batches",a
   assert.equal(results.reduce((sum,r)=>sum+r.redactedMessages,0),1);
   await saveCoffeeRetentionPolicy(db,{kind:"retention-policy",enabled:false,retentionDays:180});
   assert.equal((await coffeeRetentionPolicy(db)).enabled,false);
+});
+test("redacting an accepted answer revokes its live resume signal",async()=>{
+  const repositoryId="998051002",unitId="PRIV-002";
+  await db.query("INSERT INTO repositories(repository_id,full_name,created_at) VALUES($1,'ci/moderation-resume',now())",[repositoryId]);
+  await db.query("INSERT INTO roadmap_units(repository_id,unit_id,title,version,approved,state) VALUES($1,$2,'Fixture',1,TRUE,'ACTIVE')",[repositoryId,unitId]);
+  const id=await thread("RESOLVED"),mid=await message(id);
+  await db.query("UPDATE coffee_threads SET repository_id=$2,unit_id=$3 WHERE thread_id=$1",[id,repositoryId,unitId]);
+  const adr="https://github.com/ci/moderation-resume/blob/"+"a".repeat(40)+"/docs/decisions/fixture.md";
+  await db.query("INSERT INTO audit_events(repository_id,kind,details) VALUES($1,'coffee.answer.accepted_in_adr',$2::jsonb)",
+    [repositoryId,JSON.stringify({threadId:id,messageId:mid,unitId,adr})]);
+  assert.equal((await readCoffeeResumeSignal(db,repositoryId,unitId))?.messageId,mid);
+  await moderateCoffee(db,{kind:"redact-message",threadId:id,messageId:mid,reason:"PRIVACY",confirm:true});
+  assert.equal((await db.query("SELECT status FROM coffee_threads WHERE thread_id=$1",[id])).rows[0].status,"OPEN");
+  assert.equal((await db.query("SELECT state FROM roadmap_units WHERE repository_id=$1 AND unit_id=$2",[repositoryId,unitId])).rows[0].state,"BLOCKED");
+  assert.equal(await readCoffeeResumeSignal(db,repositoryId,unitId),null);
+  assert.equal((await db.query("SELECT COUNT(*)::integer AS count FROM audit_events WHERE kind='coffee.answer.accepted_in_adr' AND details->>'messageId'=$1",[mid])).rows[0].count,1);
 });

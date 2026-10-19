@@ -18,6 +18,18 @@ type ApprovedUnit={
 };
 type ResumeSignal={threadId:string|null;messageId:string|null;adr:string|null;acceptedAt:Date};
 
+/** A redacted accepted answer is historical audit evidence, not a live unblock signal. */
+export async function readCoffeeResumeSignal(db:Pool,repositoryId:string,unitId:string){
+  const result=await db.query<ResumeSignal>(`SELECT details->>'threadId' AS "threadId",details->>'messageId' AS "messageId",
+        details->>'adr' AS adr,occurred_at AS "acceptedAt"
+      FROM audit_events WHERE repository_id=$1 AND kind='coffee.answer.accepted_in_adr' AND details->>'unitId'=$2
+        AND EXISTS(SELECT 1 FROM coffee_threads t JOIN coffee_messages m ON m.thread_id=t.thread_id
+          WHERE t.thread_id::text=details->>'threadId' AND m.message_id::text=details->>'messageId'
+            AND t.status='RESOLVED' AND m.redacted_at IS NULL)
+      ORDER BY occurred_at DESC,event_id DESC LIMIT 1`,[repositoryId,unitId]);
+  return result.rows[0]??null;
+}
+
 export function validateAssignedContextRequest(runId:unknown,generation:unknown):assertsRun {
   if(!isValidRunId(runId)||!isValidGeneration(generation))
     throw new SessionConflict("Valid run ID and generation required");
@@ -104,10 +116,7 @@ export async function getAssignmentContext(db:Pool,runId:string,credentialId:str
     db.query<{unitId:string|null;adr:string|null;occurredAt:Date}>(`SELECT details->>'unitId' AS "unitId",details->>'adr' AS adr,occurred_at AS "occurredAt"
       FROM audit_events WHERE repository_id=$1 AND kind='coffee.answer.accepted_in_adr'
       ORDER BY occurred_at DESC,event_id DESC LIMIT 100`,[item.repository_id]),
-    db.query<ResumeSignal>(`SELECT details->>'threadId' AS "threadId",details->>'messageId' AS "messageId",
-        details->>'adr' AS adr,occurred_at AS "acceptedAt"
-      FROM audit_events WHERE repository_id=$1 AND kind='coffee.answer.accepted_in_adr' AND details->>'unitId'=$2
-      ORDER BY occurred_at DESC,event_id DESC LIMIT 1`,[item.repository_id,item.unit_id]),
+    readCoffeeResumeSignal(db,item.repository_id,item.unit_id),
     githubAppRequest("GET",api),
     githubAppRequest("GET",api+"/branches?per_page=101")
   ]);
@@ -136,7 +145,7 @@ export async function getAssignmentContext(db:Pool,runId:string,credentialId:str
     approvedUnits,
     repositoryState:{defaultBranch:repo.default_branch,...branches},
     historicalDecisions:decisions.rows.map(row=>normalizeRepositoryDecision(item.full_name,row)).filter(x=>x!==null&&approvedIds.has(x.unitId)),
-    resumeSignal:resume.rows[0]?normalizeCoffeeResumeSignal(item.full_name,item.unit_id,resume.rows[0]):null,
+    resumeSignal:resume?normalizeCoffeeResumeSignal(item.full_name,item.unit_id,resume):null,
     checkpoint:recentCheckpoints.find(row=>row.unitId===item.unit_id)??null,
     recentCheckpoints,
     repositoryInstructions:instructions,
