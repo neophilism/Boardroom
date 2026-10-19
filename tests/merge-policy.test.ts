@@ -7,7 +7,7 @@ const suite={id:2,status:"completed",conclusion:"success",app:{name:"Actions"}} 
 const facts:MergeFacts={
   draft:false,state:"open",headSha:"a".repeat(40),expectedSha:"a".repeat(40),
   branch:"boardroom/BR-038",expectedBranch:"boardroom/BR-038",
-  repositoryId:"1",expectedRepositoryId:"1",
+  repositoryId:"1",expectedRepositoryId:"1",baseBranch:"main",expectedBaseBranch:"main",
   mergeable:"MERGEABLE",mergeStateStatus:"CLEAN",
   checks:[{id:1,name:"verify",status:"completed",conclusion:"success"}],
   checkTotal:1,suites:[suite],suiteTotal:1,statuses:[]
@@ -20,6 +20,7 @@ test("current-head CI and actual GitHub merge requirements determine merge eligi
     assert.ok(mergeBlockers({...policy,...patch},facts).length);
   for(const patch of [
     {draft:true},{state:"closed"},{expectedSha:"b".repeat(40)},{repositoryId:"2"},
+    {baseBranch:"untrusted-release"},
     {mergeable:"CONFLICTING"},{mergeable:"UNKNOWN"},{mergeStateStatus:"BLOCKED"},
     {checkTotal:2},{checks:[]},{suiteTotal:2},{suites:[{...suite,conclusion:"failure"}]}
   ])
