@@ -84,7 +84,8 @@ export default async function WorkBoardPage(){
               <dt>Heartbeat</dt><dd>{formatEastern(r.lastHeartbeatAt?.toISOString()??null)}</dd>
               <dt>Last recorded GitHub write</dt><dd>{formatEastern(r.lastGitHubWriteAt?.toISOString()??null)}</dd>
               <dt>Roadmap source</dt><dd>{r.planStatus||"Not reconciled"}</dd>
-              {r.planStatus==="ERROR"&&<><dt>Required correction</dt><dd>Verify the installed App&apos;s access and fix the canonical roadmap&apos;s IDs, counts, PR references and dependency graph, then reconcile again.</dd></>}
+              {r.planStatus==="ERROR"&&<><dt>Plan validation</dt><dd>GitHub reconciliation failed ({r.planError||"unclassified"}). Verify the canonical registry and repository access, then refresh.</dd></>}
+              {r.planStatus==="MISSING"&&<><dt>Plan availability</dt><dd>No verified canonical PR plan is available. This is not a failed lease or an active development assignment.</dd></>}
               <dt>Last plan reconciliation</dt><dd>{formatEastern(r.planRefreshedAt?.toISOString()??null)}</dd>
             </dl>
             {status==="RECOVERING"||status==="UNKNOWN"?<p role="status" className="work-warning">Execution health is unverified. Do not assume this repository can be reassigned until recovery/fencing succeeds.</p>:null}
