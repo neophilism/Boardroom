@@ -1,7 +1,6 @@
 import type {Pool} from "pg";
 import {digestActivation,type AuthenticatedAgent} from "./agent-auth.ts";
 import {admitAgentRun} from "./admission.ts";
-import {NATIVE_MAX_ACTIVE_RUNS,NATIVE_MAX_STARTS_ROLLING_24H,NATIVE_MIN_START_GAP_SECONDS,NATIVE_MAX_SESSION_SECONDS,NATIVE_TARGET_WORK_SECONDS} from "./native-budget.ts";
 import {claimAssignment} from "./assignment.ts";
 import {getAssignmentContext} from "./assignment-context.ts";
 import {heartbeatRun,saveCheckpoint,parseSessionOutcome} from "./sessions.ts";
@@ -64,7 +63,7 @@ export const AGENT_TOOLS=[
   tool("boardroom_risk_approval_request","Request an exact, single-use owner approval before spending, destructive work, privilege changes, legal or political risk, or production release.",{
     ...session,category:{enum:RISK_CATEGORIES},target:string,summary:string,maxCostCents:{type:["integer","null"],minimum:0}},
     ["runId","generation","category","target","summary","maxCostCents"]),
-  tool("boardroom_finish","Finish at the server-reported work target (12 minutes for native ChatGPT) or an observed earlier hard limit. An early project finish returns CONTINUE_REQUIRED: claim the same run and keep working. Record sessionStop for a real earlier hard limit; it can also be saved in checkpoint state for older schemas. COMPLETED does not assert code acceptance.",{
+  tool("boardroom_finish","Finish at the 50-minute target or an evidenced activation-wide hard limit. An early project finish returns CONTINUE_REQUIRED: claim the same run and keep working. Record sessionStop for a real earlier hard limit; it can also be saved in checkpoint state for older schemas. COMPLETED does not assert code acceptance.",{
     ...session,outcome:{enum:["COMPLETED","YIELDED","BLOCKED","FAILED","CANCELLED"]},sessionStop},["runId","generation","outcome"]),
   tool("boardroom_finish_idle","End a truly empty portfolio. If eligible work remains before the target, returns CONTINUE_REQUIRED. An evidenced activation-wide failure may supply sessionStop. Never frees an assigned lease.",{runId:string,sessionStop},["runId"])
 ] as const;
@@ -94,10 +93,7 @@ export async function executeAgentTool(db:Pool,agent:AuthenticatedAgent,name:str
   const runId=String(args.runId??""),generation=String(args.generation??"");
   switch(name){
     case "boardroom_profile":return {id:agent.credentialId,displayName:agent.label,provider:agent.provider,ownerAdministration:false,scheduledInstruction:SCHEDULED_AGENT_INSTRUCTION,
-      workPolicy:{targetWorkSeconds:agent.provider==="chatgpt"?NATIVE_TARGET_WORK_SECONDS:3000,
-        defaultMaxSessionSeconds:agent.provider==="chatgpt"?NATIVE_MAX_SESSION_SECONDS:3300,
-        nativeFleetBudget:{maxActiveRuns:NATIVE_MAX_ACTIVE_RUNS,maxStartsRolling24h:NATIVE_MAX_STARTS_ROLLING_24H,
-          minimumSecondsBetweenStarts:NATIVE_MIN_START_GAP_SECONDS},projectHandoffsEndActivation:false,
+      workPolicy:{targetWorkSeconds:3000,defaultMaxSessionSeconds:3300,projectHandoffsEndActivation:false,
         earlyFinishReturns:"CONTINUE_REQUIRED",modelToolCapScope:"HOSTED_RUNNER_TOOL_LOOP",nativeConnectorUsageMetered:false}};
     case "boardroom_arrive":{
       const key=args.activationKey;
@@ -105,8 +101,7 @@ export async function executeAgentTool(db:Pool,agent:AuthenticatedAgent,name:str
       const result=await admitAgentRun(db,agent,digest);
       return {agentName:agent.label,provider:agent.provider,runId:result.kind==="CREATED"?result.runId:null,
         shouldWork:result.kind==="CREATED",state:result.state,replay:result.kind==="REPLAY",
-        ...(result.kind==="BUSY"?{activeSession:result.activeSession}:{}),
-        ...(result.kind==="THROTTLED"?{budget:result.budget,explanation:"Fleet credit-conservation limit. Stop immediately; do not retry or claim work."}:{})};
+        ...(result.kind==="BUSY"?{activeSession:result.activeSession}:{})};
     }
     case "boardroom_claim":{const assignment=await claimAssignment(db,runId,agent.credentialId);return {status:assignment?"ASSIGNED":"IDLE",assignment};}
     case "boardroom_context":return getAssignmentContext(db,runId,agent.credentialId,generation);

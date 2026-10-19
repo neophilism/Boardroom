@@ -1,6 +1,5 @@
 import type { Pool, PoolClient } from "pg";
 import {TECHNICAL_RECOVERY_ELIGIBLE_SQL} from "./work-recovery.ts";
-import {effectiveSessionSecondsSql} from "./native-budget.ts";
 import {synchronizeRepositoryById} from "./repository-sync.ts";
 
 export type ClaimedAssignment = {
@@ -181,7 +180,7 @@ export async function claimAssignment(db: Pool, runId: string, credentialId: str
     if (state !== "ADMITTED") throw new AssignmentConflict("This run cannot claim an assignment");
 
     const clock=await client.query<{within_budget:boolean}>(
-      `SELECT ar.started_at>now()-make_interval(secs=>${effectiveSessionSecondsSql("ar.provider","NULL")}) AS within_budget FROM agent_runs ar WHERE ar.run_id=$1`,[runId]);
+      "SELECT started_at>now()-interval '55 minutes' AS within_budget FROM agent_runs WHERE run_id=$1",[runId]);
     if(clock.rows[0]?.within_budget!==true)throw new AssignmentConflict("Session time budget exhausted; checkpoint and finish");
     const choice = await client.query<Eligible>(FRESH_REPOSITORY_CLAIM_QUERY,[runId]);
     if (!choice.rowCount) {
@@ -195,7 +194,7 @@ export async function claimAssignment(db: Pool, runId: string, credentialId: str
     }
     const { repository_id: repositoryId, full_name: fullName, unit_id: unitId } = choice.rows[0];
     const allowed=await client.query<{within_budget:boolean}>(
-      `SELECT ar.started_at>now()-make_interval(secs=>${effectiveSessionSecondsSql("ar.provider","p.max_session_seconds")}) AS within_budget
+      `SELECT ar.started_at>now()-make_interval(secs=>COALESCE(p.max_session_seconds,3300)) AS within_budget
        FROM agent_runs ar LEFT JOIN repository_execution_policy p ON p.repository_id=$2 WHERE ar.run_id=$1`,[runId,repositoryId]);
     if(allowed.rows[0]?.within_budget!==true)throw new AssignmentConflict("Session time budget exhausted; checkpoint and finish");
     const changed = await client.query<Lease>(
@@ -203,10 +202,7 @@ export async function claimAssignment(db: Pool, runId: string, credentialId: str
           run_id=$1, generation=GREATEST(generation+1,
             (SELECT COALESCE(MAX(lease_generation),0)+1 FROM work_assignments WHERE run_id=$1)),
           assigned_at=now(), last_heartbeat_at=now(),
-          expires_at=LEAST(now() + interval '12 minutes',
-            (SELECT ar.started_at+make_interval(secs=>${effectiveSessionSecondsSql("ar.provider","p.max_session_seconds")})
-             FROM agent_runs ar LEFT JOIN repository_execution_policy p ON p.repository_id=$2
-             WHERE ar.run_id=$1))
+          expires_at=now() + interval '12 minutes'
         WHERE repository_id=$2 AND run_id IS NULL
         RETURNING generation::text AS generation, expires_at`,
       [runId, repositoryId]

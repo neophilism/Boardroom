@@ -32,15 +32,12 @@ test("new activation is serialized by credential row and receives a fresh run id
     {match:/BEGIN/},
     {match:/agent_credentials.*FOR UPDATE/,rows:[{credential_id:"cred-1"}]},
     {match:/FROM agent_runs.*FOR UPDATE/s,rows:[]},
-    {match:/pg_advisory_xact_lock/},
-    {match:/AS active_native/,rows:[{active_native:"0",starts_24h:"0",last_started_at:null,
-      fourth_newest_started_at:null,checked_at:new Date("2026-10-19T12:00:00.000Z")}]},
     {match:/INSERT INTO agent_runs/,rows:[{run_id:"run-new",state:"ADMITTED"}]},
     {match:/INSERT INTO audit_events/},
     {match:/COMMIT/}
   ]);
   assert.deepEqual(await admitAgentRun(x.pool,principal,null),{kind:"CREATED",runId:"run-new",state:"ADMITTED"});
-  assert.equal(x.consumed,8);
+  assert.equal(x.consumed,6);
 });
 
 test("new activation cannot obtain the existing running session id",async()=>{

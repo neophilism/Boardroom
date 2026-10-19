@@ -1,7 +1,6 @@
 import type { Pool, PoolClient } from "pg";
 import type { AuthenticatedAgent } from "./agent-auth";
 import {scanStaleSessionsLocked,recoverFencedOAuthSessionsLocked} from "./watchdog.ts";
-import {evaluateNativeBudget,FLEET_ADMISSION_ADVISORY_LOCK,type NativeBudgetObservation,type NativeBudgetDenial} from "./native-budget.ts";
 
 export type ActiveSessionDiagnostic={
   classification:"ACTIVE_LEASE"|"ADMISSION_IN_PROGRESS"|"EXPIRED_LEASE"|"MISSING_LEASE"|"RECOVERY_HELD";
@@ -12,8 +11,7 @@ export type ActiveSessionDiagnostic={
 export type AdmissionResult =
   | { kind: "CREATED"; runId: string; state: string }
   | { kind: "REPLAY"; runId: string; state: string }
-  | { kind: "BUSY"; runId:null;state:"ALREADY_ACTIVE"|"RECOVERY_REQUIRED";activeSession:ActiveSessionDiagnostic }
-  | { kind:"THROTTLED";runId:null;state:"BUDGET_PAUSED";budget:NativeBudgetDenial };
+  | { kind: "BUSY"; runId: null; state: "ALREADY_ACTIVE" | "RECOVERY_REQUIRED"; activeSession:ActiveSessionDiagnostic };
 
 type LiveRun = {
   run_id:string;state:string;stale_admitted:boolean;lease_expired:boolean;
@@ -104,26 +102,6 @@ export async function admitAgentRun(db: Pool, principal: AuthenticatedAgent, act
       const diagnostic=activeSessionDiagnostic(previous);
       await client.query("COMMIT"); committed = true;
       return {kind:"BUSY",runId:null,state:needsRecovery(previous)?"RECOVERY_REQUIRED":"ALREADY_ACTIVE",activeSession:diagnostic};
-    }
-
-    if(principal.provider==="chatgpt"){
-      // Native fleet-wide budget: serialized across all named agents and instances.
-      // A denied activation does not create a run, assignment, or lease.
-      await client.query("SELECT pg_advisory_xact_lock($1)",[FLEET_ADMISSION_ADVISORY_LOCK]);
-      const observed=await client.query<NativeBudgetObservation>(
-        "SELECT count(*) FILTER (WHERE state IN ('ADMITTED','RUNNING','RECOVERING','UNKNOWN'))::text AS active_native, "+
-        "count(*) FILTER (WHERE started_at>now()-interval '24 hours')::text AS starts_24h, "+
-        "max(started_at) AS last_started_at, "+
-        "(SELECT min(started_at) FROM "+
-        "(SELECT started_at FROM agent_runs WHERE provider='chatgpt' "+
-        "AND started_at>now()-interval '24 hours' ORDER BY started_at DESC LIMIT 4) recent) AS fourth_newest_started_at, "+
-        "now() AS checked_at FROM agent_runs WHERE provider='chatgpt'");
-      if(observed.rowCount!==1)throw new Error("Native admission budget unavailable");
-      const decision=evaluateNativeBudget(observed.rows[0]);
-      if(!decision.allowed){
-        await client.query("COMMIT");committed=true;
-        return {kind:"THROTTLED",runId:null,state:"BUDGET_PAUSED",budget:decision};
-      }
     }
 
     const created = await client.query<CreatedRun>(

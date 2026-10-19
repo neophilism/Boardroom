@@ -1,5 +1,4 @@
 import type { Pool, PoolClient } from "pg";
-import {effectiveSessionSecondsSql} from "./native-budget.ts";
 import {workSession} from "../domain/work-session.ts";
 
 export class SessionConflict extends Error {
@@ -127,17 +126,11 @@ export async function heartbeatRun(db: Pool, runId: string, credentialId: string
     if (run.state !== "RUNNING") throw new SessionConflict("Run is not active");
     const assignment = await lockedAssignment(client,runId,generation);
     await lockedLease(client,assignment,runId,generation,true);
-    const budget=await client.query<{within_budget:boolean}>(`SELECT ar.started_at>now()-make_interval(secs=>${effectiveSessionSecondsSql("ar.provider","p.max_session_seconds")}) AS within_budget
+    const budget=await client.query<{within_budget:boolean}>(`SELECT ar.started_at>now()-make_interval(secs=>COALESCE(p.max_session_seconds,3300)) AS within_budget
       FROM agent_runs ar LEFT JOIN repository_execution_policy p ON p.repository_id=$2 WHERE ar.run_id=$1`,[runId,assignment.repository_id]);
     if(budget.rows[0]?.within_budget!==true)throw new SessionConflict("Session time budget exhausted; checkpoint and finish");
     const result = await client.query<{expires_at:Date}>(
-      `UPDATE repository_leases l SET last_heartbeat_at=now(),
-         expires_at=LEAST(now()+interval '12 minutes',
-           (SELECT ar.started_at+make_interval(secs=>${effectiveSessionSecondsSql("ar.provider","p.max_session_seconds")})
-            FROM agent_runs ar LEFT JOIN repository_execution_policy p ON p.repository_id=l.repository_id
-            WHERE ar.run_id=$2))
-       WHERE l.repository_id=$1 AND l.run_id=$2 AND l.generation=$3::bigint AND l.expires_at>now()
-       RETURNING l.expires_at`,
+      "UPDATE repository_leases SET last_heartbeat_at=now(), expires_at=now()+interval '12 minutes' WHERE repository_id=$1 AND run_id=$2 AND generation=$3::bigint AND expires_at>now() RETURNING expires_at",
       [assignment.repository_id,runId,generation]
     );
     if (result.rowCount !== 1) throw new SessionConflict("Lease expired");
@@ -229,7 +222,7 @@ export async function finishRun(db: Pool, runId: string, credentialId: string, g
         started_at:Date;observed_at:Date;expires_at:Date;max_session_seconds:number;max_tokens:number;
         used_tokens:string;paused:boolean;checkpoint_state:unknown;
       }>(`SELECT ar.started_at,now() AS observed_at,l.expires_at,
-        ${effectiveSessionSecondsSql("ar.provider","p.max_session_seconds")} AS max_session_seconds,COALESCE(p.max_tokens,100000) AS max_tokens,
+        COALESCE(p.max_session_seconds,3300) AS max_session_seconds,COALESCE(p.max_tokens,100000) AS max_tokens,
         (SELECT COALESCE(SUM(input_tokens+output_tokens),0)::text FROM usage_events WHERE run_id=ar.run_id) AS used_tokens,
         COALESCE((SELECT paused FROM execution_controls WHERE singleton=TRUE),FALSE) AS paused,
         (SELECT state FROM checkpoints WHERE assignment_id=$3 AND unit_id=$4 ORDER BY created_at DESC,checkpoint_id DESC LIMIT 1) AS checkpoint_state
