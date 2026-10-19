@@ -1,4 +1,5 @@
 import {workSession} from "../domain/work-session.ts";
+import {effectiveSessionSecondsSql} from "./native-budget.ts";
 import {safeDiscussionText} from "../domain/discussion-privacy.ts";
 import {isSafeGitHubReference} from "../domain/coffee-view.ts";
 import type {Pool} from "pg";
@@ -64,7 +65,7 @@ export async function getAssignmentContext(db:Pool,runId:string,credentialId:str
     `SELECT a.assignment_id::text, a.repository_id::text,r.full_name,a.unit_id,
        a.lease_generation::text AS generation,l.expires_at,
        w.title,w.state,w.version,w.depends_on,w.acceptance_criteria,w.planned_prs,w.source_metadata,w.external_dependencies,w.external_prerequisites,ar.started_at,
-       COALESCE(policy.max_session_seconds,3300) AS max_session_seconds,
+       ${effectiveSessionSecondsSql("ar.provider","policy.max_session_seconds")} AS max_session_seconds,
        COALESCE(policy.max_tool_calls,100) AS max_tool_calls,COALESCE(policy.max_tokens,100000) AS max_tokens
      FROM work_assignments a
      JOIN agent_runs ar ON ar.run_id=a.run_id
