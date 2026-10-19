@@ -126,7 +126,7 @@ export async function heartbeatRun(db: Pool, runId: string, credentialId: string
       FROM agent_runs ar LEFT JOIN repository_execution_policy p ON p.repository_id=$2 WHERE ar.run_id=$1`,[runId,assignment.repository_id]);
     if(budget.rows[0]?.within_budget!==true)throw new SessionConflict("Session time budget exhausted; checkpoint and finish");
     const result = await client.query<{expires_at:Date}>(
-      "UPDATE repository_leases SET last_heartbeat_at=now(), expires_at=now()+interval '180 seconds' WHERE repository_id=$1 AND run_id=$2 AND generation=$3::bigint AND expires_at>now() RETURNING expires_at",
+      "UPDATE repository_leases SET last_heartbeat_at=now(), expires_at=now()+interval '12 minutes' WHERE repository_id=$1 AND run_id=$2 AND generation=$3::bigint AND expires_at>now() RETURNING expires_at",
       [assignment.repository_id,runId,generation]
     );
     if (result.rowCount !== 1) throw new SessionConflict("Lease expired");

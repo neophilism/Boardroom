@@ -202,7 +202,7 @@ export async function claimAssignment(db: Pool, runId: string, credentialId: str
           run_id=$1, generation=GREATEST(generation+1,
             (SELECT COALESCE(MAX(lease_generation),0)+1 FROM work_assignments WHERE run_id=$1)),
           assigned_at=now(), last_heartbeat_at=now(),
-          expires_at=now() + interval '180 seconds'
+          expires_at=now() + interval '12 minutes'
         WHERE repository_id=$2 AND run_id IS NULL
         RETURNING generation::text AS generation, expires_at`,
       [runId, repositoryId]
