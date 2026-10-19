@@ -1,8 +1,15 @@
 /** Detection is a privacy backstop, never authorization or proof that text is safe. */
+const inspectionDecoder=new TextDecoder("utf-8",{fatal:false});
 function normalizedForInspection(value:string){
   let text=value.normalize("NFKC").replace(/[\u200B-\u200D\u2060\uFEFF]/g,"");
   for(let i=0;i<2;i++)text=text.replace(/(?:%[a-f0-9]{2})+/gi,encoded=>{
-    try{return decodeURIComponent(encoded);}catch{return encoded;}
+    // Inspection only: replace invalid UTF-8 rather than abandoning the whole
+    // run and missing valid credential bytes next to it. Never use this lossy
+    // representation for URLs, authorization, storage or rendered content.
+    const bytes=new Uint8Array(encoded.length/3);
+    for(let offset=0;offset<bytes.length;offset++)
+      bytes[offset]=Number.parseInt(encoded.slice(offset*3+1,offset*3+3),16);
+    return inspectionDecoder.decode(bytes);
   });
   return text.normalize("NFKC").replace(/[\u200B-\u200D\u2060\uFEFF]/g,"");
 }
