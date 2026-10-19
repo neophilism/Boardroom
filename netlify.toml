@@ -1,0 +1,7 @@
+# Emergency $0 on-demand web/API deployment. Netlify detects Next.js/OpenNext.
+# No secrets or production credentials belong in this file.
+[build]
+command = "npm ci --ignore-scripts --no-audit --no-fund && npm run build"
+
+[build.environment]
+NODE_VERSION = "22"
