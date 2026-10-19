@@ -1,6 +1,6 @@
+import OwnerNavigation from "../owner-navigation";
 import {cookies} from "next/headers";
 import {redirect} from "next/navigation";
-import Link from "next/link";
 import {OWNER_COOKIE,validOwnerSession} from "../../src/server/owner-session";
 import {getDatabase} from "../../src/server/db";
 import PriorityControls from "./controls";
@@ -28,12 +28,7 @@ export default async function RepositoryPrioritiesPage(){
     createdAt:r.createdAt.toISOString()
   }));
   return <main className="owner-shell priority-shell">
-    <header className="owner-header">
-      <div><p className="eyebrow">BOARDROOM / OWNER CONTROL</p><h1>Repository priorities</h1></div>
-      <Link className="priority-nav" href="/owner-actions">Owner Action Board</Link>
-        <Link className="priority-nav" href="/work-board">Live Work Board</Link>
-        <Link className="priority-nav" href="/coffee">Coffee Corner</Link>
-    </header>
+    <OwnerNavigation section="OWNER CONTROL" title="Repository priorities" activePath="/priorities"/>
     <p>Scheduled agents claim the first available priority repository. When every priority repository is occupied or ineligible, Boardroom assigns the eligible repository with the oldest verified GitHub development activity.</p>
     <PriorityControls repositories={repositories}/>
   </main>;

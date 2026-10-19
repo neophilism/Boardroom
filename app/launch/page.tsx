@@ -1,3 +1,4 @@
+import OwnerNavigation from "../owner-navigation";
 import Link from "next/link";
 import {cookies} from "next/headers";
 import {redirect} from "next/navigation";
@@ -15,8 +16,7 @@ export default async function LaunchPage(){
   const native=status.agents.filter(a=>a.provider==="chatgpt");
   const connected=native.filter(a=>a.connected).length;
   return <main className="owner-shell">
-    <header className="owner-header"><div><p className="eyebrow">BOARDROOM / FIVE-AGENT LAUNCH</p><h1>Start scheduled development</h1></div>
-      <nav className="work-nav" aria-label="Boardroom owner views"><Link href="/system">System connections</Link><Link href="/agents">Scheduled agents</Link><Link href="/operations">Execution controls</Link><Link href="/reports">Daily report</Link></nav></header>
+    <OwnerNavigation section="FIVE-AGENT LAUNCH" title="Start scheduled development" activePath="/launch"/>
     <p>Observed {status.observedAt}. This checklist reads real configuration and activity. Connections and assignments do not prove that a scheduled agent wrote, tested or merged useful code.</p>
     <div className="summary-strip"><strong>{native.length}/5</strong> ChatGPT identities registered <span>·</span><strong>{connected}/5</strong> with unexpired OAuth access or refresh credentials</div>
     <ol>

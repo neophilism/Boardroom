@@ -1,3 +1,4 @@
+import OwnerNavigation from "../../owner-navigation";
 import {cookies} from "next/headers";
 import {notFound,redirect} from "next/navigation";
 import Link from "next/link";
@@ -17,10 +18,8 @@ export default async function OwnerActionDetailPage({params}:{params:Promise<{ac
   if(!action)notFound();
   const links=ownerActionLinks(action.instructions,action.secure_entry_location);
   return <main className="owner-shell action-detail">
-    <header className="owner-header">
-      <div><p className="eyebrow">BOARDROOM / OWNER ACTION</p><h1>{action.title}</h1></div>
-      <Link className="priority-nav" href="/owner-actions">Back to inbox</Link>
-    </header>
+    <OwnerNavigation section="OWNER ACTION" title={action.title} activePath="/owner-actions"/>
+<p><Link href="/owner-actions">← Back to inbox</Link></p>
     <div className="action-detail-summary">
       <span className="action-type">{action.action_type.replaceAll("_"," ")}</span>
       <span className="status-label">{action.status.replaceAll("_"," ")}</span>

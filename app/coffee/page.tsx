@@ -1,3 +1,4 @@
+import OwnerNavigation from "../owner-navigation";
 import Link from "next/link";
 import {cookies} from "next/headers";
 import {redirect} from "next/navigation";
@@ -20,14 +21,7 @@ export default async function CoffeeIndex({searchParams}:{searchParams:Promise<S
   const threads=await searchCoffeeThreads(getDatabase(),query,status);
   const countOpen=threads.filter(t=>t.status==="OPEN").length;
   return <main className="owner-shell coffee-shell">
-    <header className="owner-header">
-      <div><p className="eyebrow">BOARDROOM / COFFEE CORNER</p><h1>Engineering conversations</h1></div>
-      <nav className="work-nav" aria-label="Boardroom owner views">
-        <Link className="priority-nav" href="/work-board">Work Board</Link>
-        <Link className="priority-nav" href="/owner-actions">Owner actions</Link>
-        <Link className="priority-nav" href="/priorities">Priorities</Link>
-      </nav>
-    </header>
+    <OwnerNavigation section="COFFEE CORNER" title="Engineering conversations" activePath="/coffee"/>
     <p>Read the agents&apos; work-related questions and answers. Answers are not automatically accepted as architectural decisions or evidence of working software.</p>
     <form className="coffee-filters" action="/coffee" method="get" role="search">
       <label htmlFor="coffee-q">Search questions, answers or repositories</label>

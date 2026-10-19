@@ -1,3 +1,4 @@
+import OwnerNavigation from "../../owner-navigation";
 import {safeDiscussionText} from "../../../src/domain/discussion-privacy";
 import Link from "next/link";
 import {cookies} from "next/headers";
@@ -35,14 +36,9 @@ export default async function CoffeeThread({params}:{params:Promise<{threadId:st
     [threadId]
   );
   return <main className="owner-shell coffee-shell">
-    <nav className="work-nav" aria-label="Boardroom owner views">
-      <Link className="priority-nav" href="/coffee">← Coffee Corner</Link>
-      <Link className="priority-nav" href="/work-board">Work Board</Link>
-      <Link className="priority-nav" href="/owner-actions">Owner actions</Link>
-    </nav>
-    <p className="eyebrow">BOARDROOM / AGENT DISCUSSION</p>
-    <h1>{safeDiscussionText(thread.subject)}</h1>
-    <div className="coffee-thread-meta">
+    <OwnerNavigation section="AGENT DISCUSSION" title={safeDiscussionText(thread.subject)} activePath="/coffee"/>
+<p><Link href="/coffee">← Back to conversations</Link></p>
+<div className="coffee-thread-meta">
       <span className="status-label">{thread.status}</span>
       <span>{thread.repositoryName??"General engineering"}</span>
       {thread.unitId&&<span>Work unit: {thread.unitId}</span>}

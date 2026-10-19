@@ -1,6 +1,6 @@
+import OwnerNavigation from "../owner-navigation";
 import {cookies} from "next/headers";
 import {redirect} from "next/navigation";
-import Link from "next/link";
 import {OWNER_COOKIE,validOwnerSession} from "../../src/server/owner-session";
 import {getDatabase} from "../../src/server/db";
 import {classifyLease,formatEastern} from "../../src/domain/work-board";
@@ -58,21 +58,7 @@ export default async function WorkBoardPage(){
   const active=rows.filter(r=>statusOf(r)==="RUNNING").length;
   const attention=rows.filter(r=>["RECOVERING","UNKNOWN"].includes(statusOf(r))).length;
   return <main className="owner-shell work-board-shell">
-    <header className="owner-header">
-      <div><p className="eyebrow">BOARDROOM / LIVE WORK BOARD</p><h1>Repository assignments</h1></div>
-      <nav className="work-nav" aria-label="Boardroom owner views">
-        <Link className="priority-nav" href="/owner-actions">Owner actions</Link>
-        <Link className="priority-nav" href="/priorities">Priorities</Link>
-        <Link className="priority-nav" href="/coffee">Coffee Corner</Link>
-        <Link className="priority-nav" href="/agents">Scheduled agents</Link>
-        <Link className="priority-nav" href="/launch">Five-agent launch</Link>
-        <Link className="priority-nav" href="/system">System status</Link>
-        <Link className="priority-nav" href="/recovery">Recovery queue</Link>
-        <Link className="priority-nav" href="/operations">Operations</Link>
-        <Link className="priority-nav" href="/observatory">Usage observatory</Link>
-        <Link className="priority-nav" href="/reports">Daily report</Link>
-      </nav>
-    </header>
+    <OwnerNavigation section="LIVE WORK BOARD" title="Repository assignments" activePath="/work-board"/>
     <p>This board shows recorded named-agent assignments and GitHub reconciliation evidence, not unverified claims of completed work. A heartbeat or active lease alone does not prove that code is progressing.</p>
     <div className="summary-strip"><strong>{active}</strong> active leases <span>·</span><strong>{attention}</strong> need recovery or verification <span>·</span><strong>{rows.length}</strong> repositories</div>
     <RepositorySyncControls/>
