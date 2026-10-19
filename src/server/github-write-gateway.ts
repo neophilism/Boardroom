@@ -25,7 +25,7 @@ export function safeRepositoryPath(input:unknown):string{
   if(typeof input!=="string"||input.length<1||input.length>240||
     input.includes("\\")||/[\x00-\x1f\x7f]/.test(input)||
     !/^[a-zA-Z0-9_.@()+,\-/]+$/.test(input))
-    throw new GithubWriteValidation("Invalid repository file path");
+    throw new GithubWriteValidation("Invalid repository file path. Use a repository-relative filename (for example src/modules/forms/validation.ts), not a GitHub URL, #line reference or absolute path; avoid unsupported characters. Do not include source code in the path field.");
   const parts=input.split("/");
   if(parts.some(p=>p===""||p==="."||p===".."))
     throw new GithubWriteValidation("Path traversal or empty path component forbidden");
