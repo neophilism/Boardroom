@@ -1,5 +1,4 @@
 import {createRemoteJWKSet,customFetch,jwtVerify,type JWTVerifyGetKey} from "jose";
-import {authorizedWatchdogToken} from "./watchdog.ts";
 import {trustedOwnerOrigin} from "./owner-session.ts";
 
 export const GITHUB_OIDC_ISSUER="https://token.actions.githubusercontent.com";
@@ -12,15 +11,14 @@ const environment="boardroom-maintenance";
 const subjects=["repo:"+repository+":environment:"+environment,
   "repo:neophilism@"+ownerId+"/Boardroom@"+repositoryId+":environment:"+environment];
 
-export type MaintenancePrincipal={method:"legacy-token"}|{method:"github-oidc";workflowRunId:string;sha:string};
+export type MaintenancePrincipal={method:"github-oidc";workflowRunId:string;sha:string};
 
 /** Trust one workflow in one immutable repository, never generic GitHub JWTs.
  * This authority is used only by the bounded maintenance tick, not agent,
  * owner, recovery, source-writing or merge endpoints. Fail closed on outage. */
 export async function authorizeMaintenance(value:string|null,env:NodeJS.ProcessEnv=process.env,
   key:CryptoKey|JWTVerifyGetKey=githubKeys,now=new Date()):Promise<MaintenancePrincipal|null>{
-  if(authorizedWatchdogToken(value,env.BOARDROOM_WATCHDOG_TOKEN))return {method:"legacy-token"};
-  if(env.BOARDROOM_GITHUB_MAINTENANCE_OIDC_ENABLED!=="true"||!value?.startsWith("Bearer "))return null;
+  if(!value?.startsWith("Bearer "))return null;
   const token=value.slice(7);
   if(token.length>16000||!/^[-A-Za-z0-9_]+\.[-A-Za-z0-9_]+\.[-A-Za-z0-9_]+$/.test(token))return null;
   try{
@@ -32,7 +30,7 @@ export async function authorizeMaintenance(value:string|null,env:NodeJS.ProcessE
     if(p.repository!==repository||p.repository_id!==repositoryId||p.repository_owner_id!==ownerId||
       p.ref!=="refs/heads/main"||p.environment!==environment||!subjects.includes(p.sub??"")||
       p.workflow_ref!==repository+"/.github/workflows/maintenance.yml@refs/heads/main"||
-      !["schedule","workflow_dispatch","push"].includes(String(p.event_name))||
+      !["schedule","push"].includes(String(p.event_name))||
       p.runner_environment!=="github-hosted"||
       typeof p.run_id!=="string"||!/^\d{1,20}$/.test(p.run_id)||
       typeof p.sha!=="string"||!/^([a-f0-9]{40})$/i.test(p.sha)||
