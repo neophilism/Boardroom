@@ -27,7 +27,7 @@ test("launch instruction and copyable protocol are identical and require continu
   const doc=await readFile(new URL("../docs/SCHEDULED_AGENT_PROTOCOL.md",import.meta.url),"utf8");
   const prompt=doc.slice(doc.indexOf("> Policy version:"),doc.indexOf("\n## Supported integration boundary")).trim().split("\n").map(line=>line.replace(/^> ?/,"")).join("\n");
   assert.equal(prompt,SCHEDULED_AGENT_INSTRUCTION);
-  for(const text of ["50 minutes","55 minutes","boardroom_yield_and_claim","SAME runId","imported branch names","Never pad elapsed time"])
+  for(const text of ["50 minutes","55 minutes","boardroom_yield_and_claim","SAME runId","imported branch names","Never pad elapsed time","LAST-RESORT EARLY EXIT","outcome=CANCELLED"])
     assert.ok(prompt.includes(text),text);
 });
 

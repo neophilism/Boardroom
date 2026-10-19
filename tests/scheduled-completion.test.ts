@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {parseSessionStop,requireScheduledHandoff} from "../src/server/scheduled-completion.ts";
+import {parseSessionStop,requireScheduledHandoff,EARLY_CANCELLATION_FALLBACK} from "../src/server/scheduled-completion.ts";
+import {activationFinishBasis} from "../src/server/sessions.ts";
 import {validateAgentTool} from "../src/server/agent-tools.ts";
 import type {Pool} from "pg";
 import type {readAssignedPrEvidence} from "../src/server/pr-evidence.ts";
@@ -38,4 +39,15 @@ test("old finish signatures still validate; new schemas carry an explicit early 
   const sessionStop={reason:'CAPABILITY_UNAVAILABLE',evidence:'An observed tool outage affects the entire activation'};
   assert.deepEqual(validateAgentTool('boardroom_finish',{...old,sessionStop}),{...old,sessionStop});
   assert.deepEqual(validateAgentTool('boardroom_finish_idle',{runId:'fixture',sessionStop}),{runId:'fixture',sessionStop});
+});
+
+
+test("a normal early finish is rejected, while truthful incomplete cancellation has a safe release basis",()=>{
+  const evidence={startedAt:new Date("2026-10-19T18:22:00Z"),now:new Date("2026-10-19T18:25:00Z"),
+    maxSessionSeconds:3300,leaseExpiresAt:new Date("2026-10-19T18:37:00Z"),paused:false,
+    usedTokens:0,maxTokens:100000,checkpointState:{nextAction:"complete unfinished acceptance"}};
+  assert.equal(activationFinishBasis("COMPLETED",evidence),null);
+  assert.deepEqual(activationFinishBasis("CANCELLED",evidence),{source:"AGENT_REPORTED",reason:"CANCELLED"});
+  for(const expected of ["outcome=CANCELLED","incomplete early cancellation","Do not cancel","unverified"])
+    assert.ok(EARLY_CANCELLATION_FALLBACK.includes(expected),expected);
 });

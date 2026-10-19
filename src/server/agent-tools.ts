@@ -63,7 +63,7 @@ export const AGENT_TOOLS=[
   tool("boardroom_risk_approval_request","Request an exact, single-use owner approval before spending, destructive work, privilege changes, legal or political risk, or production release.",{
     ...session,category:{enum:RISK_CATEGORIES},target:string,summary:string,maxCostCents:{type:["integer","null"],minimum:0}},
     ["runId","generation","category","target","summary","maxCostCents"]),
-  tool("boardroom_finish","Finish at the 50-minute target or an evidenced activation-wide hard limit. An early project finish returns CONTINUE_REQUIRED: claim the same run and keep working. Record sessionStop for a real earlier hard limit; it can also be saved in checkpoint state for older schemas. COMPLETED does not assert code acceptance.",{
+  tool("boardroom_finish","Finish at the 50-minute target or an evidenced activation-wide hard limit. An early project finish returns CONTINUE_REQUIRED: claim the same run and keep working. Record sessionStop only for an actually observed hard limit. If a live activation genuinely must end early, checkpoint facts and use outcome=CANCELLED as incomplete cancellation, not successful completion; do not use it to avoid useful work. COMPLETED does not assert code acceptance.",{
     ...session,outcome:{enum:["COMPLETED","YIELDED","BLOCKED","FAILED","CANCELLED"]},sessionStop},["runId","generation","outcome"]),
   tool("boardroom_finish_idle","End a truly empty portfolio. If eligible work remains before the target, returns CONTINUE_REQUIRED. An evidenced activation-wide failure may supply sessionStop. Never frees an assigned lease.",{runId:string,sessionStop},["runId"])
 ] as const;

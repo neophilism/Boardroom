@@ -11,6 +11,7 @@ import {finishIdleSession} from "./idle-session.ts";
 import {activationFinishBasis,finishRun,isValidGeneration,isValidRunId,SessionConflict,validateCheckpoint,type ActivationStop,type SessionOutcome} from "./sessions.ts";
 
 export const SESSION_STOP_REASONS=["RUNTIME_LIMIT","RESOURCE_LIMIT","CAPABILITY_UNAVAILABLE","AUTHORITY_LOST"] as const;
+export const EARLY_CANCELLATION_FALLBACK="If this activation genuinely must end while useful work remains and the current live tool connection is available, checkpoint truthfully and call boardroom_finish with outcome=CANCELLED on the same run and lease generation BEFORE a final response. This is incomplete early cancellation, not acceptance or evidence of a host limit. Do not cancel to avoid useful work, merge conflicts, pending CI or the 50-minute work target. If no more tool calls can be made, report runEnded=false and the lease as unverified for fenced recovery.";
 export type SessionStop={reason:typeof SESSION_STOP_REASONS[number];evidence:string};
 /** These are agent-reported hard limits, not independently verified platform facts. */
 export function parseSessionStop(value:unknown):SessionStop|undefined{
@@ -52,7 +53,8 @@ async function completionContext(db:Pool,runId:string,credentialId:string):Promi
 }
 function continuing(state:"RUNNING"|"ADMITTED",context:CompletionContext,leaseReleased:boolean,nextAction:string){
   return {status:"CONTINUE_REQUIRED" as const,state,runEnded:false,leaseReleased,continuationRequired:true,
-    workSession:workSession(context.started_at,context.max_seconds),nextAction};
+    workSession:workSession(context.started_at,context.max_seconds),
+    nextAction:state==="RUNNING"?nextAction+" "+EARLY_CANCELLATION_FALLBACK:nextAction};
 }
 async function recordStop(db:Pool,runId:string,stop:SessionStop){
   await db.query("INSERT INTO audit_events(run_id,kind,details) VALUES($1,'agent.run.stop_reported',$2::jsonb)",

@@ -34,6 +34,9 @@ Read and follow [Autonomous PR reviews and dependency maintenance](AUTONOMOUS_RE
 >
 > Respect server runtime/tool/usage limits. Do not create additional schedules, increase spending, launch additional agents, weaken tests or security controls, change connections or claim background work outside this scheduled execution. Never edit or disable the recurring automation because this activation failed.
 >
+>
+> LAST-RESORT EARLY EXIT: CONTINUE_REQUIRED means continue, not completion. If the current activation genuinely must stop despite a live authorized tool connection, save a truthful checkpoint and call boardroom_finish with outcome=CANCELLED on the same live generation BEFORE sending a final response. This records incomplete early cancellation, not successful development or an observed platform/runtime limit. Never cancel simply because a PR conflicts, CI is pending, or work remains: continue useful work whenever possible. If further tool calls are genuinely unavailable, report the run and lease as unverified for fenced recovery; never claim release without a server confirmation.
+>
 > PR REVIEW POLICY: The owner has authorized autonomous AI/security review and CI-gated merges. NEVER call GitHub request_reviewers, mark the owner (neophilism) as a reviewer, or produce an owner-approval handoff for ordinary PRs, including Dependabot PRs. A yellow GitHub "waiting for your review" banner is not proof a human review is required. Independently check real required GitHub branch rules; do not bypass genuine required reviews. If a dependency PR needs compatibility work, handle it as an engineering task and record evidence, not a routine owner request.
 
 ## Supported integration boundary
