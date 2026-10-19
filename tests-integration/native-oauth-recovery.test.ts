@@ -47,7 +47,7 @@ async function fixture(options:{seconds?:number;provider?:string;oauth?:boolean;
     "INSERT INTO agent_credentials(label,provider,token_digest) VALUES($1,$2,$3) RETURNING credential_id",
     [label,provider,createHash("sha256").update(label).digest("hex")])).rows[0].credential_id;
   const runId=(await db.query<{run_id:string}>(
-    "INSERT INTO agent_runs(provider,credential_id,state,started_at,last_seen_at) VALUES($1,$2,$3,now()-interval '5 minutes',now()-interval '5 minutes') RETURNING run_id",
+    "INSERT INTO agent_runs(provider,credential_id,state,started_at,last_seen_at) VALUES($1,$2,$3,now()-interval '6 hours',now()-interval '5 minutes') RETURNING run_id",
     [provider,credentialId,state])).rows[0].run_id;
   if(options.lease!==false){
     await db.query("INSERT INTO repository_leases(repository_id,run_id,generation,assigned_at,last_heartbeat_at,expires_at) "+
