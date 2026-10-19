@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { isValidRunId,isValidGeneration,parseSessionOutcome,validateCheckpoint,SessionConflict } from "../src/server/sessions.ts";
+import { isValidRunId,isValidGeneration,parseSessionOutcome,isTerminalSessionState,validateCheckpoint,SessionConflict } from "../src/server/sessions.ts";
 
 test("session identity and fencing generation have strict formats",()=>{
   assert.equal(isValidRunId("7d54a632-94aa-4a9b-b84f-58ebaa0c7208"),true);
@@ -23,3 +23,5 @@ test("checkpoint payload rejects oversized, malformed or invalid remote referenc
   assert.throws(()=>validateCheckpoint({headSha:"abc",state:{}}));
   assert.throws(()=>validateCheckpoint({state:{notes:"x".repeat(20000)}}));
 });
+
+test("terminal state classification",()=>{ assert.equal(isTerminalSessionState("CANCELLED"),true); assert.equal(isTerminalSessionState("RECOVERING"),false); });
