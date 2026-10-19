@@ -69,6 +69,7 @@ test("maintenance removes bot review requests and merges only exact-head tested 
     connect:async()=>({
       query:async(sql:string,params?:unknown[])=>{
         if(sql.startsWith("SELECT r.repository_id"))return {rows:[{repository_id:"123",full_name:"neophilism/Repo"}]};
+        if(sql.startsWith("SELECT l.run_id"))return {rows:[{run_id:null,paused:false}]};
         if(sql.startsWith("INSERT INTO audit_events"))events.push({kind:String(params?.[0]),details:params?.[1]});
         return {rows:[]};
       },
