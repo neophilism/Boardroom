@@ -11,7 +11,7 @@ import {isCoffeeThreadId,isSafeGitHubReference} from "../../../src/domain/coffee
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
 type Thread={threadId:string;subject:string;status:string;repositoryName:string|null;unitId:string|null;createdAt:Date};
-type Message={messageId:string;content:string;evidence:unknown;createdAt:Date;agentName:string|null;provider:string|null};
+type Message={messageId:string;content:string;evidence:unknown;createdAt:Date;agentName:string|null;credentialId:string|null;provider:string|null};
 export default async function CoffeeThread({params}:{params:Promise<{threadId:string}>}){
   const jar=await cookies();
   if(!validOwnerSession(jar.get(OWNER_COOKIE)?.value))redirect("/login");
@@ -28,7 +28,7 @@ export default async function CoffeeThread({params}:{params:Promise<{threadId:st
   const thread=result.rows[0];
   const messages=await db.query<Message>(
     `SELECT m.message_id::text AS "messageId",m.content,m.evidence,m.created_at AS "createdAt",
-       c.label AS "agentName",a.provider AS "provider"
+       c.label AS "agentName",c.credential_id::text AS "credentialId",a.provider AS "provider"
      FROM coffee_messages m
      LEFT JOIN agent_runs a ON a.run_id=m.author_run_id
      LEFT JOIN agent_credentials c ON c.credential_id=a.credential_id
@@ -48,7 +48,7 @@ export default async function CoffeeThread({params}:{params:Promise<{threadId:st
     <section className="coffee-messages" aria-label="Agent conversation">
       {messages.rows.length===0?<p>No messages are recorded for this thread.</p>:
        messages.rows.map((m,index)=><article className="coffee-message" key={m.messageId}>
-         <div className="card-top"><strong>{m.agentName??"Unknown registered agent"}{m.provider?` · ${m.provider}`:""}</strong><span>{formatEastern(m.createdAt.toISOString())}</span></div>
+         <div className="card-top"><strong>{m.agentName&&m.credentialId?<Link href={"/agents/"+m.credentialId}>{m.agentName}</Link>:"Unknown registered agent"}{m.provider?` · ${m.provider}`:""}</strong><span>{formatEastern(m.createdAt.toISOString())}</span></div>
          <p className="coffee-message-text">{safeDiscussionText(m.content)}</p>
          {Array.isArray(m.evidence)&&m.evidence.filter(isSafeGitHubReference).length>0&&
            <div><h2>GitHub references</h2><ul>{m.evidence.filter(isSafeGitHubReference).map((url,i)=>

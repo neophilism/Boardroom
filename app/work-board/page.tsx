@@ -1,4 +1,5 @@
 import OwnerNavigation from "../owner-navigation";
+import Link from "next/link";
 import {cookies} from "next/headers";
 import {redirect} from "next/navigation";
 import {OWNER_COOKIE,validOwnerSession} from "../../src/server/owner-session";
@@ -12,7 +13,7 @@ export const dynamic="force-dynamic";
 type WorkBoardRow={
   repositoryId:string;fullName:string;description:string|null;enabled:boolean;archived:boolean;
   priorityPosition:number|null;lastDevelopmentAt:Date|null;createdAt:Date;
-  runId:string|null;runState:string|null;agentName:string|null;provider:string|null;
+  runId:string|null;runState:string|null;agentName:string|null;provider:string|null;credentialId:string|null;
   leaseExpiresAt:Date|null;lastHeartbeatAt:Date|null;lastGitHubWriteAt:Date|null;unitId:string|null;
   planStatus:string|null;planRefreshedAt:Date|null;openUnitCount:string;
   planError:string|null;
@@ -25,6 +26,7 @@ async function loadBoard():Promise<{rows:WorkBoardRow[];observedAt:number}>{
       r.enabled AS "enabled",r.archived AS "archived",p.position AS "priorityPosition",
       r.last_development_at AS "lastDevelopmentAt",r.created_at AS "createdAt",
       l.run_id::text AS "runId",ar.state AS "runState",ac.label AS "agentName",ar.provider AS "provider",
+      ac.credential_id::text AS "credentialId",
       l.expires_at AS "leaseExpiresAt",l.last_heartbeat_at AS "lastHeartbeatAt",wa.unit_id AS "unitId",
       activity.last_github_write_at AS "lastGitHubWriteAt",
       rs.plan_status AS "planStatus",rs.last_success_at AS "planRefreshedAt",rs.last_error AS "planError",
@@ -77,7 +79,7 @@ export default async function WorkBoardPage(){
             <h2><a href={`https://github.com/${r.fullName}`} target="_blank" rel="noopener noreferrer">{r.fullName}</a></h2>
             {r.description&&<p>{r.description}</p>}
             <dl className="work-details">
-              <dt>Assigned agent</dt><dd>{r.agentName||"None verified"}{r.provider?` · ${r.provider}`:""}</dd>
+              <dt>Assigned agent</dt><dd>{r.agentName&&r.credentialId?<Link href={"/agents/"+r.credentialId}>{r.agentName}</Link>:"None verified"}{r.provider?` · ${r.provider}`:""}</dd>
               <dt>Current work unit</dt><dd>{r.unitId||"None recorded"}</dd>
               <dt>Approved open units</dt><dd>{r.openUnitCount}</dd>
               <dt>Last verified development</dt><dd>{formatEastern(r.lastDevelopmentAt?.toISOString()??null)}</dd>

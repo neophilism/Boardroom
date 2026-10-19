@@ -204,3 +204,30 @@ grid-template-areas:"brand actions" "nav nav";gap:9px}
 .boardroom-toolbar-actions{grid-area:actions}}
 @media(max-width:600px){.boardroom-toolbar{padding:9px 10px}.boardroom-nav-link,.boardroom-more>summary,
 .boardroom-signout{font-size:12px;padding:9px 8px}.boardroom-page-heading{margin:24px 0 18px}}
+
+
+/* Owner-only agent audit profiles: passive, paginated evidence from existing records. */
+.agent-profile .action-card p{max-width:none}
+.agent-profile-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(230px,100%),1fr));gap:12px;margin:22px 0}
+.agent-profile-summary .action-card{padding:17px;min-width:0}
+.agent-profile-summary h2{font-size:13px;color:#a8c4d6;text-transform:uppercase;letter-spacing:.045em;margin:0 0 12px}
+.agent-profile-summary strong{font-size:17px;overflow-wrap:anywhere}
+.agent-profile-summary p{font-size:13px;margin:9px 0}
+.agent-profile-summary small,.agent-record small{display:block;color:#9bbacc;font-size:12px;margin-top:7px;line-height:1.5}
+.agent-profile-section{margin:16px 0}
+.agent-profile-section h2{margin:0 0 11px}
+.agent-profile-section a,.work-details a,.agent-entry a,.usage-table a{color:#b9eafa}
+.agent-event-list{list-style:none;padding:0;margin:20px 0 0;display:grid}
+.agent-event{padding:15px 0;border-top:1px solid #30475b}
+.agent-event-title{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.agent-event-title strong{font-size:15px}
+.agent-event-title time{font-size:12px;color:#abc0d0;white-space:nowrap}
+.agent-event-meta,.agent-event-links{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:9px;font-size:13px;overflow-wrap:anywhere}
+.agent-event-meta{color:#c8d8e5}
+.agent-event-links a,.agent-event-pagination a{color:#a6dff2}
+.agent-event-paths{margin-top:10px;font-size:12px;color:#aec6d5}
+.agent-event-paths summary{cursor:pointer}
+.agent-event-paths li{overflow-wrap:anywhere}
+.agent-event-pagination{display:flex;gap:18px;flex-wrap:wrap;margin-top:20px}
+.agent-records{display:grid;gap:0}
+.agent-record{padding:12px 0;border-top:1px solid #31485b;font-size:14px;overflow-wrap:anywhere}

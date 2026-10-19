@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import {useState} from "react";
 import type {RegisteredAgent,AgentProvider} from "../../src/server/agent-registration";
 
@@ -94,7 +95,7 @@ export default function AgentAdminControls({initialAgents,approvedNames}:{
       <h2>Current registered identities</h2>
       {agents.length===0?<p>No agent identities have been registered yet. This is not an agent activity simulator.</p>:
         <div className="agent-list">{agents.map(agent=><div className="agent-entry" key={agent.credentialId}>
-          <div><strong>{agent.name}</strong><small>{agent.provider} · Registered {new Date(agent.createdAt).toLocaleString()}</small></div>
+          <div><strong><Link href={"/agents/"+agent.credentialId}>{agent.name}</Link></strong><small>{agent.provider} · Registered {new Date(agent.createdAt).toLocaleString()}</small></div>
           <button className="outline" disabled={busy||!!secret} onClick={()=>revoke(agent.credentialId,agent.name)}>Revoke credential</button>
         </div>)}</div>}
     </section>
