@@ -3,7 +3,7 @@ import type {Pool} from "pg";
 import {parseCoffeeSearch,parseCoffeeStatus,isSafeGitHubReference} from "../domain/coffee-view.ts";
 
 export type CoffeeSearchThread={thread_id:string;repository_id:string|null;repository_name:string|null;unit_id:string|null;
-  subject:string;status:string;blocker_classification:string;deadline_at:Date|null;created_at:Date;updated_at:Date;author_name:string|null;provider:string|null;replies:string;
+  subject:string;status:string;blocker_classification:string;deadline_at:Date|null;created_at:Date;updated_at:Date;author_name:string|null;author_credential_id:string|null;provider:string|null;replies:string;
   messages:{messageId:string;kind:string;content:string;evidence:unknown;createdAt:string}[];adr:string|null};
 /** Owner UI, HTTP SDK and MCP share literal text search over subjects, source
  * repositories and actual question/answer contents, including resolved work. */
@@ -12,7 +12,7 @@ export async function searchCoffeeThreads(db:Pool,queryInput:string|null,statusI
   if(statusInput&&status===null)throw new Error("Invalid Coffee status");
   const result=await db.query<CoffeeSearchThread>(
     `SELECT t.thread_id::text,t.repository_id::text,r.full_name AS repository_name,t.unit_id,t.subject,t.status,t.created_at,t.updated_at,
-      t.blocker_classification,t.deadline_at,c.label AS author_name,a.provider,
+      t.blocker_classification,t.deadline_at,c.label AS author_name,c.credential_id::text AS author_credential_id,a.provider,
       (SELECT COUNT(*)::text FROM coffee_messages m WHERE m.thread_id=t.thread_id) AS replies,
       COALESCE(messages.items,'[]'::json) AS messages,resolution.adr
      FROM coffee_threads t LEFT JOIN repositories r ON r.repository_id=t.repository_id

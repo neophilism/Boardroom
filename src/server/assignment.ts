@@ -1,4 +1,6 @@
 import type { Pool, PoolClient } from "pg";
+import {TECHNICAL_RECOVERY_ELIGIBLE_SQL} from "./work-recovery.ts";
+import {synchronizeRepositoryById} from "./repository-sync.ts";
 
 export type ClaimedAssignment = {
   assignmentId: string;
@@ -11,9 +13,12 @@ export type ClaimedAssignment = {
 };
 
 export class AssignmentConflict extends Error { constructor(message: string) { super(message); this.name = "AssignmentConflict"; } }
+export class AssignmentRefreshPending extends AssignmentConflict {
+  constructor(){super("Eligible work still needs authoritative GitHub synchronization; retry this admitted run");this.name="AssignmentRefreshPending";}
+}
 
 type Session = { run_id: string; state: string };
-type Eligible = { repository_id: string; full_name: string; unit_id: string };
+type Eligible = { repository_id: string; full_name: string; unit_id: string; unit_state:string; last_success_at:Date|null };
 type Lease = { generation: string; expires_at: Date };
 type Existing = { assignment_id: string; repository_id: string; full_name: string; unit_id: string; generation: string; expires_at: Date };
 
@@ -21,7 +26,7 @@ type Existing = { assignment_id: string; repository_id: string; full_name: strin
  * Priority position takes precedence; otherwise sort by last actual GitHub development event.
  * Expired but still assigned leases are excluded until explicit fenced recovery.
  */
-export const REPOSITORY_CLAIM_QUERY = String.raw`
+function buildRepositoryClaimQuery(excludePreviouslyAttempted:boolean,freshOnly=false,skipRepositories=false,lockLease=true):string { return String.raw`
   WITH RECURSIVE dependency_edges AS (
     SELECT repository_id,unit_id,prerequisite_repository_id,prerequisite_unit_id FROM compatibility_dependencies
     UNION
@@ -41,18 +46,24 @@ export const REPOSITORY_CLAIM_QUERY = String.raw`
   ), effective_priority AS (
     SELECT repository_id,MIN(position) AS position FROM inherited_priority GROUP BY repository_id
   )
-  SELECT r.repository_id, r.full_name, chosen.unit_id
+  SELECT r.repository_id, r.full_name, chosen.unit_id, chosen.unit_state, sync.last_success_at
   FROM repositories r
   JOIN repository_leases l ON l.repository_id = r.repository_id
+  LEFT JOIN repository_sync_status sync ON sync.repository_id=r.repository_id
   LEFT JOIN effective_priority p ON p.repository_id = r.repository_id
   JOIN LATERAL (
-    SELECT w.unit_id
+    SELECT w.unit_id,w.state AS unit_state
     FROM roadmap_units w
     WHERE w.repository_id = r.repository_id
       AND w.approved = TRUE
       AND registry_prerequisites_satisfied(w.repository_id,w.unit_id)
       AND w.state IN ('PENDING', 'ACTIVE', 'OPEN_PR','BLOCKED')
-      AND (w.state<>'BLOCKED' OR EXISTS(SELECT 1 FROM coffee_threads t JOIN coffee_messages m ON m.thread_id=t.thread_id WHERE t.repository_id=w.repository_id AND t.unit_id=w.unit_id AND t.status='ANSWERED' AND m.message_kind='ANSWER' AND jsonb_array_length(m.evidence)>0))
+      AND ${TECHNICAL_RECOVERY_ELIGIBLE_SQL}
+      ${excludePreviouslyAttempted ? String.raw`AND NOT EXISTS (
+        SELECT 1 FROM work_assignments prior
+        WHERE prior.run_id=$1::uuid AND prior.repository_id=w.repository_id
+          AND prior.unit_id=w.unit_id AND prior.released_at IS NOT NULL
+      )` : ""}
       AND NOT EXISTS (
         SELECT 1
         FROM jsonb_array_elements_text(w.depends_on) AS dependency(id)
@@ -79,15 +90,25 @@ export const REPOSITORY_CLAIM_QUERY = String.raw`
   ) chosen ON TRUE
   WHERE r.enabled = TRUE AND r.archived = FALSE
     AND l.run_id IS NULL
+    ${skipRepositories ? "AND NOT (r.repository_id=ANY($2::bigint[]))" : ""}
+    ${freshOnly ? "AND sync.last_success_at>=now()-interval '60 seconds' AND sync.last_success_at<=now()+interval '60 seconds'" : ""}
     AND NOT EXISTS (SELECT 1 FROM execution_controls WHERE singleton=TRUE AND paused=TRUE)
   ORDER BY
+    ${excludePreviouslyAttempted ? String.raw`CASE WHEN r.repository_id=(
+      SELECT prior.repository_id FROM work_assignments prior WHERE prior.run_id=$1::uuid
+      AND prior.released_at IS NOT NULL ORDER BY prior.released_at DESC LIMIT 1
+    ) THEN 0 ELSE 1 END,` : ""}
     CASE WHEN p.position IS NULL THEN 1 ELSE 0 END,
     p.position ASC NULLS LAST,
     COALESCE(r.last_development_at, r.created_at) ASC,
     r.repository_id ASC
-  FOR UPDATE OF l SKIP LOCKED
+  ${lockLease?"FOR UPDATE OF l SKIP LOCKED":""}
   LIMIT 1
-`;
+`; }
+export const REPOSITORY_CLAIM_QUERY=buildRepositoryClaimQuery(false);
+export const REPOSITORY_CONTINUATION_CLAIM_QUERY=buildRepositoryClaimQuery(true);
+export const FRESH_REPOSITORY_CLAIM_QUERY=buildRepositoryClaimQuery(true,true);
+export const REPOSITORY_REFRESH_CANDIDATE_QUERY=buildRepositoryClaimQuery(true,false,true,false);
 
 async function existingAssignment(client: PoolClient, runId: string): Promise<ClaimedAssignment | null> {
   const current = await client.query<Existing>(
@@ -102,6 +123,7 @@ async function existingAssignment(client: PoolClient, runId: string): Promise<Cl
   );
   if (!current.rows.length) return null;
   const row = current.rows[0];
+  if(row.expires_at<=new Date())throw new AssignmentConflict("Lease expired; recovery required");
   return {
     assignmentId: row.assignment_id, repositoryId: row.repository_id,
     fullName: row.full_name, unitId: row.unit_id,
@@ -109,7 +131,35 @@ async function existingAssignment(client: PoolClient, runId: string): Promise<Cl
   };
 }
 
-export async function claimAssignment(db: Pool, runId: string, credentialId: string): Promise<ClaimedAssignment | null> {
+/** A recently verified plan can be assigned; a stale one must be re-read
+ * from GitHub before granting an exclusive lease. No stale row is admitted. */
+export function reconciliationExpired(value:Date|string|null|undefined,now=Date.now()):boolean{
+  if(!value)return true;
+  const when=value instanceof Date?value.getTime():Date.parse(value);
+  return !Number.isFinite(when)||when>now+60000||now-when>60000;
+}
+
+export async function claimAssignment(db: Pool, runId: string, credentialId: string,
+  refreshRepository:(repositoryId:string)=>Promise<unknown>=synchronizeRepositoryById): Promise<ClaimedAssignment | null> {
+  // Network I/O happens outside the lease transaction. Only a server-admitted
+  // principal may provoke repository reconciliation; do not permit untrusted
+  // requests to turn this endpoint into an unauthenticated GitHub poller.
+  const admission=await db.query<{state:string}>(
+    "SELECT state FROM agent_runs WHERE run_id=$1 AND credential_id=$2",[runId,credentialId]);
+  if(admission.rows[0]?.state==="ADMITTED"){
+    const attempted:string[]=[];
+    for(let attempt=0;attempt<4;attempt++){
+      const candidate=(await db.query<Eligible>(REPOSITORY_REFRESH_CANDIDATE_QUERY,[runId,attempted])).rows[0];
+      if(!candidate||!reconciliationExpired(candidate.last_success_at))break;
+      try{await refreshRepository(String(candidate.repository_id));}
+      catch{
+        attempted.push(String(candidate.repository_id));
+        // A single inaccessible project must not deny healthy portfolio work.
+        // Do not serialize provider errors or grant a lease from stale data.
+        await db.query("INSERT INTO audit_events(run_id,repository_id,kind,details) VALUES($1,$2,'agent.assignment.refresh_deferred','{}'::jsonb)",[runId,candidate.repository_id]);
+      }
+    }
+  }
   const client = await db.connect();
   let committed = false;
   try {
@@ -129,18 +179,30 @@ export async function claimAssignment(db: Pool, runId: string, credentialId: str
     }
     if (state !== "ADMITTED") throw new AssignmentConflict("This run cannot claim an assignment");
 
-    const choice = await client.query<Eligible>(REPOSITORY_CLAIM_QUERY);
+    const clock=await client.query<{within_budget:boolean}>(
+      "SELECT started_at>now()-interval '55 minutes' AS within_budget FROM agent_runs WHERE run_id=$1",[runId]);
+    if(clock.rows[0]?.within_budget!==true)throw new AssignmentConflict("Session time budget exhausted; checkpoint and finish");
+    const choice = await client.query<Eligible>(FRESH_REPOSITORY_CLAIM_QUERY,[runId]);
     if (!choice.rowCount) {
+      // Another agent can claim the just-refreshed repository between preflight
+      // and this transaction. Stale work elsewhere is not an empty queue.
+      const remaining=await client.query<Eligible>(REPOSITORY_CONTINUATION_CLAIM_QUERY,[runId]);
+      if(remaining.rowCount)throw new AssignmentRefreshPending();
       await client.query("COMMIT");
       committed = true;
       return null;
     }
     const { repository_id: repositoryId, full_name: fullName, unit_id: unitId } = choice.rows[0];
+    const allowed=await client.query<{within_budget:boolean}>(
+      `SELECT ar.started_at>now()-make_interval(secs=>COALESCE(p.max_session_seconds,3300)) AS within_budget
+       FROM agent_runs ar LEFT JOIN repository_execution_policy p ON p.repository_id=$2 WHERE ar.run_id=$1`,[runId,repositoryId]);
+    if(allowed.rows[0]?.within_budget!==true)throw new AssignmentConflict("Session time budget exhausted; checkpoint and finish");
     const changed = await client.query<Lease>(
       `UPDATE repository_leases SET
-          run_id=$1, generation=generation+1,
+          run_id=$1, generation=GREATEST(generation+1,
+            (SELECT COALESCE(MAX(lease_generation),0)+1 FROM work_assignments WHERE run_id=$1)),
           assigned_at=now(), last_heartbeat_at=now(),
-          expires_at=now() + interval '180 seconds'
+          expires_at=now() + interval '12 minutes'
         WHERE repository_id=$2 AND run_id IS NULL
         RETURNING generation::text AS generation, expires_at`,
       [runId, repositoryId]
@@ -158,7 +220,8 @@ export async function claimAssignment(db: Pool, runId: string, credentialId: str
     );
     await client.query(
       "INSERT INTO audit_events(run_id,repository_id,kind,details) VALUES($1,$2,'agent.assignment.claimed',$3::jsonb)",
-      [runId,repositoryId,JSON.stringify({ unitId, generation:lease.generation })]
+      [runId,repositoryId,JSON.stringify({ unitId, generation:lease.generation, unitState:choice.rows[0].unit_state,
+        eligibilityReason:choice.rows[0].unit_state==="BLOCKED"?"TECHNICAL_ANSWER_AVAILABLE":"APPROVED_PREREQUISITES_READY" })]
     );
     await client.query("COMMIT");
     committed = true;

@@ -1,3 +1,4 @@
+import OwnerNavigation from "../owner-navigation";
 import {cookies} from "next/headers";
 import {redirect} from "next/navigation";
 import Link from "next/link";
@@ -14,7 +15,7 @@ type ActionRow={
   affected:{repositoryId:string;fullName:string|null;unitId:string|null}[];
 };
 const filterOptions=[
-  ["ALL","All"],["OUTSTANDING","Outstanding"],["BLOCKED","Blocked"],
+  ["ACTIVE","Needs your attention"],["ALL","All history"],["OUTSTANDING","Outstanding"],["BLOCKED","Blocked"],
   ["AWAITING_VERIFICATION","Awaiting verification"],["COMPLETE","Complete"],["DECLINED","Declined"]
 ] as const;
 const sortOptions=[["OLDEST","Oldest first"],["NEWEST","Newest first"],["STATUS","Status"],["TITLE","Title"]] as const;
@@ -29,15 +30,7 @@ export default async function OwnerActionsPage({searchParams}:{searchParams:Prom
   const actions=selectOwnerActionInbox(allActions,view.filter,view.sort);
   const open=allActions.filter(a=>["OPEN","ACKNOWLEDGED","AWAITING_VERIFICATION"].includes(a.status));
   return <main className="owner-shell">
-    <header className="owner-header">
-      <div><p className="eyebrow">BOARDROOM / OWNER ACTION BOARD</p><h1>Needs your attention</h1></div>
-      <Link className="priority-nav" href="/priorities">Repository priorities</Link>
-      <Link className="priority-nav" href="/work-board">Live Work Board</Link>
-      <Link className="priority-nav" href="/coffee">Coffee Corner</Link>
-      <Link className="priority-nav" href="/agents">Scheduled agents</Link>
-      <Link className="priority-nav" href="/system">System status</Link>
-      <form action="/api/v1/owner/logout" method="post"><button type="submit" className="outline">Sign out</button></form>
-    </header>
+    <OwnerNavigation section="OWNER ACTION BOARD" title="Needs your attention" activePath="/owner-actions"/>
     <p>Agent-submitted requests requiring an account, permission, purchase, or decision. Enter credentials only in the designated external service&apos;s secure configuration.</p>
     <div className="summary-strip"><strong>{open.length}</strong> blocking or awaiting verification <span>·</span> <strong>{allActions.length}</strong> total recorded</div>
     <form className="action-inbox-filters" method="get">
@@ -46,7 +39,7 @@ export default async function OwnerActionsPage({searchParams}:{searchParams:Prom
       <label htmlFor="action-sort">Sort</label>
       <select id="action-sort" name="sort" defaultValue={view.sort}>{sortOptions.map(([value,label])=><option value={value} key={value}>{label}</option>)}</select>
       <button type="submit">Apply</button>
-      <Link href="/owner-actions">Reset</Link>
+      <Link href="/owner-actions">Show active tasks</Link>
     </form>
     <p className="action-inbox-result" aria-live="polite">Showing {actions.length} of {allActions.length} actions.</p>
     {actions.length===0?<section className="action-card"><h2>No matching requests</h2><p>Change or reset the inbox filters to inspect other owner actions.</p></section>:

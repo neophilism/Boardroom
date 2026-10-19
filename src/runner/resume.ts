@@ -1,11 +1,13 @@
+import {validWorkBranch} from "../server/work-branch.ts";
 import {safeWorkBranch} from "../server/github-write-gateway.ts";
 
 export type ResumeProgress={summary?:string;nextAction?:string;prNumber:number|null};
 export type HandoffTest={name:string;status:"PASSED"|"FAILED";exitCode:number;headSha:string};
 
 export function durableHandoff(repository:string,unitId:string,headSha:string|null,progress:ResumeProgress,
-  tests:HandoffTest[],sourceNeedsRefresh:boolean){
-  const branch=safeWorkBranch(unitId),base="https://github.com/"+repository.split("/").map(encodeURIComponent).join("/");
+  tests:HandoffTest[],sourceNeedsRefresh:boolean,actualBranch=safeWorkBranch(unitId)){
+  if(!validWorkBranch(actualBranch))throw new Error("Invalid verified work branch");
+  const branch=actualBranch,base="https://github.com/"+repository.split("/").map(encodeURIComponent).join("/");
   const failed=tests.find(test=>test.status==="FAILED");
   return {
     version:1,repository,unitId,
@@ -19,11 +21,11 @@ export function durableHandoff(repository:string,unitId:string,headSha:string|nu
   };
 }
 /** Checkpoints are hints, never proof of checks, authority, or PR scope. */
-export function checkpointProgress(checkpoint:unknown,unitId:string):ResumeProgress{
+export function checkpointProgress(checkpoint:unknown,unitId:string,actualBranch=safeWorkBranch(unitId)):ResumeProgress{
   const empty:ResumeProgress={prNumber:null};
   if(!checkpoint||typeof checkpoint!=="object"||Array.isArray(checkpoint))return empty;
   const c=checkpoint as Record<string,unknown>;
-  if(c.branch!==safeWorkBranch(unitId)||!c.state||typeof c.state!=="object"||Array.isArray(c.state))return empty;
+  if(c.branch!==actualBranch||!c.state||typeof c.state!=="object"||Array.isArray(c.state))return empty;
   const s=c.state as Record<string,unknown>;
   return {
     ...(typeof s.summary==="string"?{summary:s.summary}:{}),

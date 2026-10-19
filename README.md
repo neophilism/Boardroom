@@ -13,7 +13,7 @@ The execution batch in [PR #42](https://github.com/neophilism/Boardroom/pull/42)
 - Setup and verification: [Deployment Runbook](docs/DEPLOYMENT_RUNBOOK.md).
 - Worker activation and cost controls: [Hosted Worker Setup](docs/HOSTED_WORKER_SETUP.md).
 - Integration contract: [Execution Protocol](docs/EXECUTION_PROTOCOL.md).
-- Approved scope: [80-unit canonical roadmap](registry/prs.json). Planned units are not completed PRs; GitHub's live metadata is authoritative for merges.
+- Approved scope: [118-unit canonical roadmap](registry/prs.json). Planned units are not completed PRs; GitHub's live metadata is authoritative for merges.
 
 Never commit credentials, private operational requests or personal data. Agents receive scoped, fenced capabilities, not unrestricted GitHub installation tokens. Hosted jobs remain opt-in; no CI result authorizes spending or establishes native ChatGPT scheduled-task compatibility.
 

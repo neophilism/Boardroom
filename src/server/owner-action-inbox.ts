@@ -1,4 +1,5 @@
 export const OWNER_ACTION_INBOX_FILTERS = [
+  "ACTIVE",
   "ALL",
   "OUTSTANDING",
   "BLOCKED",
@@ -20,6 +21,7 @@ type InboxAction = {
 };
 
 const filterStatuses: Record<Exclude<OwnerActionInboxFilter, "ALL">, readonly string[]> = {
+  ACTIVE: ["OPEN","ACKNOWLEDGED","AWAITING_VERIFICATION"],
   OUTSTANDING: ["OPEN"],
   BLOCKED: ["ACKNOWLEDGED"],
   AWAITING_VERIFICATION: ["AWAITING_VERIFICATION"],
@@ -49,7 +51,7 @@ export function parseOwnerActionInboxView(params: Record<string, string | string
   return {
     filter: OWNER_ACTION_INBOX_FILTERS.includes(requestedFilter as OwnerActionInboxFilter)
       ? requestedFilter as OwnerActionInboxFilter
-      : "ALL",
+      : "ACTIVE",
     sort: OWNER_ACTION_INBOX_SORTS.includes(requestedSort as OwnerActionInboxSort)
       ? requestedSort as OwnerActionInboxSort
       : "OLDEST"

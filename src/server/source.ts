@@ -1,7 +1,7 @@
 import type {Pool} from "pg";
 import {assignedScope,repositoryApiPath} from "./assignment-scope.ts";
 import {githubAppRequest,GitHubAppError} from "./github-app.ts";
-import {safeWorkBranch} from "./github-write-gateway.ts";
+import {resolveAssignedWorkBranch} from "./work-branch.ts";
 import {SessionConflict} from "./sessions.ts";
 
 export function readableSourcePath(value:unknown):string{
@@ -19,8 +19,9 @@ export async function readAssignedSource(db:Pool,runId:string,credentialId:strin
   const api=repositoryApiPath(scope.full_name);
   if(input.kind==="tree"){
     let sha:string;
+    const branch=await resolveAssignedWorkBranch(db,scope);
     try{
-      const ref=await githubAppRequest("GET",api+"/git/ref/heads/"+safeWorkBranch(scope.unit_id)) as {object:{sha:string}};
+      const ref=await githubAppRequest("GET",api+"/git/ref/heads/"+encodeURIComponent(branch)) as {object:{sha:string}};
       sha=ref.object.sha;
     }catch(error){
       if(!(error instanceof GitHubAppError)||error.httpStatus!==404)throw error;
@@ -38,7 +39,7 @@ export async function readAssignedSource(db:Pool,runId:string,credentialId:strin
       try{readableSourcePath(e.path);return true;}catch{return false;}
     });
     await assignedScope(db,runId,credentialId,generation);
-    return {repository:scope.full_name,headSha:sha,entries,excludedSymlinksAndSecretPaths:true};
+    return {repository:scope.full_name,branch,headSha:sha,entries,excludedSymlinksAndSecretPaths:true};
   }
   const path=readableSourcePath(input.path);
   if(!input.sha||!/^[a-f0-9]{40}$/i.test(input.sha))throw new SessionConflict("A snapshot commit SHA is required");

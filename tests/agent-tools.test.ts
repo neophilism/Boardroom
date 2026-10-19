@@ -32,3 +32,11 @@ test("Coffee answers require evidence and uncertainty at the MCP boundary",()=>{
     evidence:["https://github.com/neophilism/Boardroom/pull/92"],uncertainty:"Production was not inspected."}),{...base,
     evidence:["https://github.com/neophilism/Boardroom/pull/92"],uncertainty:"Production was not inspected."});
 });
+
+test("continuation accepts only fenced truthful assignment outcomes",()=>{
+  assert.ok(AGENT_TOOLS.some(tool=>tool.name==="boardroom_yield_and_claim"));
+  for(const outcome of ["BLOCKED","YIELDED","COMPLETED"])
+    assert.equal(validateAgentTool("boardroom_yield_and_claim",{runId:"run",generation:"1",outcome}).outcome,outcome);
+  for(const outcome of ["MERGED","ACCEPTED","FAILED","UNKNOWN"])
+    assert.throws(()=>validateAgentTool("boardroom_yield_and_claim",{runId:"run",generation:"1",outcome}),AgentToolError);
+});

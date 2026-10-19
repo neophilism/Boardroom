@@ -123,3 +123,111 @@ button.outline{background:transparent;color:#bedbe8;border:1px solid #6f899a}
 .action-detail-grid a{color:#9ddff1;overflow-wrap:anywhere}
 .detail-instructions{white-space:pre-wrap;color:#e5eef5}
 @media(max-width:640px){.action-detail-grid{grid-template-columns:1fr}}
+
+/* Private agent usage observatory; no client-side polling or paid provider calls. */
+.usage-observatory{display:grid;gap:20px;padding:18px 0 40px}
+.usage-observatory .action-card h2{margin:0 0 14px;font-size:20px}
+.usage-observatory .action-card p{font-size:14px;max-width:none}
+.usage-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(185px,100%),1fr));gap:12px}
+.usage-kpis article{display:flex;flex-direction:column;gap:12px;min-height:117px;padding:18px;border:1px solid #30475b;border-radius:12px;background:#102033}
+.usage-kpis small{font-size:12px;line-height:1.4;color:#afc8d7}
+.usage-kpis strong{font-size:27px;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.usage-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(225px,100%),1fr));gap:12px}
+.usage-stats>div{padding:12px;border:1px solid #30475b;border-radius:8px;min-width:0}
+.usage-stats dt{color:#acc3d2;font-size:12px;margin-bottom:7px}
+.usage-stats dd{margin:0;overflow-wrap:anywhere;font-size:14px;font-variant-numeric:tabular-nums}
+.usage-days{display:grid;gap:8px;margin-top:18px}
+.usage-day{display:grid;grid-template-columns:52px minmax(40px,1fr) 105px minmax(135px,180px);align-items:center;gap:9px;font-size:13px}
+.usage-day strong,.usage-day small{font-variant-numeric:tabular-nums}
+.usage-day small{color:#b9cbd9;text-align:right}
+.usage-meter{height:8px;border-radius:20px;overflow:hidden;background:#273b4d;min-width:40px}
+.usage-meter span{display:block;height:100%;background:#86cada;border-radius:20px;transition:width .12s}
+.usage-filters{display:flex;flex-wrap:wrap;align-items:flex-end;gap:14px;margin:18px 0}
+.usage-filters label{display:grid;gap:6px;color:#dcebf5;font-size:13px}
+.usage-filters input,.usage-filters select{background:#0a1525;border:1px solid #68889a;border-radius:8px;padding:9px;color:#fff;font:inherit;max-width:100%}
+.usage-table-wrap{overflow-x:auto;max-width:100%;border:1px solid #30475b;border-radius:10px}
+.usage-table{border-collapse:collapse;width:100%;min-width:835px;font-variant-numeric:tabular-nums;text-align:left}
+.usage-table th,.usage-table td{padding:12px 10px;border-bottom:1px solid #30475b;vertical-align:middle;font-size:13px}
+.usage-table thead th{position:sticky;top:0;background:#1a3044;color:#dfeef6;font-size:12px}
+.usage-table tbody th small{display:block;margin-top:5px;font-weight:normal;color:#a7c0d1}
+.usage-table tbody th button{padding:6px 9px}
+.usage-table td strong{font-size:12px;white-space:nowrap}
+.usage-table td .usage-meter{min-width:80px;margin-top:8px}
+@media(max-width:600px){.usage-day{grid-template-columns:45px minmax(60px,1fr) 90px}.usage-day small{grid-column:2 / 4;text-align:left}.usage-kpis strong{font-size:23px}}
+
+/* Owner-only dormant logical agent inventory. Manual pagination, no provider calls. */
+.logical-inventory{display:grid;gap:18px;margin:20px 0 42px}
+.logical-inventory .action-card p{max-width:none;font-size:14px}
+.logical-inventory h2{font-size:20px;margin:0 0 14px}
+.logical-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(215px,100%),1fr));gap:12px;margin:18px 0}
+.logical-fields label{display:grid;gap:6px;font-size:13px;font-weight:700}
+.logical-fields input,.logical-fields select{border:1px solid #59758a;background:#091526;color:#eaf2f9;padding:11px;border-radius:8px;min-width:0;font:inherit}
+.logical-list{display:grid;gap:8px}
+.logical-row{display:grid;grid-template-columns:2fr 1fr 1fr;gap:12px;align-items:center;padding:13px;border:1px solid #30475b;border-radius:8px}
+.logical-row small{display:block;margin-top:5px;color:#9eb7c6;font-size:12px;overflow-wrap:anywhere}
+.logical-row span{font-size:14px;text-transform:capitalize}
+@media(max-width:600px){.logical-row{grid-template-columns:1fr 1fr}.logical-row>div:first-child{grid-column:1 / -1}}
+
+
+/* Global owner chrome: shared navigation and heading at every authenticated route. */
+.boardroom-toolbar{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:14px;
+border:1px solid #344b5f;border-radius:12px;padding:10px 12px;background:#102033;position:relative;z-index:10}
+.boardroom-brand{display:inline-flex;align-items:center;gap:9px;color:#f1f8fd;text-decoration:none;
+font:750 15px/1.15 Arial,Helvetica,sans-serif;letter-spacing:-.01em;white-space:nowrap}
+.boardroom-brand-mark{display:inline-grid;place-items:center;width:29px;height:29px;border:1px solid #608ca4;
+border-radius:8px;background:#19394a;color:#cceff7;font-size:16px}
+.boardroom-primary-nav{display:flex;align-items:center;gap:3px;min-width:0;overflow-x:auto;scrollbar-width:thin}
+.boardroom-nav-link,.boardroom-more>summary,.boardroom-signout{font:600 13px/1.25 Arial,Helvetica,sans-serif;
+letter-spacing:0;white-space:nowrap;text-decoration:none;border-radius:7px;padding:9px 10px}
+.boardroom-nav-link{display:inline-flex;align-items:center;color:#b8cddc;border:1px solid transparent}
+.boardroom-nav-link:hover,.boardroom-nav-link:focus-visible,.boardroom-more>summary:hover,
+.boardroom-signout:hover{color:#f3fbff;background:#203c50}
+.boardroom-nav-link.is-active,.boardroom-nav-link[aria-current="page"]{background:#24465b;color:#f2faff;border-color:#547b95}
+.boardroom-toolbar-actions{display:flex;align-items:center;gap:8px;justify-self:end}
+.boardroom-toolbar-actions form{margin:0}
+.boardroom-more{position:relative}
+.boardroom-more>summary{display:block;list-style:none;cursor:pointer;color:#b8cddc;border:1px solid #425d70}
+.boardroom-more>summary::-webkit-details-marker{display:none}
+.boardroom-more>summary span{padding-left:5px;color:#85a8bb}
+.boardroom-more.is-active>summary,.boardroom-more[open]>summary{color:#f2faff;border-color:#678ca0;background:#234054}
+.boardroom-more-menu{position:absolute;right:0;top:calc(100% + 8px);width:196px;padding:7px;display:grid;
+gap:3px;background:#13293c;border:1px solid #466479;border-radius:10px;box-shadow:0 16px 35px #030c19ba;z-index:20}
+.boardroom-more:not([open]) .boardroom-more-menu{display:none}
+.boardroom-more-menu .boardroom-nav-link{width:100%}
+.boardroom-signout{border:1px solid #4c6779;background:transparent;color:#b8cddc;cursor:pointer}
+.boardroom-page-heading{margin:30px 0 22px}
+.boardroom-page-heading .eyebrow{margin:0;font-size:11px;line-height:1.3;max-width:none}
+.boardroom-page-heading h1{font-size:clamp(1.8rem,3vw,2.8rem);line-height:1.14;max-width:none;margin:8px 0 0;letter-spacing:-.025em}
+@media(max-width:1050px){.boardroom-toolbar{grid-template-columns:minmax(0,1fr) auto;
+grid-template-areas:"brand actions" "nav nav";gap:9px}
+.boardroom-brand{grid-area:brand}.boardroom-primary-nav{grid-area:nav;padding-top:6px;border-top:1px solid #314b5d}
+.boardroom-toolbar-actions{grid-area:actions}}
+@media(max-width:600px){.boardroom-toolbar{padding:9px 10px}.boardroom-nav-link,.boardroom-more>summary,
+.boardroom-signout{font-size:12px;padding:9px 8px}.boardroom-page-heading{margin:24px 0 18px}}
+
+
+/* Owner-only agent audit profiles: passive, paginated evidence from existing records. */
+.agent-profile .action-card p{max-width:none}
+.agent-profile-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(230px,100%),1fr));gap:12px;margin:22px 0}
+.agent-profile-summary .action-card{padding:17px;min-width:0}
+.agent-profile-summary h2{font-size:13px;color:#a8c4d6;text-transform:uppercase;letter-spacing:.045em;margin:0 0 12px}
+.agent-profile-summary strong{font-size:17px;overflow-wrap:anywhere}
+.agent-profile-summary p{font-size:13px;margin:9px 0}
+.agent-profile-summary small,.agent-record small{display:block;color:#9bbacc;font-size:12px;margin-top:7px;line-height:1.5}
+.agent-profile-section{margin:16px 0}
+.agent-profile-section h2{margin:0 0 11px}
+.agent-profile-section a,.work-details a,.agent-entry a,.usage-table a{color:#b9eafa}
+.agent-event-list{list-style:none;padding:0;margin:20px 0 0;display:grid}
+.agent-event{padding:15px 0;border-top:1px solid #30475b}
+.agent-event-title{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.agent-event-title strong{font-size:15px}
+.agent-event-title time{font-size:12px;color:#abc0d0;white-space:nowrap}
+.agent-event-meta,.agent-event-links{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:9px;font-size:13px;overflow-wrap:anywhere}
+.agent-event-meta{color:#c8d8e5}
+.agent-event-links a,.agent-event-pagination a{color:#a6dff2}
+.agent-event-paths{margin-top:10px;font-size:12px;color:#aec6d5}
+.agent-event-paths summary{cursor:pointer}
+.agent-event-paths li{overflow-wrap:anywhere}
+.agent-event-pagination{display:flex;gap:18px;flex-wrap:wrap;margin-top:20px}
+.agent-records{display:grid;gap:0}
+.agent-record{padding:12px 0;border-top:1px solid #31485b;font-size:14px;overflow-wrap:anywhere}

@@ -1,3 +1,4 @@
+import OwnerNavigation from "../owner-navigation";
 import {cookies} from "next/headers";
 import Link from "next/link";
 import {redirect} from "next/navigation";
@@ -14,13 +15,7 @@ export default async function RecoveryPage(){
   if(!validOwnerSession(jar.get(OWNER_COOKIE)?.value))redirect("/login");
   const entries=await getRecoveryOverview(getDatabase());
   return <main className="owner-shell">
-    <header className="owner-header">
-      <div><p className="eyebrow">BOARDROOM / SAFE RECOVERY</p><h1>Stalled session review</h1></div>
-      <nav className="work-nav">
-        <Link className="priority-nav" href="/work-board">Work Board</Link>
-        <Link className="priority-nav" href="/owner-actions">Owner actions</Link>
-      </nav>
-    </header>
+    <OwnerNavigation section="SAFE RECOVERY" title="Stalled session review" activePath="/recovery"/>
     <p>Verify termination or isolation of outside execution before recovery. Recovery revokes the old credential and fences its run before releasing the repository. An expired heartbeat alone is insufficient.</p>
     <div className="summary-strip"><strong>{entries.length}</strong> sessions requiring review</div>
     {entries.length===0?<section className="action-card"><h2>No recovery holds found</h2><p>The watchdog must be securely scheduled before this can be treated as active monitoring.</p></section>:
@@ -28,7 +23,7 @@ export default async function RecoveryPage(){
         <div className="card-top"><span className="status-label">{e.runState}</span><span>Generation {e.leaseGeneration}</span></div>
         <h2>{e.repository}</h2>
         <dl className="work-details">
-          <dt>Named agent</dt><dd>{e.agentName??"Unverified"}{e.provider?` · ${e.provider}`:""}</dd>
+          <dt>Named agent</dt><dd>{e.credentialId&&e.agentName?<Link href={"/agents/"+e.credentialId}>{e.agentName}</Link>:"Unverified"}{e.provider?` · ${e.provider}`:""}</dd>
           <dt>Work unit</dt><dd>{e.workUnitId??"None recorded"}</dd>
           <dt>Run ID</dt><dd><code>{e.runId}</code></dd>
           <dt>Lease expiry</dt><dd>{formatEastern(e.leaseExpiredAt.toISOString())}</dd>

@@ -14,5 +14,8 @@ export const MIGRATION_MANIFEST = [
   {filename: "0010_coffee_question_metadata.sql", sha256: "119244a91c769210f12bb115bf560c7060fb12c602a8cfbb615f25dae37765c6"},
   {filename: "0011_coffee_posting_budget_index.sql", sha256: "814ce5baae5af4b83c75ecbae33ca5812be127016e5faa9e1647dad8bf12ef8e"},
   {filename: "0012_agent_account_email.sql", sha256: "a21c6b0db61ffcde9a85e69414110b9481978cee9dcbad06a3eeb7b0c095cbd3"},
-  {filename: "0013_agent_name_reservations.sql", sha256: "e803ac7bc945562b18667ad17325747cddacb61c0d94c2c95070c063859af522"}
+  {filename: "0013_agent_name_reservations.sql", sha256: "e803ac7bc945562b18667ad17325747cddacb61c0d94c2c95070c063859af522"},
+  {filename: "0014_logical_agents.sql", sha256: "5209ab882e52e77b848b6c94877170354efd05dc1aef1a5682d5956c26f5b5ec"},
+  {filename: "0015_outbox_supersession.sql", sha256: "f71463c46e9b682fc1a4464f75e50fce17c2e2feb9cf2e853415ce7044e79932"},
+  {filename: "0017_continuous_work_sessions.sql", sha256: "017be471e795f9f199c83e5391cf0a61d8d9847788444c8ed51ef3f887b1b58b"}
 ] as const;

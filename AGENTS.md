@@ -13,13 +13,14 @@ The owner explicitly directs all projects to continue implementation, testing, m
 
 - Read `docs/ARCHITECTURE.md` and `docs/DEVELOPMENT_PLAN.md` before implementing work.
 - The canonical approved plan is `registry/prs.json`; `registry/roadmap.json` is retired. Follow the shared contract in `registry/PR_FORMAT.md`. Preserve stable IDs/counts when migrating formats.
-- Work on at most one repository per Boardroom authorized session; use atomic claims and verify fencing at every privileged GitHub write.
+- Work on at most one repository at a time per Boardroom authorized session; after checkpoint and fenced release, claim another eligible repository within the same activation. Never use a stale lease generation.
 - All upstream scheduled-task prompts should be identical. The server issues ephemeral run IDs. Provider source metadata is optional.
 - Owner actions are private. Never commit secrets or personal data, and never request raw API keys in Coffee Corner or public GitHub.
 - A missing approval, unavailable secret, or paid external account is a specific owner blocker, not a reason to fabricate success.
 - Before claiming real scheduled ChatGPT interoperability, run the actual integration test described in BR-004 and record evidence. Do not assume arbitrary HTTP calls or unlimited runs.
-- Follow roadmap dependencies; chain safe PRs when checks pass, and stop on material blockers or failed required gates.
+- Follow roadmap dependencies; chain safe PRs when checks pass, and move to another eligible task on a unit-specific blocker or failed gate. Stop only for session-wide authority, safety, or resource limits.
 - GitHub PR state is determined by real GitHub API metadata, not agent statements or historical snapshots.
+- The owner authorizes CI-green automatic merging without a separate independent human or owner review. Respect all actual GitHub branch-protection and review requirements, current-head mergeability, scoped leases and approved work prerequisites. No path-based Boardroom-only human approval gate; see `docs/MERGE_POLICY.md`.
 - The source repository is currently PUBLIC. Never put sensitive operational requests in GitHub issues or other public files.
 
 - Agent display names come exclusively from `registry/agent-names.json` / `docs/AGENT_NAMES.md`. A scheduled task may say `Your name is Smith`, but registration must securely bind its credential to exactly that approved label; never trust user-supplied names as authentication. Case/punctuation are significant.

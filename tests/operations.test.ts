@@ -3,10 +3,13 @@ import assert from "node:assert/strict";
 import {parseExecutionPolicy,recoverRun} from "../src/server/operations.ts";
 import {SessionConflict} from "../src/server/sessions.ts";
 import type {Pool} from "pg";
-test("merge policy requires explicit CI names and bounded review count",()=>{
-  const valid={repositoryId:"1",autoMerge:true,requiredChecks:["verify","verify"],minimumReviews:1};
+test("merge policy requires named passing CI and never adds a human-review count",()=>{
+  const valid={repositoryId:"1",autoMerge:true,requiredChecks:["verify","verify"]};
   assert.deepEqual(parseExecutionPolicy(valid).requiredChecks,["verify"]);
-  for(const p of [{...valid,requiredChecks:[]},{...valid,minimumReviews:-1},{...valid,repositoryId:"x"}])
+  assert.equal(parseExecutionPolicy(valid).minimumReviews,0);
+  assert.equal(parseExecutionPolicy({...valid,minimumReviews:0}).minimumReviews,0);
+  for(const p of [{...valid,requiredChecks:[]},{...valid,minimumReviews:1},
+    {...valid,minimumReviews:-1},{...valid,repositoryId:"x"}])
     assert.throws(()=>parseExecutionPolicy(p),SessionConflict);
 });
 test("recovery cannot run based solely on expired heartbeat",async()=>{

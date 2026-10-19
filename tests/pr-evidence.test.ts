@@ -1,8 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import type {Pool} from "pg";
+import type {githubAppRequest} from "../src/server/github-app.ts";
+import {WorkMappingConflict,type WorkPull} from "../src/server/work-branch.ts";
+import {SessionConflict} from "../src/server/sessions.ts";
 import {
   acceptanceVerification,assessObservedChecks,completionEvidenceSufficient,evidenceTimestamp,isEmptyRenderSuite,
-  isAcceptedMergedPullRequest,type CheckRun,type CheckSuite,type LegacyStatus
+  isAcceptedMergedPullRequest,readAssignedPrEvidence,type CheckRun,type CheckSuite,type LegacyStatus
 } from "../src/server/pr-evidence.ts";
 const one:CheckRun={id:1,name:"verify",status:"completed",conclusion:"success"};
 const suite:CheckSuite={id:2,status:"completed",conclusion:"success",app:{name:"Actions"}};
@@ -92,4 +96,85 @@ test('GitHub merger immediately accepts the PR without pretending a whole work p
  assert.equal(isAcceptedMergedPullRequest('not a timestamp'),false);
  // A completed PR remains accepted even when a later package still needs work.
  assert.equal(completionEvidenceSufficient('OBSERVED_PASS','MERGED','Whole-package criteria'),false);
+});
+
+const evidenceRun="11111111-1111-4111-8111-111111111111";
+function assignedEvidenceFixture(number:number,sourceMetadata:unknown,plannedPrs:number[]=[],leasePresent=true){
+  const scope={repository_id:"1413400269",full_name:"ci/Example",unit_id:"CS-12",title:"Succession verification",
+    state:"ACCEPTED",acceptance_criteria:"Entire work unit independently verified",
+    source_observed_at:"2026-10-18T00:00:00Z",source_metadata:sourceMetadata};
+  const pr:WorkPull & {html_url:string;draft:boolean}={number,state:"closed",merged_at:"2026-10-17T00:00:00Z",
+    html_url:"https://github.com/ci/Example/pull/"+number,draft:false,
+    head:{ref:"historical/succession",sha:"a".repeat(40),repo:{id:1413400269}},base:{ref:"main",repo:{id:1413400269}}};
+  const queries:{sql:string;values:unknown[]}[]=[],requests:{method:string;path:string}[]=[];
+  const db={query:async(sql:string,values:unknown[])=>{
+    queries.push({sql,values});
+    if(sql.includes("FROM agent_runs"))return {rows:leasePresent?[scope]:[],rowCount:leasePresent?1:0};
+    if(sql.includes("SELECT planned_prs,source_metadata"))
+      return {rows:[{planned_prs:plannedPrs,source_metadata:sourceMetadata}],rowCount:1};
+    throw new Error("Unexpected database operation: "+sql);
+  }} as unknown as Pool;
+  const request=async(method:string,path:string)=>{
+    requests.push({method,path});assert.equal(method,"GET");
+    if(path==="/repos/ci/Example/pulls/"+number)return pr;
+    if(path.endsWith("/check-runs?per_page=100"))return {total_count:1,check_runs:[one]};
+    if(path.endsWith("/check-suites?per_page=100"))return {total_count:1,check_suites:[suite]};
+    if(path.endsWith("/status"))return {statuses:[]};
+    throw new Error("Unexpected GitHub path: "+path);
+  };
+  return {scope,pr,queries,requests,db,request:request as typeof githubAppRequest};
+}
+
+test("CS-12 contributing PRs remain readable without converting evidence into completion or merge authority",async()=>{
+  // Same source shape as the reported failure: explicit completion mapping is
+  // empty, while both real historical contributions have source-owned links.
+  for(const number of [14,29]){
+    const f=assignedEvidenceFixture(number,{id:"CS-12",prs:[],contributingPrs:[14,29]});
+    const result=await readAssignedPrEvidence(f.db,evidenceRun,"credential","3",number,f.request);
+    assert.equal(result.pullRequest.relationship,"CONTRIBUTION");
+    assert.equal(result.pullRequest.accepted,true);
+    assert.equal(result.pullRequest.headSha,"a".repeat(40));
+    assert.equal(result.checks.assessment,"OBSERVED_PASS");
+    assert.equal(result.unitAcceptance.satisfied,false);
+    assert.equal(result.safeToMarkComplete,false);
+    assert.equal(result.safeToAutoMerge,false);
+    assert.equal(result.requiredBranchProtectionVerified,false);
+    assert.equal(result.reviewApprovalVerified,false);
+    assert.ok(f.requests.slice(1).every(r=>r.path.startsWith("/repos/ci/Example/commits/"+"a".repeat(40)+"/")));
+    assert.ok(f.queries.every(q=>q.sql.startsWith("SELECT ")));
+    assert.deepEqual(f.queries[0].values,[evidenceRun,"credential","3"]);
+  }
+});
+
+test("prior evidence and assigned work retain distinct acceptance semantics",async()=>{
+  for(const [metadata,planned,relationship,satisfied] of [
+    [{id:"CS-12",prs:[],priorEvidencePrs:[14]},[],"PRIOR_EVIDENCE",false],
+    [{id:"CS-12",prs:[14]},[14],"ASSIGNED_WORK",true]
+  ] as const){
+    const f=assignedEvidenceFixture(14,metadata,[...planned]);
+    const result=await readAssignedPrEvidence(f.db,evidenceRun,"credential","3",14,f.request);
+    assert.equal(result.pullRequest.relationship,relationship);
+    assert.equal(result.unitAcceptance.satisfied,satisfied);
+    assert.equal(result.safeToMarkComplete,satisfied);
+    assert.equal(result.safeToAutoMerge,false);
+  }
+});
+
+test("unmapped or cross-repository evidence is refused before reading commit checks",async()=>{
+  const fixtures=[
+    assignedEvidenceFixture(99,{id:"CS-12",prs:[],contributingPrs:[14,29]},[99]),
+    assignedEvidenceFixture(14,{id:"CS-12",prs:[],contributingPrs:[14,29]})
+  ];
+  fixtures[1].pr.base={ref:"main",repo:{id:99}};
+  for(const f of fixtures){
+    await assert.rejects(readAssignedPrEvidence(f.db,evidenceRun,"credential","3",f.pr.number,f.request),WorkMappingConflict);
+    assert.equal(f.requests.length,1);
+    assert.ok(f.requests[0].path.startsWith("/repos/ci/Example/pulls/"));
+  }
+});
+
+test("historical evidence still requires an authorized current lease",async()=>{
+  const f=assignedEvidenceFixture(14,{id:"CS-12",prs:[],contributingPrs:[14,29]},[],false);
+  await assert.rejects(readAssignedPrEvidence(f.db,evidenceRun,"credential","3",14,f.request),SessionConflict);
+  assert.deepEqual(f.requests,[]);
 });

@@ -1,3 +1,4 @@
+import OwnerNavigation from "../owner-navigation";
 import Link from "next/link";
 import {cookies} from "next/headers";
 import {redirect} from "next/navigation";
@@ -18,12 +19,7 @@ export default async function AgentStatusPage(){
   const running=snapshot.agents.filter(r=>classifyAgentActivity(r,now)==="RUNNING").length;
   const held=snapshot.agents.filter(r=>["RECOVERING","UNKNOWN"].includes(classifyAgentActivity(r,now))).length;
   return <main className="owner-shell">
-    <header className="owner-header"><div><p className="eyebrow">BOARDROOM / AGENT ASSIGNMENTS</p><h1>Who is working on what?</h1></div>
-      <nav className="work-nav" aria-label="Boardroom owner views">
-        <Link href="/agents">Manage agents</Link><Link href="/work-board">Work Board</Link>
-        <Link href="/launch">Launch instructions</Link><Link href="/recovery">Recovery</Link>
-      </nav>
-    </header>
+    <OwnerNavigation section="AGENT ASSIGNMENTS" title="Who is working on what?" activePath="/agent-status"/>
     <p>Snapshot as of {formatEastern(snapshot.observedAt)}. Nothing updates automatically: use Refresh to read current Boardroom database records. A recorded running lease does not prove code is actively being written.</p>
     <form method="get" action="/agent-status"><button type="submit">Refresh assignments</button></form>
     <div className="summary-strip"><strong>{running}</strong> current leases <span>·</span>

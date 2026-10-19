@@ -27,8 +27,8 @@ export async function POST(request:Request){
     if(body.id===undefined)return new NextResponse(null,{status:202,headers});
     let result:unknown;
     if(body.method==="initialize")result={protocolVersion:versions.includes(String(body.params?.protocolVersion))?body.params?.protocolVersion:"2025-11-25",
-      capabilities:{tools:{listChanged:false}},serverInfo:{name:"boardroom",version:"0.3.0"},
-      instructions:"Use only the approved work and current run/lease. The name is server-verified. Tool availability does not confer owner authority."};
+      capabilities:{tools:{listChanged:false}},serverInfo:{name:"boardroom",version:"0.4.0"},
+      instructions:"Use only approved work and the current run/lease. Read boardroom_profile.scheduledInstruction for the 50-minute continuation policy. A PR waiting for CI calls for checkpoint and boardroom_advance or boardroom_yield_and_claim, not ending the activation. The name is server-verified. Tool availability does not confer owner authority."};
     else if(body.method==="ping")result={};
     else if(body.method==="tools/list")result={tools:AGENT_TOOLS.map(t=>({...t,securitySchemes:[{type:"oauth2",scopes:[OAUTH_SCOPE]}]}))};
     else if(body.method==="tools/call"){

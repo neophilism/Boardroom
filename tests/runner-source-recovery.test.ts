@@ -29,7 +29,7 @@ test("an interrupted write blocks stale tests until the hosted agent refreshes a
       if(op.kind==="upsert_file"){
         fileWrites++;
         // The upstream commit happened, but the response was interrupted.
-        return new Response(JSON.stringify({error:"private upstream credential detail"}),{status:503});
+        return new Response(JSON.stringify({code:"GITHUB_OPERATION_UNCERTAIN",error:"private upstream credential detail"}),{status:409});
       }
     }else if(path.endsWith("/usage"))body={reservationId:id,replay:false};
     else if(path.endsWith("/checkpoint"))checkpoints.push(JSON.parse(String(init.body)));
@@ -44,11 +44,12 @@ test("an interrupted write blocks stale tests until the hosted agent refreshes a
   assert.equal(result.status,"YIELDED");assert.equal(fileWrites,1);assert.equal(finished,true);
   assert.equal(checkpoints.at(-1)?.headSha,newSha);
   assert.match(modelBodies.join("\n"),/SOURCE_RECONCILIATION_REQUIRED/);
+  assert.match(modelBodies.join("\n"),/GITHUB_OPERATION_UNCERTAIN/);
   assert.match(modelBodies.join("\n"),/testsNeedRerun/);
   assert.doesNotMatch(modelBodies.join("\n"),/private upstream credential detail/);
 });
-test("an unreconciled final write records an unknown head and explicit handoff",async(t)=>{
-  let turn=0,reads=0;const checkpoints:Record<string,unknown>[]=[];
+test("an unreconciled final write records an unknown head and respects the retained release hold",async(t)=>{
+  let turn=0,reads=0,finishes=0,writes=0;const checkpoints:Record<string,unknown>[]=[];
   t.mock.method(globalThis,"fetch",async(url:RequestInfo|URL,init:RequestInit)=>{
     const path=new URL(String(url)).pathname;let body:unknown={};
     if(path.endsWith("/arrive"))body={agentName:"Smith",provider:"chatgpt",runId:id,shouldWork:true,state:"ADMITTED",replay:false};
@@ -57,9 +58,14 @@ test("an unreconciled final write records an unknown head and explicit handoff",
     else if(path.endsWith("/source")){
       if(reads++)return new Response("{}",{status:503});
       body={repository:"ci/repo",headSha:oldSha,entries:[]};
-    }else if(path.endsWith("/write")&&JSON.parse(String(init.body)).kind==="upsert_file")return new Response("{}",{status:503});
+    }else if(path.endsWith("/write")&&JSON.parse(String(init.body)).kind==="upsert_file"){
+      writes++;return new Response(JSON.stringify({code:"GITHUB_OPERATION_UNCERTAIN"}),{status:409});
+    }
     else if(path.endsWith("/usage"))body={reservationId:id,replay:false};
     else if(path.endsWith("/checkpoint"))checkpoints.push(JSON.parse(String(init.body)));
+    else if(path.endsWith("/finish")){
+      finishes++;return new Response(JSON.stringify({code:"RELEASE_RECONCILIATION_REQUIRED"}),{status:409});
+    }
     else if(String(url).startsWith("https://api.openai.com/")){
       const call=turn++===0?{name:"write_file",arguments:{path:"src/new.ts",text:"export const n=2;",message:"CI-001: useful change"}}:
         {name:"yield",arguments:{outcome:"YIELDED"}};
@@ -67,7 +73,8 @@ test("an unreconciled final write records an unknown head and explicit handoff",
     }else if(path.endsWith("/threads"))body={threads:[]};
     return new Response(JSON.stringify(body));
   });
-  assert.equal((await runHostedAgent(config,"source-recovery-activation-0002")).status,"YIELDED");
+  assert.equal((await runHostedAgent(config,"source-recovery-activation-0002")).status,"RECOVERY_REQUIRED");
+  assert.equal(writes,1);assert.equal(finishes,1);
   const checkpoint=checkpoints.at(-1)!;
   assert.equal(checkpoint.headSha,null);
   assert.equal((checkpoint.state as Record<string,unknown>).sourceNeedsRefresh,true);

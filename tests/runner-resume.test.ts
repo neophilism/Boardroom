@@ -72,3 +72,9 @@ test("new session resumes its existing PR and keeps the latest substantive hando
   assert.equal((writes.at(-1)?.state as Record<string,unknown>).nextAction,"Wait for current PR review");
   assert.equal((writes.at(-1)?.state as Record<string,unknown>).prNumber,8);
 });
+
+test("an imported branch checkpoint resumes only against the actual verified snapshot branch",()=>{
+  const hint={branch:"feat/imported",state:{prNumber:13,summary:"Remote implementation"}};
+  assert.equal(checkpointProgress(hint,"SS-19","feat/imported").prNumber,13);
+  assert.equal(checkpointProgress(hint,"SS-19","feat/unrelated").prNumber,null);
+});

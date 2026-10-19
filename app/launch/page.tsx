@@ -1,3 +1,4 @@
+import OwnerNavigation from "../owner-navigation";
 import Link from "next/link";
 import {cookies} from "next/headers";
 import {redirect} from "next/navigation";
@@ -15,8 +16,7 @@ export default async function LaunchPage(){
   const native=status.agents.filter(a=>a.provider==="chatgpt");
   const connected=native.filter(a=>a.connected).length;
   return <main className="owner-shell">
-    <header className="owner-header"><div><p className="eyebrow">BOARDROOM / FIVE-AGENT LAUNCH</p><h1>Start scheduled development</h1></div>
-      <nav className="work-nav" aria-label="Boardroom owner views"><Link href="/system">System connections</Link><Link href="/agents">Scheduled agents</Link><Link href="/operations">Execution controls</Link><Link href="/agent-status">Robot project status</Link><Link href="/reports">Daily report</Link></nav></header>
+    <OwnerNavigation section="FIVE-AGENT LAUNCH" title="Start scheduled development" activePath="/launch"/>
     <p>Observed {status.observedAt}. This checklist reads real configuration and activity. Connections and assignments do not prove that a scheduled agent wrote, tested or merged useful code.</p>
     <div className="summary-strip"><strong>{native.length}/5</strong> ChatGPT identities registered <span>·</span><strong>{connected}/5</strong> with unexpired OAuth access or refresh credentials</div>
     <ol>
@@ -31,7 +31,7 @@ export default async function LaunchPage(){
     </ol>
     <h2>Named connection observations</h2>
     {native.length===0?<p>No ChatGPT identities are registered yet.</p>:<div className="work-grid">{native.map(agent=><article className="work-card" key={agent.credentialId}>
-      <h3>{agent.name}</h3><p>Account: <strong>{agent.accountEmail??"Not recorded"}</strong> · <a href="https://chatgpt.com/" target="_blank" rel="noopener noreferrer">Open ChatGPT</a> (select the displayed account)</p><p>{agent.connected?"Unexpired OAuth credential observed":"No usable OAuth credential observed"}</p>
+      <h3><Link href={"/agents/"+agent.credentialId}>{agent.name}</Link></h3><p>Account: <strong>{agent.accountEmail??"Not recorded"}</strong> · <a href="https://chatgpt.com/" target="_blank" rel="noopener noreferrer">Open ChatGPT</a> (select the displayed account)</p><p>{agent.connected?"Unexpired OAuth credential observed":"No usable OAuth credential observed"}</p>
       <p>{agent.activations} arrivals · {agent.assignments} assignments</p><p>Last arrival: {agent.lastActivationAt?.toISOString()??"None recorded"}</p>
     </article>)}</div>}
     <p>Recorded integration evidence labels: {status.recordedIntegrationGates.join(", ")||"None"}. Labels must be reviewed against their underlying run, PR, CI and recovery evidence before claiming acceptance.</p>

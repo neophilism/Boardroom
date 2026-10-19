@@ -1,12 +1,12 @@
 # Boardroom — Complete Implementation Roadmap
 
-**80 planned, approved-for-planning PR work units (roadmap version 2)**. These are *planned PRs*, not currently implemented or verified pull requests. BR-001 creates this plan; subsequent PRs require actual code, reviews, tests, and merges.
+**118 planned, approved-for-planning PR work units (roadmap version 3)**. These are *planned PRs*, not currently implemented or verified pull requests. BR-001 creates this plan; subsequent PRs require actual code, reviews, tests, and merges.
 
 **Portfolio priority:** Boardroom is the highest-priority project until an end-to-end unattended scheduled-agent loop with an Owner Action Board is working. Do not fabricate overall portfolio ranking changes in the currently undeployed Boardroom app; the owner can later change the rank using its priority editor.
 
 **Core rule:** One authorized active development session per GitHub repository. Each recurring ChatGPT scheduled task can use exactly the same prompt; arrivals are anonymous to one another at the prompt layer and receive unique server-generated session IDs. Provider-account/schedule metadata is optional and is never used as a false account-wide concurrency lock. Repository claims are atomic and privileged writes are fenced.
 
-**Selection:** Pick the first available repository in the owner's ordered priority list. If none is eligible, select the eligible nonpriority repository with the oldest independently verified development update. If none is eligible, check outstanding peer questions and end. Inside an assigned repo, first resume incomplete approved work before choosing the next eligible unit.
+**Selection:** Pick the first available repository in the owner's ordered priority list. If none is eligible, select the eligible nonpriority repository with the oldest independently verified development update. If none is eligible, make a bounded source-backed Coffee pass, recheck once when new evidence is available, and finish idle truthfully. Inside an assigned repo, first resume incomplete approved work before choosing the next eligible unit.
 
 **End of session:** Push/checkpoint actual work, report verified outcome, make one bounded evidence-based Coffee Corner answer pass, release repository assignment, and terminate. If a technical question would otherwise block progress, search/ask Coffee Corner; if only the owner can act, post a specific request on the private Owner Action Board. Never request secrets in chat or a public GitHub issue.
 
@@ -338,9 +338,9 @@
 
 ### BR-039 — Continuous eligible PR-chain workflow
 
-**Scope:** After a verified unit finishes, pick the next approved eligible unit in the same claimed repo without user prompting.
+**Scope:** Continue approved eligible work within the same activation, preferring the current repository and using checkpointed fenced handoffs when work must wait or the repository is exhausted.
 
-**Acceptance:** One session may complete successive PR units while never taking a second repository.
+**Acceptance:** One activation may complete successive PR units and, after checkpoint and fenced release, move to another repository while holding at most one lease at a time.
 
 **Dependencies:** BR-011, BR-038
 
@@ -682,3 +682,125 @@ Maintain all 601 owner-supplied names exactly, including punctuation and case, i
 ### BR-080 — Server-verified named identity
 
 Each scheduled task receives one owner-assigned name from the roster and retains it on every hourly activation; its run ID remains new every time. Bind the name to a unique secret credential or trusted provider authentication and derive it server-side. Do not accept name claims as proof of identity. Reject unregistered names at onboarding/admission and return the verified display name with session details. No raw bearer token or personal details may be committed to GitHub. (Depends on BR-079 and BR-003.)
+
+## F9–F12: API-agent expansion and million-identity capacity (BR-081 through BR-118)
+
+The owner-requested API integration and long-term mixed-role scaling roadmap is canonical in `registry/prs.json` and specified in detail in [API_AGENT_SCALE_PLAN.md](API_AGENT_SCALE_PLAN.md). It adds 38 work units without changing the existing BR-001–BR-080 identities, dependencies, PR mappings or acceptance evidence. The new provider adapters and scale tests are *planned*, not deployed or proven. The entire paid fleet remains $0-disabled until owner-provided credentials and explicit funding authorization. No statement here certifies million-agent production capacity.
+
+
+## Operational follow-up — BR-020/BR-004 stalled scheduled-agent claims (October 18, 2026)
+
+Gort, Joi and Bishop provided real scheduled-run evidence of stale local roadmap states after GitHub PRs #106 and #105 merged. PR #116 repaired the current-assignment advancement boundary. The complementary maintenance repair tracks queued work honestly and prevents a new repository lease based on old local merge evidence.
+
+- On an admitted claim, preflight the selected eligible repository's last successful GitHub reconciliation outside the database transaction. Refresh a stale repository directly and rerun eligibility, with a fixed four-repository bound.
+- Before granting a lease, check freshness again inside the lease transaction. Never allow an unknown/stale GitHub view to turn into an authorized claim.
+- Coalesce duplicate inventory and webhook queue rows, preserve a SUPERSEDED record and audit it, keep inventory progress incremental, and let one of every three dispatch slots prefer inventory to avoid starvation.
+- GitHub's ten-minute scheduled Action is best-effort. A main-branch push now also runs a bounded maintenance tick. Event-driven direct repository operations and on-demand claim reconciliation do not depend on punctual cron delivery.
+- Perform real PostgreSQL concurrency, idempotency, ledger/migration hash, and queue-fairness tests. Do not claim full autonomous development until a live agent can claim fresh work, make a gated write, produce an evidence-linked PR and safely finish.
+- Deployment is independently verified using exact revision and service readiness evidence. Do not infer production rollout from a merged PR alone. Keep native ChatGPT app safety rejections separate from coordinator reconciliation failures.
+
+
+### Follow-up to October 18 maintenance recovery: partial import failures
+
+Live Neon review after PR #124 confirmed that the Boardroom work units had become MERGED with the correct PR numbers and duplicate inventory work was superseded, but two other repositories returned source-verification errors. A failed repository must remain ERROR and unapproved; however, it must not force all later inventory pages to retry indefinitely. The importer now persists partial-page audit evidence and completes the current page while preserving the numeric continuation cursor; next sweeps revisit the failed repositories. Tests assert that a partial failure produces the next-page cursor, and invalid importer reports still fail closed. Independently review and repair the affected repositories' source registries before calling them eligible.
+
+
+
+## October 18 operational repair — BR-017/018/036/039/040/041
+
+The owner authorizes 50-minute useful work sessions across approved projects. This
+repair retains the canonical registry IDs and counts; it does not claim full
+work-unit acceptance or native 50-minute execution before live observation.
+
+- Reuse existing approved mapped PR branches consistently for source snapshots,
+  edits, readiness and merge. Verify numeric repository identity, approved numeric
+  PR links and live head/base metadata; reject forks, unrelated PRs, protected/default
+  branch writes and ambiguous multiple open branches. No client-selected repository
+  or arbitrary branch can grant authority.
+- Publish one identical 50-minute instruction from the server profile, launch
+  page and protocol. Checkpoint and continue another independent unit or project
+  while CI runs. Preserve the original clock, all prerequisites and green-check gates.
+- Raise the old default 30-minute limit to 55 minutes with an additive fingerprinted
+  migration. Preserve custom limits, token/tool caps and monetary budgets.
+- Make handoff generations unique within each run across repositories, require
+  a checkpoint for the current unit, and safely reconcile lost handoff responses.
+  Prefer independent same-project work, then use the normal portfolio selection.
+- Support older installed connections through the existing advance signature.
+  Verify source/mapping adversarial cases and PostgreSQL handoff races, stale
+  authority rejection, pending-CI resume, migrated limits and clock continuity.
+- Merge only after current-head checks; deploy the existing service and verify
+  its exact revision, readiness, served instructions and authenticated tool contract.
+  Native scheduled duration remains separately observable, never inferred from code.
+
+## Admission, evidence and continuation reliability
+
+The follow-up repair preserves existing work-unit IDs and acceptance boundaries.
+An overlapping activation must distinguish a live session from an expired or
+held lease. A named OAuth arrival can run one bounded, credential-scoped recovery
+pass under the normal admission locks; in-flight writes and unresolved GitHub
+effects remain held. Recovery is no longer dependent on a timely maintenance
+schedule alone.
+
+Source-owned `contributingPrs` and `priorEvidencePrs` authorize historical evidence
+reads without granting branch-write or merge authority, and cannot establish full
+unit acceptance. The compatible continuation endpoint handles typed evidence and
+plan blockers through the separately fenced handoff path. A premature finish
+requires an actual stop condition, with external limits recorded as agent reports.
+
+The GitHub gateway must durably record intent before outbound mutation, preserve
+uncertain outcomes across transaction rollback, and reconcile positive remote
+evidence before releasing the affected assignment. User cancellation stops work
+without discarding an unresolved remote effect. Verification covers concurrent
+arrivals, stale generations, ledger persistence, guarded release, historical PR
+reads and continuation behavior; live scheduled execution remains a separate gate.
+
+### Shared instruction rollout — recovery and continuous work
+
+Combine the owner-supplied recovery rules with BR-039's 50-minute work loop in
+`src/domain/scheduled-instruction.ts` and the matching protocol. Preserve named
+connection routing, schema discovery, precise evidence-based failure reporting,
+no permission-denial workarounds, recurring-schedule preservation and best-effort
+release after checkpoint failure. Keep pending CI as a same-run task handoff.
+
+Update existing scheduled tasks on each account through that account's authorized
+automation tools. Preserve identities, connections, task IDs and schedules; read
+back every prompt and enabled state. This account cannot claim updates on another
+account. Provide the other account a concrete rollout request referencing the
+versioned shared protocol. No recurring task, provider spending or credential
+permission is added by this rollout.
+
+Live follow-up found that native finish accepted one-minute exits while eligible
+work remained, and the advertised hosted-runner 100-call cap was being treated
+as native connector usage evidence. Route native completion through a
+50-minute continuation decision: checkpoint and release only the old lease,
+return CONTINUE_REQUIRED without acquiring a replacement lease, and require
+the agent to acknowledge by claiming the same run. Distinguish agent-reported
+activation-wide hard-stop evidence from server-verified platform facts. Allow
+truthful empty-queue, lost-authority, owner-pause and actual deadline stops;
+retain best-effort release when checkpointing fails. Do not raise hosted model,
+token, tool or monetary caps. Test native MCP dispatch, stale-generation replay,
+idle bypass, early stop and cross-project continuation in real PostgreSQL.
+
+The follow-up also rejects partial-draft churn: native advance/yield requires a
+verified merge, a concrete prerequisite/blocker, or implementation-complete work
+with immutable acceptance evidence and a matching current PR head whose CI is
+actually pending. Unfinished draft integration and failed CI stay on the current
+unit. Record external observations as agent-reported, preserve unresolved GitHub
+release holds, and reconcile ADMITTED-after-release claims without demanding the
+old lease or ending the activation. Test partial drafts, CI/head/association
+misreporting, same-run recovery and stale-generation replay.
+
+### BR-077 follow-up — prebuilt release without Render build minutes
+
+The owner explicitly sets a $0 additional deployment budget. Build and smoke-test
+an image on standard GitHub-hosted runners only while the source repository is
+public. Publish a SHA-tagged image to GitHub Container Registry using the
+repository-scoped Actions token; never supply production secrets to a build.
+Reuse the existing free Render web service and its runtime secrets/database.
+Switch its backing source to a verified public image or secure existing registry
+credential, without creating another service or increasing a spending limit.
+Run immutable migrations at startup as before, with no pre-deploy pipeline task.
+Verify the exact baked source revision, readiness, private-route denial and live
+native profile before reporting deployment. Retain rollback source and image
+digest. Do not claim the image is published, publicly pullable, deployed or free
+of platform restrictions until those boundaries have been verified separately.

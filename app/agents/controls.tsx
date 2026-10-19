@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import {useState} from "react";
 import type {RegisteredAgent,AgentProvider} from "../../src/server/agent-registration";
 import type {ReservedAgentName} from "../../src/server/agent-activity";
@@ -131,7 +132,7 @@ export default function AgentAdminControls({initialAgents,approvedNames,reservat
       <h2>Current registered identities</h2>
       {agents.length===0?<p>No agent identities have been registered yet. This is not an agent activity simulator.</p>:
         <div className="agent-list">{agents.map(agent=><div className="agent-entry" key={agent.credentialId}>
-          <div><strong>{agent.name}</strong><small>{agent.accountEmail??"Account email not set"} · {agent.provider} · Registered {new Date(agent.createdAt).toLocaleString()}</small>
+          <div><strong><Link href={"/agents/"+agent.credentialId}>{agent.name}</Link></strong><small>{agent.accountEmail??"Account email not set"} · {agent.provider} · Registered {new Date(agent.createdAt).toLocaleString()}</small>
           {editingId===agent.credentialId&&<div><label htmlFor={"edit-email-"+agent.credentialId}>Edit account email</label>
             <input id={"edit-email-"+agent.credentialId} type="email" value={editEmail} onChange={e=>setEditEmail(e.target.value)} disabled={busy}/>
             <button type="button" disabled={busy||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(editEmail.trim())} onClick={()=>saveEmail(agent.credentialId)}>Save email</button>

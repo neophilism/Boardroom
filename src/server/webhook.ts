@@ -1,5 +1,6 @@
 import {createHmac,timingSafeEqual} from "node:crypto";
 import type {Pool} from "pg";
+import {queueRepositoryRefresh} from "./outbox.ts";
 export function validWebhookSignature(raw:string,signature:string|null,secret:string|undefined):boolean{
   if(!secret||secret.length<32||!signature||!/^sha256=[a-f0-9]{64}$/.test(signature))return false;
   const expected=createHmac("sha256",secret).update(raw).digest(),received=Buffer.from(signature.slice(7),"hex");
@@ -21,7 +22,7 @@ export async function acceptGitHubWebhook(db:Pool,delivery:string,event:string,r
     // PR status; replay and out-of-order delivery trigger a real GitHub reread.
     const inserted=await client.query("INSERT INTO github_events(delivery_id,repository_id,event_type,payload) VALUES($1,$2,$3,$4::jsonb) ON CONFLICT DO NOTHING RETURNING delivery_id",
       [delivery,repoId,event,JSON.stringify({repositoryId:repoId,action:typeof data.action==="string"?data.action.slice(0,50):null})]);
-    if(inserted.rowCount)await client.query("INSERT INTO operation_outbox(idempotency_key,operation_type,payload) VALUES($1,'sync_repository',$2::jsonb) ON CONFLICT DO NOTHING",["github:"+delivery,JSON.stringify({repositoryId:String(repoId)})]);
+    if(inserted.rowCount)await queueRepositoryRefresh(client,String(repoId),delivery);
     await client.query("COMMIT");return {accepted:true,replay:!inserted.rowCount};
   }catch(error){await client.query("ROLLBACK");throw error;}finally{client.release();}
 }

@@ -39,6 +39,7 @@ before(async()=>{
     "($2,'CI-002','Priority fixture',1,TRUE,'PENDING')",
     repoIds
   );
+  await db.query("INSERT INTO repository_sync_status(repository_id,last_success_at,plan_status) VALUES($1,now(),'VERIFIED'),($2,now(),'VERIFIED')",repoIds);
   for(const [i,name] of ["Smith","Eve","Gort","C-3PO"].entries()){
     const key=String(i+1).repeat(64);
     const result=await db.query<{credential_id:string}>(
@@ -108,7 +109,10 @@ test("two concurrent sessions claim distinct repositories with top priority incl
 test("current owner may heartbeat/checkpoint, but stale lease generations fail closed",async()=>{
   const grant=assigned[0];
   const renewal=await heartbeatRun(db,runs[0],credentials[0],grant.generation);
-  assert.ok(Date.parse(renewal)>Date.now());
+  // Native clients can spend several minutes in a single model/tool turn.
+  // The lease must provide headroom without changing the 55-minute run cap.
+  assert.ok(Date.parse(renewal)-Date.now()>11*60*1000);
+  assert.ok(Date.parse(renewal)-Date.now()<=12*60*1000);
   const stored=await saveCheckpoint(db,runs[0],credentials[0],grant.generation,{
     branch:"boardroom/CI-001",headSha:null,state:{checkpoint:"recorded",evidence:["real postgres"]}
   });
@@ -156,6 +160,7 @@ test("expired but still assigned repo stays unavailable to other scheduled agent
 
 test("fenced owner completes and releases, then a distinct activation becomes eligible",async()=>{
   for(let i=0;i<2;i++){
+    await db.query("UPDATE agent_runs SET started_at=now()-interval '50 minutes' WHERE run_id=$1",[runs[i]]);
     const result=await finishRun(db,runs[i],credentials[i],assigned[i].generation,"COMPLETED");
     assert.equal(result.state,"COMPLETED");
     assert.equal(result.replay,false);
@@ -184,6 +189,7 @@ test("500 named activations contend for 50 repos without duplicate ownership",as
     await db.query("INSERT INTO repositories(repository_id,full_name,created_at) VALUES($1,$2,now())",[id,"ci/stress-"+i]);
     await db.query("INSERT INTO repository_leases(repository_id) VALUES($1)",[id]);
     await db.query("INSERT INTO roadmap_units(repository_id,unit_id,title,version,approved) VALUES($1,'STRESS-001','Concurrency fixture',1,TRUE)",[id]);
+    await db.query("INSERT INTO repository_sync_status(repository_id,last_success_at,plan_status) VALUES($1,now(),'VERIFIED')",[id]);
   }
   const identities:{id:string;run:string}[]=[];
   for(const [i,name] of names.entries()){
@@ -232,6 +238,7 @@ test("real budget reservations retain uncertain charges and serialize competing 
     assert.equal(competing.filter(r=>r.status==="fulfilled").length,1);
     assert.equal((await db.query("SELECT SUM(COALESCE(charged_microusd,reserved_microusd))::text AS total FROM runner_budget_reservations WHERE run_id=$1",[runId])).rows[0].total,"950");
     await assert.rejects(recordRunnerUsage(db,runId,credentialId,"1",{operationKey:"model-0",inputTokens:0,outputTokens:0,costMicroUsd:0}),SessionConflict);
+    await saveCheckpoint(db,runId,credentialId,"1",{state:{activationStop:{reason:"USER_STOP",detail:"The isolated budget fixture explicitly requested this activation stop after verification."}}});
     await finishRun(db,runId,credentialId,"1","YIELDED");
   }finally{
     if(prior===undefined)delete process.env.BOARDROOM_DAILY_COST_CAP_MICROUSD;else process.env.BOARDROOM_DAILY_COST_CAP_MICROUSD=prior;
@@ -298,5 +305,6 @@ test("verified completion advances only within the held repository lease",async(
     [repositoryId]);
   assert.deepEqual(await advanceAssignedWork(db,runId,credentialId,"1"),
     {status:"EXHAUSTED",repository:"ci/chain-primary"});
+  await db.query("UPDATE agent_runs SET started_at=now()-interval '50 minutes' WHERE run_id=$1",[runId]);
   await finishRun(db,runId,credentialId,"1","COMPLETED");
 });

@@ -97,3 +97,26 @@ test("Coffee answers carry source evidence and uncertainty",async()=>{
     uncertainty:"The production database has not been inspected."
   });
 });
+
+test("yield-and-claim keeps current run and requests next assignment with fenced generation",async()=>{
+  const expected={status:"ASSIGNED",assignment:{assignmentId:"next",repositoryId:"2",fullName:"ci/next",unitId:"N-002",generation:"7",expiresAt:"2026-10-18T21:00:00Z",replay:false}};
+  const f=fake([{status:200,value:expected}]);
+  const client=new BoardroomAgentClient({baseUrl:"https://boardroom.example",bearerToken:secret,assignedName:"Smith",transport:f.transport});
+  assert.deepEqual(await client.yieldAndClaim("run","6","BLOCKED"),expected);
+  assert.ok(f.requests[0].url.endsWith("/api/v1/assignments/yield-and-claim"));
+  assert.deepEqual(JSON.parse(f.requests[0].init.body as string),{runId:"run",generation:"6",outcome:"BLOCKED"});
+  assert.equal(f.requests.length,1);
+});
+
+test("fixed continuation and uncertainty codes survive HTTP without arbitrary response data or retry",async()=>{
+  for(const code of ['GITHUB_OPERATION_UNCERTAIN','RELEASE_RECONCILIATION_REQUIRED','CONTINUATION_REQUIRED','private-not-a-code']){
+    const f=fake([{status:409,value:{code,error:secret}}]);
+    const client=new BoardroomAgentClient({baseUrl:'https://boardroom.example',bearerToken:secret,assignedName:'Smith',transport:f.transport});
+    await assert.rejects(client.githubWrite('run','1',{kind:'ensure_branch'}),error=>{
+      assert.ok(error instanceof BoardroomRequestError);
+      assert.equal(error.code,code==='private-not-a-code'?null:code);
+      assert.ok(!error.message.includes(secret));return true;
+    });
+    assert.equal(f.requests.length,1);
+  }
+});
