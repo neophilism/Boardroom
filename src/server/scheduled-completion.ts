@@ -1,6 +1,5 @@
 import type {Pool} from "pg";
 import {workSession} from "../domain/work-session.ts";
-import {effectiveSessionSecondsSql} from "./native-budget.ts";
 import {unitHandoffReport} from "../domain/unit-handoff.ts";
 import {REPOSITORY_CONTINUATION_CLAIM_QUERY,claimAssignment} from "./assignment.ts";
 import {releaseAssignmentForContinuation,yieldAndClaim} from "./continuation.ts";
@@ -32,7 +31,7 @@ type CompletionContext={state:string;started_at:Date;max_seconds:number;assignme
 async function completionContext(db:Pool,runId:string,credentialId:string):Promise<CompletionContext>{
   if(!isValidRunId(runId))throw new SessionConflict("Invalid run ID");
   const result=await db.query<CompletionContext>(`SELECT ar.state,ar.started_at,
-    ${effectiveSessionSecondsSql("ar.provider","p.max_session_seconds")} AS max_seconds,a.assignment_id,a.unit_id,
+    COALESCE(p.max_session_seconds,3300) AS max_seconds,a.assignment_id,a.unit_id,
     a.repository_id::text,w.state AS unit_state,
     (SELECT c.head_sha FROM checkpoints c WHERE c.assignment_id=a.assignment_id AND c.unit_id=a.unit_id
       ORDER BY c.created_at DESC,c.checkpoint_id DESC LIMIT 1) AS checkpoint_head,
@@ -141,7 +140,7 @@ export async function finishScheduledRun(db:Pool,runId:string,credentialId:strin
     return {...await finishRun(db,runId,credentialId,generation,outcome,translated),runEnded:true,leaseReleased:true};
   }
   if(!context.checkpoint_state)return continuing("RUNNING",context,false,
-    "The server-provided work window remains open. Save a checkpoint for this unit and call boardroom_advance or boardroom_yield_and_claim. If checkpointing or execution is actually unavailable across the activation, report a structured sessionStop with the observed error; a failed checkpoint must not prevent safe release. Do not issue a final report.");
+    "The 50-minute work window remains open. Save a checkpoint for this unit and call boardroom_advance or boardroom_yield_and_claim. If checkpointing or execution is actually unavailable across the activation, report a structured sessionStop with the observed error; a failed checkpoint must not prevent safe release. Do not issue a final report.");
   try{await requireScheduledHandoff(db,runId,credentialId,generation);}
   catch(error){
     if(error instanceof SessionConflict&&error.message.startsWith(currentUnitMessage))
@@ -163,7 +162,7 @@ export async function finishScheduledIdle(db:Pool,runId:string,credentialId:stri
     if(available.rowCount){
       await db.query("INSERT INTO audit_events(run_id,kind,details) VALUES($1,'agent.run.continuation_required','{}'::jsonb)",[runId]);
       return continuing("ADMITTED",context,true,
-        "Your previous repository lease is released, but the activation is NOT finished. Eligible portfolio work remains within the original server-provided work window. Call boardroom_claim with this SAME runId, read the returned context and continue substantive implementation. ASSIGNMENT_REFRESH_PENDING is recoverable, not IDLE. Do not issue a final report. A real activation-wide hard limit requires sessionStop with exact observed evidence.");
+        "Your previous repository lease is released, but the activation is NOT finished. Eligible portfolio work remains within the original 50-minute window. Call boardroom_claim with this SAME runId, read the returned context and continue substantive implementation. ASSIGNMENT_REFRESH_PENDING is recoverable, not IDLE. Do not issue a final report. A real activation-wide hard limit requires sessionStop with exact observed evidence.");
     }
   }
   if(stop)await recordStop(db,runId,stop);

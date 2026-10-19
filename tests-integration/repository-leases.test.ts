@@ -92,42 +92,6 @@ test("identical workflow activations from distinct credentials receive independe
   );
 });
 
-test("native fleet admission is serialized and conserves credits before repository work",async()=>{
-  const principals=await Promise.all(["Budget Native A","Budget Native B"].map(async(label,i)=>{
-    const row=await db.query<{credential_id:string}>(
-      "INSERT INTO agent_credentials(label,provider,token_digest) VALUES($1,'chatgpt',$2) RETURNING credential_id",
-      [label,(i===0?"d":"e").repeat(64)]);
-    return {credentialId:row.rows[0].credential_id,label,provider:"chatgpt"};
-  }));
-  const both=await Promise.all(principals.map(p=>admitAgentRun(db,p,null)));
-  assert.equal(both.filter(x=>x.kind==="CREATED").length,1);
-  assert.equal(both.filter(x=>x.kind==="THROTTLED").length,1);
-  const live=both.find(x=>x.kind==="CREATED");
-  if(!live||live.kind!=="CREATED")throw new Error("Missing first native admission");
-  assert.equal(both.find(x=>x.kind==="THROTTLED")?.state,"BUDGET_PAUSED");
-  // Without any repository lease, a 16-minute-old native activation cannot claim.
-  await db.query("UPDATE agent_runs SET started_at=now()-interval '16 minutes' WHERE run_id=$1",[live.runId]);
-  await assert.rejects(claimAssignment(db,live.runId,principals[both.findIndex(x=>x.kind==="CREATED")].credentialId),
-    /Session time budget exhausted/);
-  // Terminal sessions still count toward the rolling 24-hour admission cap.
-  await db.query("UPDATE agent_runs SET state='CANCELLED',ended_at=now(),started_at=now()-interval '5 hours' WHERE run_id=$1",[live.runId]);
-  const second=await admitAgentRun(db,principals[both.findIndex(x=>x.kind==="THROTTLED")],null);
-  assert.equal(second.kind,"CREATED");
-  if(second.kind!=="CREATED")throw new Error("Expected second native admission");
-  await db.query("UPDATE agent_runs SET state='CANCELLED',ended_at=now(),started_at=now()-interval '3 hours' WHERE run_id=$1",[second.runId]);
-  const rejected=await admitAgentRun(db,principals[both.findIndex(x=>x.kind==="CREATED")],null);
-  assert.equal(rejected.kind,"THROTTLED");
-  if(rejected.kind==="THROTTLED")assert.equal(rejected.budget.reason,"START_COOLDOWN");
-  // Four completed native sessions still consume the rolling 24-hour quota.
-  await db.query("INSERT INTO agent_runs(provider,credential_id,state,started_at,ended_at) "+
-    "VALUES ('chatgpt',$1,'CANCELLED',now()-interval '2 hours',now()), "+
-    "('chatgpt',$2,'CANCELLED',now()-interval '1 hour',now())",
-    [principals[0].credentialId,principals[1].credentialId]);
-  const daily=await admitAgentRun(db,principals[0],null);
-  assert.equal(daily.kind,"THROTTLED");
-  if(daily.kind==="THROTTLED")assert.equal(daily.budget.reason,"DAILY_ADMISSION_CAP");
-});
-
 test("two concurrent sessions claim distinct repositories with top priority included",async()=>{
   const results=await Promise.all([
     claimAssignment(db,runs[0],credentials[0]),
@@ -343,4 +307,30 @@ test("verified completion advances only within the held repository lease",async(
     {status:"EXHAUSTED",repository:"ci/chain-primary"});
   await db.query("UPDATE agent_runs SET started_at=now()-interval '50 minutes' WHERE run_id=$1",[runId]);
   await finishRun(db,runId,credentialId,"1","COMPLETED");
+});
+
+test("native starts have no rolling count, fleet cooldown or global concurrency cap",async()=>{
+  const principals=[];
+  for(let i=0;i<9;i++){
+    const label="Native unlimited admission fixture "+i;
+    const credential=(await db.query<{credential_id:string}>(
+      "INSERT INTO agent_credentials(label,provider,token_digest) VALUES($1,'chatgpt',$2) RETURNING credential_id",
+      [label,"b".repeat(63)+i.toString(16)])).rows[0].credential_id;
+    principals.push({credentialId:credential,label,provider:"chatgpt"});
+  }
+  const admissions=await Promise.all(principals.map(principal=>admitAgentRun(db,principal,null)));
+  assert.equal(admissions.length,9);
+  assert.ok(admissions.every(result=>result.kind==="CREATED"),
+    "all nine separate native agents must be admitted even within the same minute");
+  const runIds=admissions.map(result=>{
+    if(result.kind!=="CREATED")throw new Error("Native admission was throttled");
+    return result.runId;
+  });
+  assert.equal(new Set(runIds).size,9);
+  await db.query(
+    "UPDATE agent_runs SET state='CANCELLED',ended_at=now() WHERE run_id=ANY($1::uuid[])",[runIds]);
+  const restarted=await admitAgentRun(db,principals[0],null);
+  assert.equal(restarted.kind,"CREATED","completed starts never consume a rolling daily quota");
+  if(restarted.kind==="CREATED")await db.query(
+    "UPDATE agent_runs SET state='CANCELLED',ended_at=now() WHERE run_id=$1",[restarted.runId]);
 });

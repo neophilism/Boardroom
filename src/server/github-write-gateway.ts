@@ -1,4 +1,3 @@
-import {effectiveSessionSecondsSql} from "./native-budget.ts";
 import type {Pool} from "pg";
 import {SessionConflict,isValidGeneration,isValidRunId} from "./sessions.ts";
 import {githubAppRequest,GitHubAppError} from "./github-app.ts";
@@ -268,7 +267,7 @@ export async function performFencedGithubWrite(db:Pool,runId:string,credentialId
          AND c.enabled=TRUE AND c.revoked_at IS NULL
          AND a.lease_generation=$3::bigint AND l.expires_at>now()+interval '25 seconds'
          AND r.enabled=TRUE AND r.archived=FALSE AND w.approved=TRUE
-         AND ar.started_at>now()-make_interval(secs=>${effectiveSessionSecondsSql("ar.provider","policy.max_session_seconds")})
+         AND ar.started_at>now()-make_interval(secs=>COALESCE(policy.max_session_seconds,3300))
        FOR UPDATE OF l`,
       [runId,credentialId,generation]
     );
@@ -289,7 +288,7 @@ export async function performFencedGithubWrite(db:Pool,runId:string,credentialId
     const renewed=await client.query(
       `UPDATE repository_leases l SET last_heartbeat_at=now(),
          expires_at=LEAST(now()+interval '12 minutes',
-           (SELECT ar.started_at+make_interval(secs=>${effectiveSessionSecondsSql("ar.provider","p.max_session_seconds")})
+           (SELECT ar.started_at+make_interval(secs=>COALESCE(p.max_session_seconds,3300))
             FROM agent_runs ar LEFT JOIN repository_execution_policy p ON p.repository_id=l.repository_id
             WHERE ar.run_id=$1))
        WHERE l.repository_id=$2 AND l.run_id=$1 AND l.generation=$3::bigint
