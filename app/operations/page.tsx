@@ -1,4 +1,5 @@
 import OwnerNavigation from "../owner-navigation";
+import Link from "next/link";
 import {cookies} from "next/headers";
 import {redirect} from "next/navigation";
 import {OWNER_COOKIE,validOwnerSession} from "../../src/server/owner-session";
@@ -28,7 +29,7 @@ export default async function OperationsPage(){
     </article>)}</div>}
     <h2>Sessions</h2>
     {info.runs.length===0?<p>No sessions have run.</p>:<div className="work-grid">{info.runs.map(r=><article className="action-card" key={r.run_id}>
-      <h3>{r.label}</h3><p>{r.state} · {r.provider}</p><p>{r.full_name??"No active assignment"} {r.unit_id??""}</p><p>Last seen: {new Date(r.last_seen_at).toISOString()}</p>
+      <h3><Link href={"/agents/"+r.credentialId}>{r.label}</Link></h3><p>{r.state} · {r.provider}</p><p>{r.full_name??"No active assignment"} {r.unit_id??""}</p><p>Last seen: {new Date(r.last_seen_at).toISOString()}</p>
     </article>)}</div>}
     <h2>Verified activity</h2>
     {info.audit.length===0?<p>No recorded events.</p>:<ul>{info.audit.map(e=><li key={String(e.event_id)}>{new Date(e.occurred_at).toISOString()} · {e.kind}</li>)}</ul>}

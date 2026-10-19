@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import {useState} from "react";
 import type {UsageObservatory,AgentUsageRow} from "../../src/server/usage-observatory";
 const usd=(n:number)=>"$"+n.toFixed(n<0.01?5:n<1?4:2);
@@ -61,7 +62,7 @@ export default function ObservatoryPanel({data}:{data:UsageObservatory}){
       <div className="usage-table-wrap"><table className="usage-table">
         <thead><tr><th>Agent / provider</th><th>Hosted API cost / 7d</th><th>ChatGPT credits</th><th>Runs / 7d</th><th>PR merges / 7d</th><th>Failed / blocked</th><th>Currently assigned</th></tr></thead>
         <tbody>{agents.map(agent=><tr key={agent.credentialId}>
-          <th><button type="button" className="outline" onClick={()=>setSelected(agent.credentialId)} aria-label={"View usage for "+agent.name}>{agent.name}</button><small>{agent.provider}</small></th>
+          <th><Link href={"/agents/"+agent.credentialId}>{agent.name}</Link><small>{agent.provider} · <button type="button" className="outline" onClick={()=>setSelected(agent.credentialId)} aria-label={"Quick usage for "+agent.name}>Quick stats</button></small></th>
           <td><strong>{agent.metering==="not-observed"?"Not measured":usd(agent.reportedUsd7d)}</strong><Meter value={agent.reportedUsd7d} max={max}/></td>
           <td>Unavailable</td><td>{agent.sessions7d}</td><td>{agent.verifiedMerges7d}</td>
           <td>{agent.failed7d} / {agent.blocked7d}</td><td>{agent.activeRepository??"No active assignment"}</td>

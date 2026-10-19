@@ -23,7 +23,7 @@ export default async function RecoveryPage(){
         <div className="card-top"><span className="status-label">{e.runState}</span><span>Generation {e.leaseGeneration}</span></div>
         <h2>{e.repository}</h2>
         <dl className="work-details">
-          <dt>Named agent</dt><dd>{e.agentName??"Unverified"}{e.provider?` · ${e.provider}`:""}</dd>
+          <dt>Named agent</dt><dd>{e.credentialId&&e.agentName?<Link href={"/agents/"+e.credentialId}>{e.agentName}</Link>:"Unverified"}{e.provider?` · ${e.provider}`:""}</dd>
           <dt>Work unit</dt><dd>{e.workUnitId??"None recorded"}</dd>
           <dt>Run ID</dt><dd><code>{e.runId}</code></dd>
           <dt>Lease expiry</dt><dd>{formatEastern(e.leaseExpiredAt.toISOString())}</dd>
