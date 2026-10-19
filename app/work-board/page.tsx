@@ -47,6 +47,7 @@ async function loadBoard():Promise<{rows:WorkBoardRow[];observedAt:number}>{
        SELECT repository_id,COUNT(*) FILTER (WHERE approved=TRUE AND state IN ('PENDING','ACTIVE','OPEN_PR')) AS open_count
        FROM roadmap_units GROUP BY repository_id
      ) work ON work.repository_id=r.repository_id
+     WHERE r.enabled=TRUE AND r.archived=FALSE
      ORDER BY CASE WHEN p.position IS NULL THEN 1 ELSE 0 END,
        p.position ASC NULLS LAST,
        COALESCE(r.last_development_at,r.created_at) ASC,r.repository_id ASC`

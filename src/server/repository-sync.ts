@@ -56,7 +56,7 @@ async function syncOne(repository:GitHubRepository):Promise<"VERIFIED"|"MISSING"
   try{
     await client.query("BEGIN");
     await client.query(
-      "INSERT INTO repositories(repository_id,full_name,description,archived,created_at,last_development_at,source_observed_at) VALUES($1,$2,$3,$4,$5,$6,now()) ON CONFLICT(repository_id) DO UPDATE SET full_name=excluded.full_name,description=excluded.description,archived=excluded.archived,last_development_at=excluded.last_development_at,source_observed_at=now(),updated_at=now()",
+      "INSERT INTO repositories(repository_id,full_name,description,archived,created_at,last_development_at,source_observed_at) VALUES($1,$2,$3,$4,$5,$6,now()) ON CONFLICT(repository_id) DO UPDATE SET full_name=excluded.full_name,description=excluded.description,archived=CASE WHEN repositories.enabled=FALSE THEN repositories.archived ELSE excluded.archived END,last_development_at=excluded.last_development_at,source_observed_at=now(),updated_at=now()",
       [repository.id,repository.full_name,repository.description,repository.archived,repository.created_at,latestDevelopmentAt(repository,pulls)]
     );
     await client.query(
