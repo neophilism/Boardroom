@@ -1,4 +1,4 @@
-import test,{before,after} from "node:test";
+import test,{before,after,afterEach} from "node:test";
 import assert from "node:assert/strict";
 import {randomUUID,createHash} from "node:crypto";
 import {readFile} from "node:fs/promises";
@@ -28,6 +28,12 @@ after(async()=>{
   if(db)await db.end();
   await admin.query('DROP SCHEMA IF EXISTS "'+schema+'" CASCADE');
   await admin.end();
+});
+
+// Isolated fixture schema: retire prior test activations so independent recovery
+// cases do not spend each other’s rolling 24-hour budget.
+afterEach(async()=>{
+  await db.query("UPDATE agent_runs SET state='CANCELLED', ended_at=COALESCE(ended_at,now()), started_at=now()-interval '25 hours' WHERE provider='chatgpt'");
 });
 
 async function fixture(options:{seconds?:number;provider?:string;oauth?:boolean;state?:string;lease?:boolean;assignment?:boolean}={}){
@@ -72,7 +78,7 @@ test("fresh overlapping OAuth activation reports live timestamps and grants no o
 });
 
 test("arrival recovers only its expired OAuth credential, preserves the connection, and fences old writes",async()=>{
-  const current=await fixture(),other=await fixture();
+  const current=await fixture(),other=await fixture({provider:"test"});
   const result=await admitAgentRun(db,current.principal,null);
   assert.equal(result.kind,"CREATED");
   if(result.kind!=="CREATED")throw new Error("Expected fresh admission after fenced recovery");
@@ -193,7 +199,12 @@ test("unleased and orphaned-lease states are diagnosed without unsafe cancellati
   const held=await admitAgentRun(db,orphan.principal,null);
   assert.equal(held.kind,"BUSY");assert.equal(held.state,"RECOVERY_REQUIRED");
   assert.equal((await db.query("SELECT state FROM agent_runs WHERE run_id=$1",[orphan.runId])).rows[0].state,"ADMITTED");
+  // A previous, unrelated recovery hold cannot consume the next fixture's
+  // global admission slot. Only the already-observed isolated test runs are retired.
+  await db.query("UPDATE agent_runs SET state='CANCELLED',ended_at=now(),started_at=now()-interval '25 hours' WHERE run_id=ANY($1::uuid[])",
+    [[unleased.runId,orphan.runId]]);
   const abandoned=await fixture({state:"ADMITTED",lease:false,assignment:false});
+  await db.query("UPDATE agent_runs SET started_at=now()-interval '25 hours' WHERE run_id=$1",[abandoned.runId]);
   await db.query("UPDATE agent_runs SET last_seen_at=now()-interval '20 minutes' WHERE run_id=$1",[abandoned.runId]);
   assert.equal((await admitAgentRun(db,abandoned.principal,null)).kind,"CREATED");
   assert.equal((await db.query("SELECT state FROM agent_runs WHERE run_id=$1",[abandoned.runId])).rows[0].state,"CANCELLED");
