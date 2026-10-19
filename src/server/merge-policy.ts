@@ -18,7 +18,7 @@ export function aggregateLinkedPrState(unitId:string,linked:number[],pulls:reado
 }
 export type MergeFacts={
   draft:boolean;state:string;headSha:string;expectedSha:string;branch:string;expectedBranch:string;
-  repositoryId:string;expectedRepositoryId:string;mergeable:string;mergeStateStatus:string;
+  repositoryId:string;expectedRepositoryId:string;baseBranch:string;expectedBaseBranch:string;mergeable:string;mergeStateStatus:string;
   checks:CheckRun[];checkTotal:number;suites:CheckSuite[];suiteTotal:number;statuses:LegacyStatus[];
 };
 export function mergeBlockers(policy:MergePolicy,facts:MergeFacts):string[]{
@@ -27,7 +27,8 @@ export function mergeBlockers(policy:MergePolicy,facts:MergeFacts):string[]{
   if(!Array.isArray(policy.required_checks)||!policy.required_checks.length)blocked.push("REQUIRED_CHECKS_NOT_CONFIGURED");
   if(facts.draft||facts.state!=="open")blocked.push("PR_NOT_READY");
   if(facts.headSha!==facts.expectedSha)blocked.push("HEAD_CHANGED");
-  if(facts.branch!==facts.expectedBranch||facts.repositoryId!==facts.expectedRepositoryId)blocked.push("PR_SCOPE_MISMATCH");
+  if(facts.branch!==facts.expectedBranch||facts.repositoryId!==facts.expectedRepositoryId||
+     facts.baseBranch!==facts.expectedBaseBranch)blocked.push("PR_SCOPE_MISMATCH");
   // GitHub owns review and branch-protection requirements. An owner-approved
   // autonomous merge must not add an independent human-review prerequisite.
   if(facts.mergeable!=="MERGEABLE"||facts.mergeStateStatus!=="CLEAN")
@@ -81,6 +82,10 @@ export async function mergeAssignedPullRequest(db:Pool,runId:string,credentialId
       const unitState=await reconcileMergedUnit();await client.query("COMMIT");transactionOpen=false;
       return {merged:true,replay:true,url:pr.html_url,unitState};
     }
+    const repository=await request("GET",api) as {default_branch?:string};
+    if(typeof repository.default_branch!=="string"||!repository.default_branch)
+      throw new SessionConflict("Expected target branch unavailable");
+    const expectedBaseBranch=repository.default_branch;
     const [owner,name]=scope.full_name.split("/");
     const observed=await request("POST","/graphql",{
       query:"query($owner:String!,$name:String!,$number:Int!){repository(owner:$owner,name:$name){pullRequest(number:$number){mergeable mergeStateStatus headRefOid}}}",
@@ -95,7 +100,8 @@ export async function mergeAssignedPullRequest(db:Pool,runId:string,credentialId
       throw new SessionConflict("Authoritative check evidence unavailable");
     if(statuses.total_count>100)throw new SessionConflict("Check status pagination incomplete");
     const reasons=mergeBlockers(policy,{draft:pr.draft,state:pr.state,headSha:pr.head.sha,expectedSha,
-      branch:pr.head.ref,expectedBranch:workBranch,repositoryId:String(pr.head.repo.id),
+      branch:pr.head.ref,expectedBranch:workBranch,baseBranch:pr.base?.ref??"",expectedBaseBranch,
+      repositoryId:String(pr.head.repo.id),
       expectedRepositoryId:scope.repository_id,...graph,checks:checked.check_runs,checkTotal:checked.total_count,
       suites:suiteResult.check_suites,suiteTotal:suiteResult.total_count,
       statuses:statuses.statuses});
@@ -106,6 +112,10 @@ export async function mergeAssignedPullRequest(db:Pool,runId:string,credentialId
       await client.query("COMMIT");transactionOpen=false;
       throw new SessionConflict("Merge blocked: "+reasons.join(", "));
     }
+    // Recheck the target immediately before the privileged merge mutation.
+    const finalPull=await request("GET",api+"/pulls/"+number) as WorkPull;
+    if(finalPull.base?.ref!==expectedBaseBranch||String(finalPull.base?.repo?.id)!==scope.repository_id)
+      throw new SessionConflict("Pull request target branch changed before merge");
     const merged=await recordGithubMutation(githubOperationWriter(db),operation,{kind:"MERGE_PR",number,headSha:expectedSha},
       ()=>request("PUT",api+"/pulls/"+number+"/merge",{sha:expectedSha,merge_method:"squash"})) as {merged:boolean;sha:string};
     if(!merged.merged||!/^[a-f0-9]{40}$/i.test(merged.sha))throw new GitHubAppError(409);
