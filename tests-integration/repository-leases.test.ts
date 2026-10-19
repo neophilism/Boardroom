@@ -109,7 +109,10 @@ test("two concurrent sessions claim distinct repositories with top priority incl
 test("current owner may heartbeat/checkpoint, but stale lease generations fail closed",async()=>{
   const grant=assigned[0];
   const renewal=await heartbeatRun(db,runs[0],credentials[0],grant.generation);
-  assert.ok(Date.parse(renewal)>Date.now());
+  // Native clients can spend several minutes in a single model/tool turn.
+  // The lease must provide headroom without changing the 55-minute run cap.
+  assert.ok(Date.parse(renewal)-Date.now()>11*60*1000);
+  assert.ok(Date.parse(renewal)-Date.now()<=12*60*1000);
   const stored=await saveCheckpoint(db,runs[0],credentials[0],grant.generation,{
     branch:"boardroom/CI-001",headSha:null,state:{checkpoint:"recorded",evidence:["real postgres"]}
   });
