@@ -46,6 +46,10 @@ export function activationFinishBasis(outcome:SessionOutcome,evidence:FinishEvid
   return {source:"AGENT_REPORTED",reason:stop.reason,detail:stop.detail.trim()};
 }
 
+/** Terminal outcomes are immutable; late finish requests can observe recovery without reclaiming leases. */
+export function isTerminalSessionState(value:unknown):value is SessionOutcome {
+  return typeof value==="string" && SESSION_OUTCOMES.includes(value as SessionOutcome);
+}
 export function parseSessionOutcome(value: unknown): SessionOutcome {
   if (typeof value !== "string" || !SESSION_OUTCOMES.includes(value as SessionOutcome))
     throw new SessionConflict("Invalid session outcome");
@@ -191,11 +195,20 @@ export async function finishRun(db: Pool, runId: string, credentialId: string, g
   try {
     await client.query("BEGIN");
     const run = await lockedRun(client,runId,credentialId);
-    if (run.state === outcome) {
-      await client.query("COMMIT");
-      return {state:outcome,replay:true};
+    if (run.state !== "RUNNING") {
+      // An OAuth recovery may have already fenced, released and CANCELLED this run.
+      // Report the actual server outcome; do not turn a late finish into an error or
+      // reassign any lease. Never treat RECOVERING as a completed release.
+      if(isTerminalSessionState(run.state)){
+        const stillOwned=await client.query<{active:boolean}>(
+          "SELECT EXISTS(SELECT 1 FROM repository_leases WHERE run_id=$1) AS active",[runId]);
+        if(stillOwned.rows[0]?.active===false){
+          await client.query("COMMIT");
+          return {state:run.state,replay:true};
+        }
+      }
+      throw new SessionConflict("Run cannot finish from " + run.state);
     }
-    if (run.state !== "RUNNING") throw new SessionConflict("Run cannot finish from " + run.state);
     const assignment = await lockedAssignment(client,runId,generation);
     await lockedLease(client,assignment,runId,generation,false);
     const unresolved=await retainUnreconciledLease(client,runId,assignment.repository_id,generation,outcome);
