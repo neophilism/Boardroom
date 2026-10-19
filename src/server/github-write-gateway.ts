@@ -24,8 +24,8 @@ const danger=/\b(?:github_pat_[a-z0-9_]{12,}|gh[pousr]_[a-z0-9]{20,}|sk-[a-z0-9_
 export function safeRepositoryPath(input:unknown):string{
   if(typeof input!=="string"||input.length<1||input.length>240||
     input.includes("\\")||/[\x00-\x1f\x7f]/.test(input)||
-    !/^[a-zA-Z0-9_.@()+,\-/]+$/.test(input))
-    throw new GithubWriteValidation("Invalid repository file path");
+    !/^[a-zA-Z0-9_.@()+,\-/\[\]]+$/.test(input))
+    throw new GithubWriteValidation("Invalid repository file path. Use a repository-relative filename (for example src/modules/forms/validation.ts), not a GitHub URL, #line reference or absolute path. Bracketed Next.js route segments are supported; other unsupported characters are rejected. Do not include source code in the path field.");
   const parts=input.split("/");
   if(parts.some(p=>p===""||p==="."||p===".."))
     throw new GithubWriteValidation("Path traversal or empty path component forbidden");
@@ -278,6 +278,21 @@ export async function performFencedGithubWrite(db:Pool,runId:string,credentialId
     if(pending){await client.query("COMMIT");committed=true;throw new GithubOperationUncertain(pending);}
     const mutate:GithubMutationRecorder=(intent,send)=>recordGithubMutation(githubOperationWriter(db),operation,intent,send);
     const result=await doWrite(client,scope,op,mutate,request);
+    // A successful fenced GitHub operation is authenticated evidence of life.
+    // Renew within this existing transaction; cap at the per-repository run deadline.
+    // This adds no remote requests, background jobs, or ChatGPT credit usage.
+    const renewed=await client.query(
+      `UPDATE repository_leases l SET last_heartbeat_at=now(),
+         expires_at=LEAST(now()+interval '12 minutes',
+           (SELECT ar.started_at+make_interval(secs=>COALESCE(p.max_session_seconds,3300))
+            FROM agent_runs ar LEFT JOIN repository_execution_policy p ON p.repository_id=l.repository_id
+            WHERE ar.run_id=$1))
+       WHERE l.repository_id=$2 AND l.run_id=$1 AND l.generation=$3::bigint
+         AND l.expires_at>now() RETURNING expires_at`,
+      [runId,scope.repository_id,generation]
+    );
+    if(renewed.rowCount!==1)throw new SessionConflict("Write completed but lease renewal needs reconciliation");
+    await client.query("UPDATE agent_runs SET last_seen_at=now() WHERE run_id=$1 AND state='RUNNING'",[runId]);
     await client.query(
       "INSERT INTO audit_events(run_id,repository_id,kind,details) VALUES($1,$2,$3,$4::jsonb)",
       [runId,scope.repository_id,"github.write."+op.kind,
