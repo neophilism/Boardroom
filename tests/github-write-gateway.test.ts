@@ -18,7 +18,7 @@ test("source paths block CI, plans, secrets and path traversal",()=>{
   assert.equal(safeRepositoryPath("src/app/public/disclosures/[organizationSlug]/[publicationSlug]/page.tsx"),
     "src/app/public/disclosures/[organizationSlug]/[publicationSlug]/page.tsx");
   for(const file of ["../secret","src//foo.ts","/etc/passwd",".github/workflows/ci.yml",
-    "registry/roadmap.json","AGENTS.md","render.yaml",".env",".env.production",
+    "registry/roadmap.json","AGENTS.md","src/AGENTS.md","CODEOWNERS",".github/CODEOWNERS","Jenkinsfile",".gitlab-ci.yml",".buildkite/pipeline.yml","render.yaml",".env",".env.production",
     "src/private.key","src/../oops.ts","foo\\bar.ts","secrets/token.txt"])
     assert.throws(()=>safeRepositoryPath(file),GithubWriteValidation);
 });

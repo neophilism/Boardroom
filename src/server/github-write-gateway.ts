@@ -31,8 +31,12 @@ export function safeRepositoryPath(input:unknown):string{
   if(parts.some(p=>p===""||p==="."||p===".."))
     throw new GithubWriteValidation("Path traversal or empty path component forbidden");
   const key=input.toLowerCase();
-  if(key.startsWith(".github/")||key.startsWith(".circleci/")||key.startsWith("registry/")||
-    key==="agents.md"||key==="render.yaml"||
+  if(key.startsWith(".github/")||key.startsWith(".circleci/")||key.startsWith(".gitlab/")||
+    key.startsWith(".buildkite/")||key.startsWith(".jenkins/")||key.startsWith("registry/")||
+    key==="agents.md"||key==="render.yaml"||key==="jenkinsfile"||key===".gitlab-ci.yml"||
+    key==="cloudbuild.yaml"||key==="azure-pipelines.yml"||
+    key==="bitbucket-pipelines.yml"||key==="codeowners"||key==="appveyor.yml"||
+    key.endsWith("/agents.md")||key.endsWith("/codeowners")||
     parts.some(p=>p.toLowerCase().startsWith(".env")||[".git",".npmrc",".pypirc",".ssh",".aws","secrets"].includes(p.toLowerCase()))||
     /\.(?:pem|p12|pfx|key)$/i.test(input))
     throw new GithubWriteValidation("Protected path requires owner authorization");
