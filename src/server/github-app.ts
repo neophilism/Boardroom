@@ -199,7 +199,7 @@ export async function fetchRepositoryInstruction(fullName:string,path:"AGENTS.md
 }
 
 /** Privileged GitHub App write transport. Call only through the DB-fenced gateway.
- * Never expose the installation token or unsanitized response bodies to callers.
+ * The scoped gateway is used for agent writes; the authenticated bounded\n * Dependabot maintenance tick may also perform narrowly-verified bot review\n * hygiene and exact-head patch merges. Never expose installation tokens.
  */
 export class GitHubAppError extends Error{
   readonly httpStatus:number;
@@ -209,7 +209,7 @@ export class GitHubAppError extends Error{
     this.httpStatus=httpStatus;
   }
 }
-export async function githubAppRequest(method:"GET"|"POST"|"PUT"|"PATCH",path:string,body?:unknown):Promise<unknown>{
+export async function githubAppRequest(method:"GET"|"POST"|"PUT"|"PATCH"|"DELETE",path:string,body?:unknown):Promise<unknown>{
   if(!path.startsWith("/")||path.startsWith("//")||path.includes("#")||path.includes("\\"))
     throw new Error("Invalid GitHub App request path");
   // Set path/query on a fixed origin, rather than parsing an origin influenced
