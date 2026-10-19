@@ -1,6 +1,6 @@
+import OwnerNavigation from "../owner-navigation";
 import {cookies} from "next/headers";
 import {redirect} from "next/navigation";
-import Link from "next/link";
 import {OWNER_COOKIE,validOwnerSession} from "../../src/server/owner-session";
 import {getDatabase} from "../../src/server/db";
 import {operationsOverview} from "../../src/server/operations";
@@ -9,8 +9,7 @@ export const dynamic="force-dynamic";
 export default async function OperationsPage(){
   if(!validOwnerSession((await cookies()).get(OWNER_COOKIE)?.value))redirect("/login");
   const info=await operationsOverview(getDatabase());
-  return <main className="owner-shell"><header className="owner-header"><div><p className="eyebrow">BOARDROOM / OPERATIONS</p><h1>Execution controls</h1></div>
-    <nav className="work-nav"><Link href="/work-board">Work board</Link><Link href="/owner-actions">Owner actions</Link><Link href="/recovery">Recovery</Link><Link href="/reports">Daily report</Link><Link href="/observatory">Usage observatory</Link><Link href="/system">System status</Link></nav></header>
+  return <main className="owner-shell"><OwnerNavigation section="OPERATIONS" title="Execution controls" activePath="/operations"/>
     <OperationsControls paused={info.paused} repositories={info.repositories}/>
     <h2>Maintenance queue</h2>
     <p>Server-observed queue operations, including coalesced requests. SUPERSEDED means deliberately skipped as redundant, not completed.</p>

@@ -1,6 +1,6 @@
+import OwnerNavigation from "../owner-navigation";
 import {cookies} from "next/headers";
 import {redirect} from "next/navigation";
-import Link from "next/link";
 import {OWNER_COOKIE,validOwnerSession} from "../../src/server/owner-session";
 import {getDatabase} from "../../src/server/db";
 import {classifyLease,formatEastern} from "../../src/domain/work-board";
@@ -13,7 +13,7 @@ type WorkBoardRow={
   repositoryId:string;fullName:string;description:string|null;enabled:boolean;archived:boolean;
   priorityPosition:number|null;lastDevelopmentAt:Date|null;createdAt:Date;
   runId:string|null;runState:string|null;agentName:string|null;provider:string|null;
-  leaseExpiresAt:Date|null;lastHeartbeatAt:Date|null;unitId:string|null;
+  leaseExpiresAt:Date|null;lastHeartbeatAt:Date|null;lastGitHubWriteAt:Date|null;unitId:string|null;
   planStatus:string|null;planRefreshedAt:Date|null;openUnitCount:string;
   planError:string|null;
 };
@@ -26,6 +26,7 @@ async function loadBoard():Promise<{rows:WorkBoardRow[];observedAt:number}>{
       r.last_development_at AS "lastDevelopmentAt",r.created_at AS "createdAt",
       l.run_id::text AS "runId",ar.state AS "runState",ac.label AS "agentName",ar.provider AS "provider",
       l.expires_at AS "leaseExpiresAt",l.last_heartbeat_at AS "lastHeartbeatAt",wa.unit_id AS "unitId",
+      activity.last_github_write_at AS "lastGitHubWriteAt",
       rs.plan_status AS "planStatus",rs.last_success_at AS "planRefreshedAt",rs.last_error AS "planError",
       COALESCE(work.open_count,0)::text AS "openUnitCount"
      FROM repositories r
@@ -33,7 +34,12 @@ async function loadBoard():Promise<{rows:WorkBoardRow[];observedAt:number}>{
      LEFT JOIN repository_leases l ON l.repository_id=r.repository_id
      LEFT JOIN agent_runs ar ON ar.run_id=l.run_id
      LEFT JOIN agent_credentials ac ON ac.credential_id=ar.credential_id
-     LEFT JOIN work_assignments wa ON wa.repository_id=r.repository_id AND wa.released_at IS NULL
+     LEFT JOIN work_assignments wa ON wa.repository_id=r.repository_id AND wa.run_id=l.run_id
+       AND wa.lease_generation=l.generation AND wa.released_at IS NULL
+     LEFT JOIN LATERAL (
+       SELECT MAX(a.occurred_at) AS last_github_write_at FROM audit_events a
+       WHERE a.run_id=l.run_id AND a.repository_id=r.repository_id AND a.kind LIKE 'github.write.%'
+     ) activity ON TRUE
      LEFT JOIN repository_sync_status rs ON rs.repository_id=r.repository_id
      LEFT JOIN (
        SELECT repository_id,COUNT(*) FILTER (WHERE approved=TRUE AND state IN ('PENDING','ACTIVE','OPEN_PR')) AS open_count
@@ -58,21 +64,7 @@ export default async function WorkBoardPage(){
   const active=rows.filter(r=>statusOf(r)==="RUNNING").length;
   const attention=rows.filter(r=>["RECOVERING","UNKNOWN"].includes(statusOf(r))).length;
   return <main className="owner-shell work-board-shell">
-    <header className="owner-header">
-      <div><p className="eyebrow">BOARDROOM / LIVE WORK BOARD</p><h1>Repository assignments</h1></div>
-      <nav className="work-nav" aria-label="Boardroom owner views">
-        <Link className="priority-nav" href="/owner-actions">Owner actions</Link>
-        <Link className="priority-nav" href="/priorities">Priorities</Link>
-        <Link className="priority-nav" href="/coffee">Coffee Corner</Link>
-        <Link className="priority-nav" href="/agents">Scheduled agents</Link>
-        <Link className="priority-nav" href="/launch">Five-agent launch</Link>
-        <Link className="priority-nav" href="/system">System status</Link>
-        <Link className="priority-nav" href="/recovery">Recovery queue</Link>
-        <Link className="priority-nav" href="/operations">Operations</Link>
-        <Link className="priority-nav" href="/observatory">Usage observatory</Link>
-        <Link className="priority-nav" href="/reports">Daily report</Link>
-      </nav>
-    </header>
+    <OwnerNavigation section="LIVE WORK BOARD" title="Repository assignments" activePath="/work-board"/>
     <p>This board shows recorded named-agent assignments and GitHub reconciliation evidence, not unverified claims of completed work. A heartbeat or active lease alone does not prove that code is progressing.</p>
     <div className="summary-strip"><strong>{active}</strong> active leases <span>·</span><strong>{attention}</strong> need recovery or verification <span>·</span><strong>{rows.length}</strong> repositories</div>
     <RepositorySyncControls/>
@@ -90,8 +82,10 @@ export default async function WorkBoardPage(){
               <dt>Approved open units</dt><dd>{r.openUnitCount}</dd>
               <dt>Last verified development</dt><dd>{formatEastern(r.lastDevelopmentAt?.toISOString()??null)}</dd>
               <dt>Heartbeat</dt><dd>{formatEastern(r.lastHeartbeatAt?.toISOString()??null)}</dd>
+              <dt>Last recorded GitHub write</dt><dd>{formatEastern(r.lastGitHubWriteAt?.toISOString()??null)}</dd>
               <dt>Roadmap source</dt><dd>{r.planStatus||"Not reconciled"}</dd>
-              {r.planStatus==="ERROR"&&<><dt>Required correction</dt><dd>Verify the installed App&apos;s access and fix the canonical roadmap&apos;s IDs, counts, PR references and dependency graph, then reconcile again.</dd></>}
+              {r.planStatus==="ERROR"&&<><dt>Plan validation</dt><dd>GitHub reconciliation failed ({r.planError||"unclassified"}). Verify the canonical registry and repository access, then refresh.</dd></>}
+              {r.planStatus==="MISSING"&&<><dt>Plan availability</dt><dd>No verified canonical PR plan is available. This is not a failed lease or an active development assignment.</dd></>}
               <dt>Last plan reconciliation</dt><dd>{formatEastern(r.planRefreshedAt?.toISOString()??null)}</dd>
             </dl>
             {status==="RECOVERING"||status==="UNKNOWN"?<p role="status" className="work-warning">Execution health is unverified. Do not assume this repository can be reassigned until recovery/fencing succeeds.</p>:null}
