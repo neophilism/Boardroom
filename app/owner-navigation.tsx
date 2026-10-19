@@ -9,6 +9,9 @@ export default function OwnerNavigation(){
   const [expandedFor,setExpandedFor]=useState<string|null>(null),[signingOut,setSigningOut]=useState(false),[error,setError]=useState("");
   const button=useRef<HTMLButtonElement>(null),open=expandedFor===pathname;
   function close(){setExpandedFor(null);button.current?.focus();}
+  function handleEscape(event:{key:string;preventDefault:()=>void}){
+    if(event.key==="Escape"&&open){event.preventDefault();close();}
+  }
   async function signOut(){
     setSigningOut(true);setError("");
     try{
@@ -20,7 +23,7 @@ export default function OwnerNavigation(){
   }
   return <>
     <a className="boardroom-skip" href="#boardroom-content">Skip to page content</a>
-    <header className="boardroom-topbar">
+    <header className="boardroom-topbar" onKeyDown={handleEscape}>
       <Link href="/work-board" className="boardroom-brand" aria-label="Boardroom work board"><span className="boardroom-mark" aria-hidden="true">B</span><span>Boardroom<small>Owner workspace</small></span></Link>
       <div className="boardroom-top-actions"><span className="boardroom-private"><span aria-hidden="true">●</span> Private workspace</span>
         <button className="outline boardroom-signout" onClick={signOut} disabled={signingOut}>{signingOut?"Signing out…":"Sign out"}</button>
@@ -28,7 +31,11 @@ export default function OwnerNavigation(){
       </div>
       {error&&<p className="boardroom-signout-error error" role="alert">{error}</p>}
     </header>
-    <aside className="boardroom-sidebar" data-open={open} onKeyDown={event=>{if(event.key==="Escape"&&open){event.preventDefault();close();}}}>
+    <aside className="boardroom-sidebar" data-open={open} onKeyDown={handleEscape}>
+      <noscript>
+        <style>{".boardroom-sidebar{display:block!important}.boardroom-top-actions .boardroom-menu{display:none!important}"}</style>
+        <p className="boardroom-nav-note">Navigation remains available without JavaScript. Interactive controls, including sign-out, require JavaScript.</p>
+      </noscript>
       <nav id="boardroom-navigation" aria-label="Boardroom primary navigation">
         {["Workspace","Manage","Oversight"].map(group=><section className="boardroom-nav-group" key={group} aria-label={group}>
           <p className="boardroom-nav-label">{group}</p><ul>{OWNER_NAVIGATION.filter(item=>item.group===group).map(item=><li key={item.href}>
