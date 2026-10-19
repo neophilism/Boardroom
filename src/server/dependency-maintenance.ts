@@ -141,6 +141,36 @@ async function passingCurrentChecks(sha:string,api:string,request:GithubApi):Pro
   ]);
   return exactHeadChecksPass(runs,suites,statuses);
 }
+/** Serialize the final GitHub merge with new agent assignment. The live lease
+ * row and global pause are locked until GitHub confirms the exact-head write.
+ * A check performed only at scan start is insufficient: an agent can claim the
+ * repository while dependency checks are being inspected. */
+async function mergeIfUnleased(db:Pool,repositoryId:string,api:string,pr:GithubPr,
+  request:GithubApi):Promise<boolean>{
+  const client=await db.connect();let inTransaction=false;
+  try{
+    await client.query("BEGIN");inTransaction=true;
+    const status=await client.query<{run_id:string|null;paused:boolean}>(
+      "SELECT l.run_id::text,e.paused FROM repository_leases l CROSS JOIN execution_controls e "+
+      "WHERE l.repository_id=$1 AND e.singleton=TRUE FOR UPDATE OF l",[repositoryId]);
+    if(status.rows.length!==1||status.rows[0].paused!==false||status.rows[0].run_id!==null){
+      await client.query("COMMIT");inTransaction=false;return false;
+    }
+    await client.query(
+      "INSERT INTO audit_events(repository_id,kind,details) VALUES($1,'maintenance.dependabot.merge_intent',$2::jsonb)",
+      [repositoryId,JSON.stringify({prNumber:pr.number,headSha:pr.head!.sha})]);
+    const merged=await request("PUT",api+"/pulls/"+pr.number+"/merge",
+      {sha:pr.head!.sha,merge_method:"squash"}) as {merged?:boolean;sha?:string};
+    if(!merged?.merged||typeof merged.sha!=="string"||!/^[0-9a-f]{40}$/i.test(merged.sha))
+      throw Error("MERGE_UNCONFIRMED");
+    await client.query(
+      "INSERT INTO audit_events(repository_id,kind,details) VALUES($1,'maintenance.dependabot.merged',$2::jsonb)",
+      [repositoryId,JSON.stringify({prNumber:pr.number,headSha:pr.head!.sha,mergeSha:merged.sha})]);
+    await client.query("COMMIT");inTransaction=false;return true;
+  }catch(error){if(inTransaction)await client.query("ROLLBACK");throw error;}
+  finally{client.release();}
+}
+
 async function claimOneRepository(db:Pool,owner:string){
   const client=await db.connect();
   let open=false;
@@ -149,7 +179,7 @@ async function claimOneRepository(db:Pool,owner:string){
     await client.query("SELECT pg_advisory_xact_lock(21413,0)");
     const result=await client.query<{repository_id:string;full_name:string}>(
       "SELECT r.repository_id::text,r.full_name FROM repositories r "+
-      "LEFT JOIN repository_leases l ON l.repository_id=r.repository_id "+
+      "JOIN repository_leases l ON l.repository_id=r.repository_id "+
       "WHERE r.enabled=TRUE AND r.archived=FALSE AND split_part(r.full_name,'/',1)=$1 "+
       "AND l.run_id IS NULL AND NOT EXISTS (SELECT 1 FROM audit_events e "+
       "WHERE e.repository_id=r.repository_id AND e.kind='maintenance.dependabot.started' "+
@@ -172,7 +202,7 @@ export async function scanDependabotMaintenance(db:Pool,request:GithubApi=github
   const report:DependencyScanReport={repository:null,inspected:0,ownerRequestsRemoved:0,
     merged:0,needsAgent:0,deferred:0,errors:0,noWork:false};
   const paused=await db.query<{paused:boolean}>("SELECT paused FROM execution_controls WHERE singleton=TRUE");
-  if(paused.rows[0]?.paused){report.noWork=true;return report;}
+  if(paused.rows.length!==1||paused.rows[0].paused!==false){report.noWork=true;return report;}
   const selected=await claimOneRepository(db,owner);
   if(!selected){report.noWork=true;return report;}
   report.repository=selected.full_name;
@@ -207,16 +237,11 @@ export async function scanDependabotMaintenance(db:Pool,request:GithubApi=github
           continue;
         }
         if(!await passingCurrentChecks(current.head!.sha!,repoApi,request)){report.deferred++;continue;}
-        // The merge endpoint's SHA condition rejects races with Dependabot
-        // rebases; a new scan independently rechecks source and CI.
-        await db.query("INSERT INTO audit_events(repository_id,kind,details) VALUES($1,'maintenance.dependabot.merge_intent',$2::jsonb)",
-          [selected.repository_id,JSON.stringify({prNumber:candidate.number,headSha:current.head!.sha})]);
-        const result=await request("PUT",repoApi+"/pulls/"+candidate.number+"/merge",
-          {sha:current.head!.sha,merge_method:"squash"}) as {merged?:boolean;sha?:string};
-        if(!result?.merged||typeof result.sha!=="string")throw Error("MERGE_UNCONFIRMED");
-        report.merged++;
-        await db.query("INSERT INTO audit_events(repository_id,kind,details) VALUES($1,'maintenance.dependabot.merged',$2::jsonb)",
-          [selected.repository_id,JSON.stringify({prNumber:candidate.number,headSha:current.head!.sha,mergeSha:result.sha})]);
+        // A transactional lease fence also checks whether an agent claimed the
+        // repository after the initial scan. GitHub rejects changed SHA.
+        if(await mergeIfUnleased(db,selected.repository_id,repoApi,current,request))
+          report.merged++;
+        else report.deferred++;
       }catch{
         report.errors++;
         // The outcome of a timed-out GitHub write might be uncertain. Do not
