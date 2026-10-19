@@ -118,6 +118,14 @@ test("native fleet admission is serialized and conserves credits before reposito
   const rejected=await admitAgentRun(db,principals[both.findIndex(x=>x.kind==="CREATED")],null);
   assert.equal(rejected.kind,"THROTTLED");
   if(rejected.kind==="THROTTLED")assert.equal(rejected.budget.reason,"START_COOLDOWN");
+  // Four completed native sessions still consume the rolling 24-hour quota.
+  await db.query("INSERT INTO agent_runs(provider,credential_id,state,started_at,ended_at) "+
+    "VALUES ('chatgpt',$1,'CANCELLED',now()-interval '2 hours',now()), "+
+    "('chatgpt',$2,'CANCELLED',now()-interval '1 hour',now())",
+    [principals[0].credentialId,principals[1].credentialId]);
+  const daily=await admitAgentRun(db,principals[0],null);
+  assert.equal(daily.kind,"THROTTLED");
+  if(daily.kind==="THROTTLED")assert.equal(daily.budget.reason,"DAILY_ADMISSION_CAP");
 });
 
 test("two concurrent sessions claim distinct repositories with top priority included",async()=>{
