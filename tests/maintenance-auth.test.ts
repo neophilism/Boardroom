@@ -47,9 +47,12 @@ test("wrong signing keys, wrong algorithms and malformed tokens are rejected",as
   for(const value of [null,"Bearer unsigned","Bearer "+symmetric,"Bearer "+"a".repeat(16001)])
     assert.equal(await authorizeMaintenance(value,env,keys.publicKey,now),null);
 });
-test("OIDC is opt-in and a configured legacy token remains separately supported",async()=>{
+test("OIDC verifies without an opt-in flag; reusable legacy token never authorizes a tick",async()=>{
   const assertion=await bearer();
-  assert.equal(await authorizeMaintenance(assertion,{NODE_ENV:"test"},keys.publicKey,now),null);
+  const oidcEnv:NodeJS.ProcessEnv={NODE_ENV:"test",BOARDROOM_PUBLIC_ORIGIN:"https://boardroom.example"};
+  assert.deepEqual(await authorizeMaintenance(assertion,oidcEnv,keys.publicKey,now),
+    {method:"github-oidc",workflowRunId:"123456",sha:"a".repeat(40)});
   const legacy="legacy-fixture-token-".repeat(3);
-  assert.deepEqual(await authorizeMaintenance("Bearer "+legacy,{NODE_ENV:"test",BOARDROOM_WATCHDOG_TOKEN:legacy},keys.publicKey,now),{method:"legacy-token"});
+  assert.equal(await authorizeMaintenance("Bearer "+legacy,{...oidcEnv,BOARDROOM_WATCHDOG_TOKEN:legacy},keys.publicKey,now),null);
+  assert.equal(await authorizeMaintenance(await bearer({event_name:"workflow_dispatch"}),oidcEnv,keys.publicKey,now),null);
 });
