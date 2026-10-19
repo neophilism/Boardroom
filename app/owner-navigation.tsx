@@ -9,7 +9,7 @@ const main=[
 const extra=[
 {href:"/operations",label:"Operations"},{href:"/recovery",label:"Recovery"},
 {href:"/reports",label:"Reports"},{href:"/logical-agents",label:"API agents"},
-{href:"/launch",label:"Agent launch"}] as const;
+{href:"/launch",label:"Agent launch"},{href:"/agent-status",label:"Agent assignments"}] as const;
 function active(path:string,href:string){return path===href||path.startsWith(href+"/");}
 export default function OwnerNavigation({section,title,activePath}:{section:string,title:ReactNode,activePath:string}){
 const hasMore=extra.some(x=>active(activePath,x.href));

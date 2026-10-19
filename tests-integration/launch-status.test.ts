@@ -14,7 +14,7 @@ const db=new Pool({connectionString:url,max:2});after(async()=>db.end());
 test("native launch observes real consent, token expiry and revocation without exposing secrets",async()=>{
   const pepper="launch-fixture-pepper".repeat(3),verifier="l".repeat(64);
   const env:NodeJS.ProcessEnv={NODE_ENV:"test",BOARDROOM_PUBLIC_ORIGIN:"https://boardroom.example"};
-  const registered=await registerNamedAgent(db,{name:"Bishop",provider:"chatgpt",authentication:"oauth"},pepper);
+  const registered=await registerNamedAgent(db,{name:"Bishop",provider:"chatgpt",authentication:"oauth",accountEmail:"bishop@example.test"},pepper);
   const find=async()=>(await getLaunchStatus(db)).agents.find(a=>a.credentialId===registered.credentialId);
   assert.equal(registered.token,undefined);
   assert.equal((await find())?.connected,false);
