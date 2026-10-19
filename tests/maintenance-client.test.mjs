@@ -13,10 +13,10 @@ test("GitHub assertion is requested for the exact maintenance audience without f
   });
   assert.equal(token,"signed.fixture.jwt");
 });
-test("a supplied protected legacy credential requires no GitHub request",async()=>{
-  assert.equal(await maintenanceCredential({BOARDROOM_WATCHDOG_TOKEN:"protected-fixture"},origin,async()=>{
+test("a supplied legacy credential never bypasses the GitHub OIDC request",async()=>{
+  await assert.rejects(maintenanceCredential({BOARDROOM_WATCHDOG_TOKEN:"protected-fixture"},origin,async()=>{
     throw new Error("Must not request another credential");
-  }),"protected-fixture");
+  }),/Maintenance authentication is not configured/);
 });
 test("untrusted identity endpoints and malformed provider results are rejected",async()=>{
   for(const endpoint of ["http://pipelines.actions.githubusercontent.com/fixture","https://attacker.invalid/fixture",
