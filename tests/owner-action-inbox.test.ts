@@ -12,10 +12,12 @@ const actions = [
 
 test("inbox query parsing rejects unsupported filter and sort values",()=>{
   assert.deepEqual(parseOwnerActionInboxView({status:"blocked",sort:"newest"}),{filter:"BLOCKED",sort:"NEWEST"});
-  assert.deepEqual(parseOwnerActionInboxView({status:"secret",sort:"random"}),{filter:"ALL",sort:"OLDEST"});
+  assert.deepEqual(parseOwnerActionInboxView({status:"secret",sort:"random"}),{filter:"ACTIVE",sort:"OLDEST"});
+  assert.deepEqual(parseOwnerActionInboxView({}),{filter:"ACTIVE",sort:"OLDEST"});
 });
 
 test("inbox status groups distinguish outstanding, blocked, verification, complete, and declined",()=>{
+  assert.deepEqual(selectOwnerActionInbox(actions,"ACTIVE","OLDEST").map(x=>x.action_id),["1","2","3"]);
   assert.deepEqual(selectOwnerActionInbox(actions,"OUTSTANDING","OLDEST").map(x=>x.action_id),["1"]);
   assert.deepEqual(selectOwnerActionInbox(actions,"BLOCKED","OLDEST").map(x=>x.action_id),["2"]);
   assert.deepEqual(selectOwnerActionInbox(actions,"AWAITING_VERIFICATION","OLDEST").map(x=>x.action_id),["3"]);
