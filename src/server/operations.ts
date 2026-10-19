@@ -93,7 +93,7 @@ export async function operationsOverview(db:Pool){
       COALESCE(p.required_checks,'[]'::jsonb) AS "requiredChecks",
       COALESCE(p.max_session_seconds,3300) AS "maxSessionSeconds",COALESCE(p.max_tool_calls,100) AS "maxToolCalls",COALESCE(p.max_tokens,100000) AS "maxTokens"
       FROM repositories r LEFT JOIN repository_execution_policy p ON p.repository_id=r.repository_id ORDER BY r.full_name`),
-    db.query(`SELECT ar.run_id,ar.state,c.label,ar.provider,ar.started_at,ar.last_seen_at,ar.ended_at,
+    db.query(`SELECT ar.run_id,ar.state,c.label,c.credential_id::text AS "credentialId",ar.provider,ar.started_at,ar.last_seen_at,ar.ended_at,
       r.full_name,a.unit_id FROM agent_runs ar JOIN agent_credentials c ON c.credential_id=ar.credential_id
       LEFT JOIN work_assignments a ON a.run_id=ar.run_id AND a.released_at IS NULL LEFT JOIN repositories r ON r.repository_id=a.repository_id
       ORDER BY ar.started_at DESC LIMIT 100`),

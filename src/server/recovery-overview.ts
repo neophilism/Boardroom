@@ -1,7 +1,7 @@
 import type {Pool} from "pg";
 
 export type RecoveryEntry={
-  repositoryId:string;repository:string;runId:string;agentName:string|null;
+  repositoryId:string;repository:string;runId:string;agentName:string|null;credentialId:string|null;
   provider:string|null;runState:string;leaseGeneration:string;
   leaseExpiredAt:Date;lastHeartbeatAt:Date|null;
   workUnitId:string|null;ownerActionId:string|null;ownerActionStatus:string|null;
@@ -10,7 +10,7 @@ export type RecoveryEntry={
 export async function getRecoveryOverview(db:Pool):Promise<RecoveryEntry[]>{
   const result=await db.query<RecoveryEntry>(
     `SELECT r.repository_id::text AS "repositoryId",r.full_name AS "repository",
-       ar.run_id::text AS "runId",ac.label AS "agentName",ar.provider AS "provider",
+       ar.run_id::text AS "runId",ac.label AS "agentName",ac.credential_id::text AS "credentialId",ar.provider AS "provider",
        ar.state AS "runState",l.generation::text AS "leaseGeneration",
        l.expires_at AS "leaseExpiredAt",l.last_heartbeat_at AS "lastHeartbeatAt",
        wa.unit_id AS "workUnitId",oa.action_id::text AS "ownerActionId",
