@@ -13,7 +13,7 @@ type WorkBoardRow={
   repositoryId:string;fullName:string;description:string|null;enabled:boolean;archived:boolean;
   priorityPosition:number|null;lastDevelopmentAt:Date|null;createdAt:Date;
   runId:string|null;runState:string|null;agentName:string|null;provider:string|null;
-  leaseExpiresAt:Date|null;lastHeartbeatAt:Date|null;unitId:string|null;
+  leaseExpiresAt:Date|null;lastHeartbeatAt:Date|null;lastGitHubWriteAt:Date|null;unitId:string|null;
   planStatus:string|null;planRefreshedAt:Date|null;openUnitCount:string;
   planError:string|null;
 };
@@ -26,6 +26,7 @@ async function loadBoard():Promise<{rows:WorkBoardRow[];observedAt:number}>{
       r.last_development_at AS "lastDevelopmentAt",r.created_at AS "createdAt",
       l.run_id::text AS "runId",ar.state AS "runState",ac.label AS "agentName",ar.provider AS "provider",
       l.expires_at AS "leaseExpiresAt",l.last_heartbeat_at AS "lastHeartbeatAt",wa.unit_id AS "unitId",
+      activity.last_github_write_at AS "lastGitHubWriteAt",
       rs.plan_status AS "planStatus",rs.last_success_at AS "planRefreshedAt",rs.last_error AS "planError",
       COALESCE(work.open_count,0)::text AS "openUnitCount"
      FROM repositories r
@@ -33,7 +34,12 @@ async function loadBoard():Promise<{rows:WorkBoardRow[];observedAt:number}>{
      LEFT JOIN repository_leases l ON l.repository_id=r.repository_id
      LEFT JOIN agent_runs ar ON ar.run_id=l.run_id
      LEFT JOIN agent_credentials ac ON ac.credential_id=ar.credential_id
-     LEFT JOIN work_assignments wa ON wa.repository_id=r.repository_id AND wa.released_at IS NULL
+     LEFT JOIN work_assignments wa ON wa.repository_id=r.repository_id AND wa.run_id=l.run_id
+       AND wa.lease_generation=l.generation AND wa.released_at IS NULL
+     LEFT JOIN LATERAL (
+       SELECT MAX(a.occurred_at) AS last_github_write_at FROM audit_events a
+       WHERE a.run_id=l.run_id AND a.repository_id=r.repository_id AND a.kind LIKE 'github.write.%'
+     ) activity ON TRUE
      LEFT JOIN repository_sync_status rs ON rs.repository_id=r.repository_id
      LEFT JOIN (
        SELECT repository_id,COUNT(*) FILTER (WHERE approved=TRUE AND state IN ('PENDING','ACTIVE','OPEN_PR')) AS open_count
@@ -76,6 +82,7 @@ export default async function WorkBoardPage(){
               <dt>Approved open units</dt><dd>{r.openUnitCount}</dd>
               <dt>Last verified development</dt><dd>{formatEastern(r.lastDevelopmentAt?.toISOString()??null)}</dd>
               <dt>Heartbeat</dt><dd>{formatEastern(r.lastHeartbeatAt?.toISOString()??null)}</dd>
+              <dt>Last recorded GitHub write</dt><dd>{formatEastern(r.lastGitHubWriteAt?.toISOString()??null)}</dd>
               <dt>Roadmap source</dt><dd>{r.planStatus||"Not reconciled"}</dd>
               {r.planStatus==="ERROR"&&<><dt>Required correction</dt><dd>Verify the installed App&apos;s access and fix the canonical roadmap&apos;s IDs, counts, PR references and dependency graph, then reconcile again.</dd></>}
               <dt>Last plan reconciliation</dt><dd>{formatEastern(r.planRefreshedAt?.toISOString()??null)}</dd>
