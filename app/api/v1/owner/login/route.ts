@@ -1,4 +1,5 @@
 import {NextResponse} from "next/server";
+import {boundedRequestText,RequestBodyTooLarge} from "../../../../../src/server/request-body";
 import {authorizeOwnerCredential,UnauthorizedOwner,OwnerConfigurationError}
   from "../../../../../src/server/owner-auth";
 import {newOwnerSession,OWNER_COOKIE,OWNER_SESSION_SECONDS}
@@ -9,7 +10,8 @@ const headers={"Cache-Control":"no-store"};
 
 export async function POST(request:Request){
   try{
-    const body:unknown=await request.json().catch(()=>null);
+    let body:unknown;
+    try{body=JSON.parse(await boundedRequestText(request,8192));}catch(error){if(error instanceof RequestBodyTooLarge)throw error;body=null;}
     if(!body||typeof body!=="object"||Array.isArray(body)||
        !("token" in body)||typeof body.token!=="string")
       return NextResponse.json({error:"Credential required",code:"INVALID_REQUEST"},{status:400,headers});
@@ -23,6 +25,8 @@ export async function POST(request:Request){
     });
     return response;
   }catch(error){
+    if(error instanceof RequestBodyTooLarge)
+      return NextResponse.json({error:"Delivery too large"},{status:413,headers});
     if(error instanceof UnauthorizedOwner)
       return NextResponse.json({error:"Invalid owner credential",code:"INVALID_CREDENTIAL"},{status:401,headers});
     if(error instanceof OwnerConfigurationError)
