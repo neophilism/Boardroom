@@ -4,6 +4,7 @@ import {scanStaleSessions,recoverFencedOAuthSessions} from "../../../../../src/s
 import {authorizeMaintenance} from "../../../../../src/server/maintenance-auth";
 import {queueInventoryRefresh,dispatchOutbox} from "../../../../../src/server/outbox";
 import {reconcilePrApprovalActions} from "../../../../../src/server/pr-action-reconciliation";
+import {scanDependabotMaintenance} from "../../../../../src/server/dependency-maintenance";
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
 export async function POST(request:Request){
@@ -14,8 +15,9 @@ export async function POST(request:Request){
     const db=getDatabase();const watchdog=await scanStaleSessions(db); const oauthRecovery=await recoverFencedOAuthSessions(db);
     await queueInventoryRefresh(db);const outbox=await dispatchOutbox(db,4);
     const approvals=await reconcilePrApprovalActions(db);
+    const dependencies=await scanDependabotMaintenance(db);
     await db.query("INSERT INTO audit_events(kind,details) VALUES('maintenance.tick.completed',$1::jsonb)",
-      [JSON.stringify({watchdog,oauthRecovery,outbox,approvals,principal})]);
-    return NextResponse.json({watchdog,oauthRecovery,outbox,approvals},{headers});
+      [JSON.stringify({watchdog,oauthRecovery,outbox,approvals,dependencies,principal})]);
+    return NextResponse.json({watchdog,oauthRecovery,outbox,approvals,dependencies},{headers});
   }catch{return NextResponse.json({error:"Maintenance unavailable"},{status:503,headers});}
 }
