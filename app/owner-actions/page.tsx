@@ -14,7 +14,7 @@ type ActionRow={
   affected:{repositoryId:string;fullName:string|null;unitId:string|null}[];
 };
 const filterOptions=[
-  ["ALL","All"],["OUTSTANDING","Outstanding"],["BLOCKED","Blocked"],
+  ["ACTIVE","Needs your attention"],["ALL","All history"],["OUTSTANDING","Outstanding"],["BLOCKED","Blocked"],
   ["AWAITING_VERIFICATION","Awaiting verification"],["COMPLETE","Complete"],["DECLINED","Declined"]
 ] as const;
 const sortOptions=[["OLDEST","Oldest first"],["NEWEST","Newest first"],["STATUS","Status"],["TITLE","Title"]] as const;
@@ -47,7 +47,7 @@ export default async function OwnerActionsPage({searchParams}:{searchParams:Prom
       <label htmlFor="action-sort">Sort</label>
       <select id="action-sort" name="sort" defaultValue={view.sort}>{sortOptions.map(([value,label])=><option value={value} key={value}>{label}</option>)}</select>
       <button type="submit">Apply</button>
-      <Link href="/owner-actions">Reset</Link>
+      <Link href="/owner-actions">Show active tasks</Link>
     </form>
     <p className="action-inbox-result" aria-live="polite">Showing {actions.length} of {allActions.length} actions.</p>
     {actions.length===0?<section className="action-card"><h2>No matching requests</h2><p>Change or reset the inbox filters to inspect other owner actions.</p></section>:
