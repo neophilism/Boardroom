@@ -29,7 +29,7 @@ export function parseAdrEvidence(input:unknown,repository:string){
   const url=new URL(input);
   const parts=url.pathname.split('/').filter(Boolean);
   const file=parts.slice(4).map(decodeURIComponent).join('/');
-  if(url.origin!=="https://github.com"||url.search||url.hash||parts.slice(0,2).join('/').toLowerCase()!==repository.toLowerCase()||
+  if(url.origin!=="https://github.com"||url.username||url.password||url.search||url.hash||parts.slice(0,2).join('/').toLowerCase()!==repository.toLowerCase()||
     parts[2]!=="blob"||!/^[a-f0-9]{40}$/i.test(parts[3]??"")||
     !/^docs\/(?:decisions|adr)\/[A-Za-z0-9._/-]+\.md$/.test(file)||file.split('/').some(p=>!p||p==='.'||p==='..'))
     throw new SessionConflict("ADR must be an immutable commit reference in the assigned repository");
