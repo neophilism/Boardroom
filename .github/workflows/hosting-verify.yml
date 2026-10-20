@@ -1,0 +1,30 @@
+name: Verify alternative Boardroom host
+on:
+  workflow_dispatch:
+    inputs:
+      origin:
+        description: "Exact HTTPS origin of the host being verified, without a path"
+        required: true
+        type: string
+      expected_commit:
+        description: "Full 40-character deployed source SHA"
+        required: true
+        type: string
+permissions:
+  contents: read
+jobs:
+  verify:
+    name: Real HTTPS API, database readiness and anonymous denial
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Verify release without any privileged runtime token
+        env:
+          BOARDROOM_BASE_URL: ${{ inputs.origin }}
+          BOARDROOM_EXPECTED_REVISION: ${{ inputs.expected_commit }}
+        run: node --experimental-strip-types scripts/smoke-deployment.mjs

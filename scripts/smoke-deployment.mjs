@@ -3,8 +3,13 @@ import assert from "node:assert/strict";
 import {verifyAgentInterface} from "../src/server/agent-interface-smoke.ts";
 import {checkDeploymentEvidence,expectedReleaseRevision} from "../src/domain/deployment-evidence.ts";
 
-const base="https://boardroom-iamn.onrender.com";
-const expectedRevision=expectedReleaseRevision(process.env.BOARDROOM_EXPECTED_REVISION);
+const origin=process.env.BOARDROOM_BASE_URL??"https://boardroom-iamn.onrender.com";
+const parsed=new URL(origin);
+if(parsed.protocol!=="https:"||parsed.username||parsed.password||parsed.pathname!=="/"||parsed.search||parsed.hash){
+  throw new Error("BOARDROOM_BASE_URL must be a credential-free HTTPS origin");
+}
+const base=parsed.origin;
+const expectedRevision=expectedReleaseRevision(process.env.BOARDROOM_EXPECTED_REVISION?.trim() || undefined);
 const deadline=Date.now()+12*60*1000;
 const pause=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 async function request(path,options={}){

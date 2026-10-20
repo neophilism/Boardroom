@@ -1,0 +1,10 @@
+# Free-tier Render suspension recovery: Next.js App Router + OpenNext.
+# Netlify auto-installs and updates its official Next.js adapter. Do NOT pin
+# the adapter or publish static HTML in place of the authenticated API.
+[build]
+  command = "node scripts/prepare-netlify-build.mjs && npm run build"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "22"
+  NEXT_TELEMETRY_DISABLED = "1"

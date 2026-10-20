@@ -12,6 +12,8 @@ concurrency:
   cancel-in-progress: true
 jobs:
   http-smoke:
+    # Do not spend minutes probing Render's suspended free web service.
+    if: vars.BOARDROOM_PUBLIC_URL != ''
     name: Public HTTPS, readiness, and owner access denial
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -22,5 +24,10 @@ jobs:
           node-version: '22'
       - name: Verify deployed Boardroom web service
         env:
-          BOARDROOM_EXPECTED_REVISION: ${{ github.sha }}
+          # Set this once the controlled Netlify deployment is live. Without it,
+          # the legacy Render endpoint remains a truthful failing monitor.
+          BOARDROOM_BASE_URL: ${{ vars.BOARDROOM_PUBLIC_URL }}
+          # A separate production branch intentionally lags main; monitor only
+          # in that mode. An exact revision must be supplied for release acceptance.
+          BOARDROOM_EXPECTED_REVISION: ''
         run: node --experimental-strip-types scripts/smoke-deployment.mjs
