@@ -37,3 +37,11 @@ Use `registry/prs.json` as the sole active PR plan for Boardroom and Engine Room
 ## Direct GitHub PR merges
 
 When an agent merges a PR outside Boardroom's authenticated guarded endpoint, it must first use the fail-closed, current-head CI procedure in `docs/GITHUB_MERGE_PREFLIGHT.md` (implemented by `scripts/verify-pr-merge.mjs`). Failed, pending, skipped, unstarted, capacity-blocked, missing or incomplete test checks are blockers, even for documentation-only policy changes; leave such PRs open and move on. This requirement does not impose independent-human-audit certification.
+
+
+## Boardroom portable hosting rule — October 20, 2026
+
+- The owner explicitly says Boardroom's application is already functional; the October 19 Render outage is the exhausted **free compute quota**, not a reason to recreate, reset or redesign Boardroom.
+- Use `docs/HOSTING_PORTABILITY.md` to deploy the current same release on Netlify Free, Deno Deploy Free or the existing Oracle Always Free VM. Preserve the production Neon database, credentials and existing agents. Never purchase hosting, enable auto-recharge, start a paid instance, or move data into an empty replacement database to bypass the suspension.
+- **Exactly one** provider may be active for production webhooks, OAuth/agent traffic, and scheduled maintenance. Standbys must be paused/disabled after real verification; keep deploy configurations and pinned branches for rapid switchover. No URL is considered restored until real health, readiness, authentication denial, owner login and agent operations pass.
+- GitHub Actions variable `BOARDROOM_PUBLIC_URL` is the active origin. Until set, maintenance and hosted workers must not probe the suspended Render site. Provider connections and credentials are external prerequisites, not GitHub commits.

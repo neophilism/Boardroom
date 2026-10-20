@@ -9,7 +9,7 @@ if(parsed.protocol!=="https:"||parsed.username||parsed.password||parsed.pathname
   throw new Error("BOARDROOM_BASE_URL must be a credential-free HTTPS origin");
 }
 const base=parsed.origin;
-const expectedRevision=expectedReleaseRevision(process.env.BOARDROOM_EXPECTED_REVISION);
+const expectedRevision=expectedReleaseRevision(process.env.BOARDROOM_EXPECTED_REVISION?.trim() || undefined);
 const deadline=Date.now()+12*60*1000;
 const pause=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 async function request(path,options={}){

@@ -8,7 +8,7 @@ let connection: Pool | undefined;
 export function getDatabase(): Pool {
   const url = process.env.DATABASE_URL;
   if (!url) throw new Error("DATABASE_URL missing: Boardroom database is not configured");
-  const serverless = Boolean(process.env.AWS_LAMBDA_FUNCTION_NAME) || process.env.NETLIFY === "true";
+  const serverless = Boolean(process.env.AWS_LAMBDA_FUNCTION_NAME) || process.env.NETLIFY === "true" || process.env.DENO_DEPLOY === "true";
   return connection ??= new Pool({
     connectionString: url,
     max: serverless ? 2 : 8,

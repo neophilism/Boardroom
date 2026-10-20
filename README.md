@@ -8,7 +8,8 @@ The execution batch in [PR #42](https://github.com/neophilism/Boardroom/pull/42)
 
 **Merged code is not a verified unattended production system.** See the [release checklist](docs/RELEASE_STATUS.md) for the remaining live integration gates and evidence. The previous Neon authentication failure is no longer the migration-validation blocker; actual deployment and configured-worker acceptance must be checked separately.
 
-- Application: https://boardroom-iamn.onrender.com. Private operating screens require owner authentication. A historical successful deployment does not prove the latest revision is live.
+- **Portable $0 hosting:** [Netlify, Deno Deploy and existing Oracle VM](docs/HOSTING_PORTABILITY.md). Use the preserved Neon database; verify a live host before activating agents. The old Render endpoint below is **suspended for exhausted free instance hours**, not a source-code failure.
+- Historical Render application: https://boardroom-iamn.onrender.com. Private operating screens require owner authentication. A historical successful deployment does not prove the latest revision is live.
 - Five named workers: [Launch checklist and shared instructions](docs/FIVE_AGENT_LAUNCH.md), available privately at `/launch`.
 - Setup and verification: [Deployment Runbook](docs/DEPLOYMENT_RUNBOOK.md).
 - Worker activation and cost controls: [Hosted Worker Setup](docs/HOSTED_WORKER_SETUP.md).

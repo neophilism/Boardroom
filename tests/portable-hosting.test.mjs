@@ -37,3 +37,11 @@ test("Deploy configuration avoids embedded credentials in public deployment conf
     assert.doesNotMatch(config,/BOARDROOM_SESSION_SECRET\s*=/);
   }
 });
+
+
+test("No automated Boardroom job calls the suspended Render endpoint before an active URL is configured",()=>{
+  for(const path of [".github/workflows/runtime-smoke.yml",".github/workflows/maintenance.yml",".github/workflows/hosted-agents.yml"]){
+    const text=src(path);
+    assert.match(text,/vars\.BOARDROOM_PUBLIC_URL != ''/);
+  }
+});
