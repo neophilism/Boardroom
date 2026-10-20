@@ -1,0 +1,47 @@
+# Deploy an already-built, verified GHCR container on the existing Oracle
+# Always Free VM. Runtime credentials live only in its private .env file.
+services:
+  boardroom:
+    image: ${BOARDROOM_IMAGE:?Set a verified Boardroom GHCR image tag or digest}
+    env_file:
+      - .env
+    environment:
+      PORT: "10000"
+      NODE_ENV: production
+      BOARDROOM_PUBLIC_ORIGIN: https://${BOARDROOM_HOSTNAME:?Set an HTTPS hostname}
+      NODE_OPTIONS: "--max-old-space-size=384"
+    expose:
+      - "10000"
+    mem_limit: 736m
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:10000/api/ready').then(r=>process.exit(r.status===200?0:1)).catch(()=>process.exit(1))"
+      interval: 30s
+      timeout: 10s
+      start_period: 120s
+      retries: 3
+  caddy:
+    image: caddy:2.10.2-alpine
+    environment:
+      BOARDROOM_HOSTNAME: ${BOARDROOM_HOSTNAME:?Set an HTTPS hostname}
+      ACME_EMAIL: ${ACME_EMAIL:?Set an ACME contact email}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      boardroom:
+        condition: service_healthy
+    restart: unless-stopped
+volumes:
+  caddy_data:
+  caddy_config:

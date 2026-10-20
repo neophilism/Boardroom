@@ -1,0 +1,12 @@
+{
+    email {$ACME_EMAIL}
+}
+{$BOARDROOM_HOSTNAME} {
+    encode zstd gzip
+    header {
+        -Server
+        X-Content-Type-Options nosniff
+        Referrer-Policy no-referrer
+    }
+    reverse_proxy boardroom:10000
+}
