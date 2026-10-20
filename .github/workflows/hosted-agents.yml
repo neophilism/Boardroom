@@ -26,7 +26,7 @@ jobs:
         run: npm run agent:run
         env:
           BOARDROOM_RUN_ENABLED: ${{ vars.BOARDROOM_RUN_ENABLED }}
-          BOARDROOM_BASE_URL: ${{ vars.BOARDROOM_BASE_URL }}
+          BOARDROOM_BASE_URL: ${{ vars.BOARDROOM_PUBLIC_URL || vars.BOARDROOM_BASE_URL }}
           BOARDROOM_AGENT_NAME: ${{ vars.BOARDROOM_AGENT_NAME }}
           BOARDROOM_AGENT_TOKEN: ${{ secrets.BOARDROOM_AGENT_TOKEN }}
           BOARDROOM_MODEL_PROVIDER: ${{ vars.BOARDROOM_MODEL_PROVIDER }}

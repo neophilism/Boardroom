@@ -1,6 +1,11 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   poweredByHeader: false,
+  // These are production runtime inputs used by Boardroom's server-side routes.
+  // Include them in the traced function bundle on serverless Next.js hosts.
+  outputFileTracingIncludes: {
+    "/*": ["./db/migrations/**/*", "./registry/**/*", "./docs/**/*"]
+  },
   async headers(){
     const headers=[
       {key:"X-Frame-Options",value:"DENY"},
